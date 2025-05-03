@@ -6,13 +6,19 @@ import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
+import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
 import com.tebutebu.apiserver.dto.oauth.request.OAuthCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
 import com.tebutebu.apiserver.repository.MemberRepository;
+import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
+import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +29,15 @@ import java.util.NoSuchElementException;
 @Log4j2
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
+
+    @Value("${spring.jwt.refresh.cookie.name}")
+    private String REFRESH_COOKIE_NAME;
+
+    @Value("${spring.jwt.access-token.expiration}")
+    private int accessTokenExpiration;
+
+    @Value("${spring.jwt.refresh-token.expiration}")
+    private int refreshTokenExpiration;
 
     private final MemberRepository memberRepository;
 
@@ -42,7 +57,8 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
-    public Long registerOAuthUser(MemberOAuthSignupRequestDTO dto) {
+    public MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto,
+                                                     HttpServletResponse response) {
 
         var auth = JWTUtil.parseSignupToken(dto.getSignupToken());
         String provider = auth.provider();
@@ -55,13 +71,37 @@ public class MemberServiceImpl implements MemberService {
 
         Member member = memberRepository.save(dtoToEntity(dto, email));
 
+        CustomOAuth2User customOAuth2User = new CustomOAuth2User(member);
+        Map<String, Object> attributes = customOAuth2User.getAttributes();
+
+        String accessToken = JWTUtil.generateToken(attributes, accessTokenExpiration);
+        String refreshToken= JWTUtil.generateToken(attributes, refreshTokenExpiration);
+        refreshTokenService.persistRefreshToken(member.getId(), refreshToken);
+
+        Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
+                REFRESH_COOKIE_NAME,
+                refreshToken,
+                60 * 60 * 60
+        );
+        response.addCookie(refreshCookie);
+
         OAuthCreateRequestDTO oauthDto = OAuthCreateRequestDTO.builder()
                 .memberId(member.getId())
                 .provider(provider)
                 .providerId(providerId)
                 .build();
         oauthService.register(oauthDto);
-        return member.getId();
+
+        return MemberSignupResponseDTO.builder()
+                .id(member.getId())
+                .teamId(member.getTeam() != null ? member.getTeam().getId() : null)
+                .email(member.getEmail())
+                .name(member.getName())
+                .nickname(member.getNickname())
+                .role(member.getRole().name())
+                .state(member.getState().name())
+                .accessToken(accessToken)
+                .build();
     }
 
     @Override
