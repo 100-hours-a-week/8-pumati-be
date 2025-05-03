@@ -42,6 +42,6 @@ public class MemberOAuthSignupRequestDTO {
     private Course course;
 
     @Builder.Default
-    private MemberRole role = MemberRole.ROLE_USER;
+    private MemberRole role = MemberRole.USER;
 
 }
