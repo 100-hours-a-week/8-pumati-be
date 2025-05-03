@@ -1,16 +1,22 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
+import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.service.MemberService;
+import com.tebutebu.apiserver.util.JWTUtil;
+import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
+
+import static org.springframework.http.HttpStatus.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -31,6 +37,15 @@ public class MemberController {
         long memberId = memberService.registerOAuthUser(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("message", "registerSuccess", "data", Map.of("id", memberId)));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> modify(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @Valid MemberUpdateRequestDTO dto
+    ) {
+        memberService.modify(authorizationHeader, dto);
+        return ResponseEntity.ok(Map.of("message", "modifyMemberSuccess"));
     }
 
 }

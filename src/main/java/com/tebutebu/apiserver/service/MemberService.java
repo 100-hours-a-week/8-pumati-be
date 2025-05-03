@@ -2,15 +2,19 @@ package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
+import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 public interface MemberService {
 
+    @Transactional(readOnly = true)
     MemberResponseDTO get(Long memberId);
 
     Long registerOAuthUser(MemberOAuthSignupRequestDTO dto);
+
+    void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
 
     Member dtoToEntity(MemberOAuthSignupRequestDTO dto, String email);
 

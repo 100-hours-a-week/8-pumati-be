@@ -77,4 +77,32 @@ public class Member extends TimeStampedEntity {
     @Builder.Default
     private MemberState state = MemberState.ACTIVE;
 
+    public void changeCourse(Course course) {
+        this.course = course;
+    }
+
+    public void changeTeam(Team team) {
+        this.team = team;
+    }
+
+    public void changeName(String name) {
+        this.name = name;
+    }
+
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void changeProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void changeRole(MemberRole role) {
+        this.role = role;
+    }
+
+    public void changeState(MemberState state) {
+        this.state = state;
+    }
+
 }

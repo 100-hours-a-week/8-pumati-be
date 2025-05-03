@@ -4,6 +4,7 @@ import com.github.javafaker.Faker;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
+import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.oauth.request.OAuthCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
@@ -59,6 +60,40 @@ public class MemberServiceImpl implements MemberService {
                 .build();
         oauthService.register(oauthDto);
         return member.getId();
+    }
+
+    @Override
+    public void modify(String authorizationHeader, MemberUpdateRequestDTO dto) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomValidationException("memberNotFound"));
+
+        TeamResponseDTO teamDto = teamService.getByTermAndNumber(dto.getTerm(), dto.getTeamNumber());
+        member.changeTeam(teamDto == null ? null : Team.builder().id(teamDto.getId()).build());
+
+        if (dto.getProfileImageUrl() != null && !dto.getProfileImageUrl().isEmpty()) {
+            member.changeProfileImageUrl(dto.getProfileImageUrl());
+        }
+
+        member.changeName(dto.getName());
+        member.changeNickname(dto.getNickname());
+        member.changeCourse(dto.getCourse());
+        member.changeRole(dto.getRole());
+
+        memberRepository.save(member);
+    }
+
+    public Long extractMemberIdFromHeader(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("invalidToken");
+        }
+        String token = authorizationHeader.substring(7);
+        Map<String,Object> claims = JWTUtil.validateToken(token);
+        Number idClaim = (Number) claims.get("id");
+        if (idClaim == null) {
+            throw new IllegalArgumentException("invalidToken");
+        }
+        return idClaim.longValue();
     }
 
     @Override
