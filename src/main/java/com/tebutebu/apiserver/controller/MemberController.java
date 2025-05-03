@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
+import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,12 @@ import java.util.Map;
 public class MemberController {
 
     private final MemberService memberService;
+
+    @GetMapping("/{memberId}")
+    public ResponseEntity<?> get(@PathVariable("memberId") Long memberId) {
+        MemberResponseDTO dto = memberService.get(memberId);
+        return ResponseEntity.ok(Map.of("message", "success", "data", dto));
+    }
 
     @PostMapping("/social")
     public ResponseEntity<?> registerOAuthUser(@Valid MemberOAuthSignupRequestDTO dto) {

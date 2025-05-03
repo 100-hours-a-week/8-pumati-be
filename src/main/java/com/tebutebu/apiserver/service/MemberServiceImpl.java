@@ -4,6 +4,7 @@ import com.github.javafaker.Faker;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
+import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.oauth.request.OAuthCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
 import com.tebutebu.apiserver.repository.MemberRepository;
@@ -15,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @Service
 @Log4j2
@@ -28,6 +30,13 @@ public class MemberServiceImpl implements MemberService {
     private final TeamService teamService;
 
     private final OAuthService oauthService;
+
+    @Override
+    public MemberResponseDTO get(Long memberId) {
+        Member member = memberRepository.findByIdWithTeam(memberId)
+                .orElseThrow(() -> new NoSuchElementException("userNotFound"));
+        return entityToDTO(member);
+    }
 
     @Override
     public Long registerOAuthUser(MemberOAuthSignupRequestDTO dto) {
