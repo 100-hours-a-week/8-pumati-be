@@ -27,11 +27,15 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     public void createOrUpdateRefreshToken(RefreshTokenCreateRequestDTO dto) {
-        refreshTokenRepository.findByMemberId(dto.getMemberId())
-                .ifPresent(refreshTokenRepository::delete);
+        RefreshToken token = refreshTokenRepository.findByMemberId(dto.getMemberId())
+                .map(existing -> {
+                    existing.changeToken(dto.getToken());
+                    existing.changeExpiresAt(dto.getExpiresAt());
+                    return existing;
+                })
+                .orElseGet(() -> dtoToEntity(dto));
 
-        RefreshToken saved = refreshTokenRepository.save(dtoToEntity(dto));
-        entityToDTO(saved);
+        refreshTokenRepository.save(token);
     }
 
     @Override
