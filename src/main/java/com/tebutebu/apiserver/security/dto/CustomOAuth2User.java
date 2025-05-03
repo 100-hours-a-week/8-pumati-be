@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.security.dto;
 
 import com.tebutebu.apiserver.domain.Member;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -10,12 +11,16 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+@Getter
 public class CustomOAuth2User implements OAuth2User {
 
     private final Member member;
 
+    private final Long memberId;
+
     public CustomOAuth2User(Member member) {
         this.member = member;
+        this.memberId = member.getId();
     }
 
     @Override

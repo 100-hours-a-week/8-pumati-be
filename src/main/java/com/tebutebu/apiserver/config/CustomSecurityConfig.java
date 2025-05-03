@@ -1,10 +1,13 @@
 package com.tebutebu.apiserver.config;
 
+import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.security.filter.JWTCheckFilter;
 import com.tebutebu.apiserver.security.handler.CustomAccessDeniedHandler;
 import com.tebutebu.apiserver.security.handler.CustomLoginFailHandler;
 import com.tebutebu.apiserver.security.handler.CustomLoginSuccessHandler;
+import com.tebutebu.apiserver.security.handler.CustomLogoutHandler;
 import com.tebutebu.apiserver.security.service.CustomOAuth2UserService;
+import com.tebutebu.apiserver.service.RefreshTokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,8 @@ import java.util.List;
 public class CustomSecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
+
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${spring.jwt.access-token.expiration}")
     private int accessTokenExpiration;
@@ -76,7 +81,7 @@ public class CustomSecurityConfig {
                         .baseUri("/api/oauth/{registrationId}")
                 )
                 .userInfoEndpoint(uie -> uie.userService(customOAuth2UserService))
-                .successHandler(new CustomLoginSuccessHandler(accessTokenExpiration, refreshTokenExpiration))
+                .successHandler(new CustomLoginSuccessHandler(refreshTokenService, accessTokenExpiration, refreshTokenExpiration))
                 .failureHandler(new CustomLoginFailHandler())
         );
 
@@ -84,12 +89,9 @@ public class CustomSecurityConfig {
 
         http.logout(logout -> logout
                 .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/tokens", "DELETE"))
-                .logoutSuccessHandler((request, response, authentication) -> {
-                    Cookie cookie = new Cookie("refreshToken", null);
-                    cookie.setPath("/");
-                    cookie.setMaxAge(0);
-                    response.addCookie(cookie);
-                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                .addLogoutHandler(new CustomLogoutHandler(refreshTokenService))
+                .logoutSuccessHandler((req, res, auth) -> {
+                    res.setStatus(HttpServletResponse.SC_NO_CONTENT);
                 })
         );
 

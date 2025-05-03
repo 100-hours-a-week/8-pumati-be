@@ -1,7 +1,9 @@
 package com.tebutebu.apiserver.security.handler;
 
 import com.google.gson.Gson;
+import com.tebutebu.apiserver.dto.refreshtoken.request.RefreshTokenCreateRequestDTO;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
+import com.tebutebu.apiserver.service.RefreshTokenService;
 import com.tebutebu.apiserver.util.JWTUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,12 +15,15 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @Log4j2
 @AllArgsConstructor
 public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
+
+    private final RefreshTokenService refreshTokenService;
 
     private int accessTokenExpiration, refreshTokenExpiration;
 
@@ -32,6 +37,8 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         String accessToken = JWTUtil.generateToken(originalAttributes, accessTokenExpiration);
         String refreshToken = JWTUtil.generateToken(originalAttributes, refreshTokenExpiration);
+
+        persistRefreshToken(customOAuth2User.getMemberId(), refreshToken);
 
         responseData.put("accessToken", accessToken);
 
@@ -57,6 +64,16 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         return cookie;
+    }
+
+    private void persistRefreshToken(Long memberId, String refreshToken) {
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(refreshTokenExpiration);
+        RefreshTokenCreateRequestDTO dto = RefreshTokenCreateRequestDTO.builder()
+                .memberId(memberId)
+                .token(refreshToken)
+                .expiresAt(expiresAt)
+                .build();
+        refreshTokenService.createOrUpdateRefreshToken(dto);
     }
 
 }
