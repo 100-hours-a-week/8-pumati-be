@@ -9,7 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public interface RefreshTokenService {
 
-    RefreshTokenResponseDTO createOrUpdateRefreshToken(RefreshTokenCreateRequestDTO dto);
+    void createOrUpdateRefreshToken(RefreshTokenCreateRequestDTO dto);
+
+    void persistRefreshToken(Long memberId, String refreshToken);
 
     @Transactional(readOnly = true)
     RefreshTokenResponseDTO findByToken(String token);

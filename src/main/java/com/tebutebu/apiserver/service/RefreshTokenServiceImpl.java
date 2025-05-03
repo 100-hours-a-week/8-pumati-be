@@ -8,6 +8,7 @@ import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
 import com.tebutebu.apiserver.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -21,13 +22,27 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
 
+    @Value("${spring.jwt.refresh-token.expiration}")
+    private int refreshTokenExpiration;
+
     @Override
-    public RefreshTokenResponseDTO createOrUpdateRefreshToken(RefreshTokenCreateRequestDTO dto) {
+    public void createOrUpdateRefreshToken(RefreshTokenCreateRequestDTO dto) {
         refreshTokenRepository.findByMemberId(dto.getMemberId())
                 .ifPresent(refreshTokenRepository::delete);
 
         RefreshToken saved = refreshTokenRepository.save(dtoToEntity(dto));
-        return entityToDTO(saved);
+        entityToDTO(saved);
+    }
+
+    @Override
+    public void persistRefreshToken(Long memberId, String refreshToken) {
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(refreshTokenExpiration);
+        RefreshTokenCreateRequestDTO dto = RefreshTokenCreateRequestDTO.builder()
+                .memberId(memberId)
+                .token(refreshToken)
+                .expiresAt(expiresAt)
+                .build();
+        createOrUpdateRefreshToken(dto);
     }
 
     @Override
