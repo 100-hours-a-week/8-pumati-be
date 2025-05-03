@@ -24,14 +24,14 @@ public class MemberController {
     @GetMapping("/{memberId}")
     public ResponseEntity<?> get(@PathVariable("memberId") Long memberId) {
         MemberResponseDTO dto = memberService.get(memberId);
-        return ResponseEntity.ok(Map.of("message", "success", "data", dto));
+        return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
     }
 
     @PostMapping("/social")
     public ResponseEntity<?> registerOAuthUser(@Valid MemberOAuthSignupRequestDTO dto) {
         long memberId = memberService.registerOAuthUser(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of("message", "registerSuccess", "data", Map.of("id", memberId)));
+                .body(Map.of("message", "signupSuccess", "data", Map.of("id", memberId)));
     }
 
     @PutMapping("/me")
