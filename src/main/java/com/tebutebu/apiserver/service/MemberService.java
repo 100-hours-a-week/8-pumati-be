@@ -16,6 +16,8 @@ public interface MemberService {
 
     void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
 
+    void delete(String authorizationHeader);
+
     Member dtoToEntity(MemberOAuthSignupRequestDTO dto, String email);
 
     default MemberResponseDTO entityToDTO(Member member) {

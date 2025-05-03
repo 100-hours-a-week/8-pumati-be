@@ -10,6 +10,8 @@ public interface OAuthService {
 
     Long register(OAuthCreateRequestDTO dto);
 
+    void deleteByMemberId(Long memberId);
+
     OAuth dtoToEntity(OAuthCreateRequestDTO dto);
 
     default OAuthResponseDTO entityToDTO(OAuth oAuth) {

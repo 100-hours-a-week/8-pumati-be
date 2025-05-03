@@ -4,19 +4,14 @@ import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.service.MemberService;
-import com.tebutebu.apiserver.util.JWTUtil;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
-
-import static org.springframework.http.HttpStatus.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -46,6 +41,14 @@ public class MemberController {
     ) {
         memberService.modify(authorizationHeader, dto);
         return ResponseEntity.ok(Map.of("message", "modifyMemberSuccess"));
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<?> delete(
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        memberService.delete(authorizationHeader);
+        return ResponseEntity.ok(Map.of("message", "memberDeleted"));
     }
 
 }

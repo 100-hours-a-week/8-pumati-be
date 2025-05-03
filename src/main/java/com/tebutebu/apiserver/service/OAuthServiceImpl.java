@@ -32,6 +32,12 @@ public class OAuthServiceImpl implements OAuthService {
     }
 
     @Override
+    public void deleteByMemberId(Long memberId) {
+        oAuthRepository.findByMemberId(memberId)
+                .ifPresent(oAuthRepository::delete);
+    }
+
+    @Override
     public OAuth dtoToEntity(OAuthCreateRequestDTO dto) {
         return OAuth.builder()
                 .member(Member.builder().id(dto.getMemberId()).build())

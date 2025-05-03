@@ -32,6 +32,8 @@ public class MemberServiceImpl implements MemberService {
 
     private final OAuthService oauthService;
 
+    private final RefreshTokenService refreshTokenService;
+
     @Override
     public MemberResponseDTO get(Long memberId) {
         Member member = memberRepository.findByIdWithTeam(memberId)
@@ -81,6 +83,20 @@ public class MemberServiceImpl implements MemberService {
         member.changeRole(dto.getRole());
 
         memberRepository.save(member);
+    }
+
+    @Override
+    public void delete(String authorizationHeader) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+
+        refreshTokenService.deleteByMemberId(memberId);
+        oauthService.deleteByMemberId(memberId);
+
+        if (!memberRepository.existsById(memberId)) {
+            throw new CustomValidationException("memberNotFound");
+        }
+
+        memberRepository.deleteById(memberId);
     }
 
     public Long extractMemberIdFromHeader(String authorizationHeader) {
