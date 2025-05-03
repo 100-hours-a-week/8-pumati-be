@@ -32,10 +32,10 @@ public class MemberServiceImpl implements MemberService {
     @Override
     public Long registerOAuthUser(MemberOAuthSignupRequestDTO dto) {
 
-        Map<String,Object> claims = JWTUtil.validateToken(dto.getSignupToken());
-        String provider = (String) claims.get("provider");
-        String providerId = (String) claims.get("providerId");
-        String email = (String) claims.get("email");
+        var auth = JWTUtil.parseSignupToken(dto.getSignupToken());
+        String provider = auth.provider();
+        String providerId = auth.providerId();
+        String email = auth.email();
 
         if (memberRepository.existsByEmail(email)) {
             throw new CustomValidationException("emailAlreadyExists");

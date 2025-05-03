@@ -68,4 +68,13 @@ public class JWTUtil {
         return claim;
     }
 
+    public static SignupTokenRecord parseSignupToken(String signupToken) {
+        var claims = validateToken(signupToken);
+        return new SignupTokenRecord(
+                (String) claims.get("provider"),
+                (String) claims.get("providerId"),
+                (String) claims.get("email")
+        );
+    }
+
 }
