@@ -17,46 +17,57 @@ import java.util.NoSuchElementException;
 public class CustomControllerAdvice {
 
     @ExceptionHandler(NoSuchElementException.class)
-    protected ResponseEntity<?> handleNotFound(NoSuchElementException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("message", e.getMessage()));
+    protected ResponseEntity<Map<String, String>> handleNotFound(NoSuchElementException e) {
+        return build(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    protected ResponseEntity<?> handleInvalidArgument(MethodArgumentNotValidException e) {
-        String msg = e.getBindingResult()
-                .getFieldErrors()
-                .stream()
+    protected ResponseEntity<Map<String, String>> handleInvalidArgument(MethodArgumentNotValidException e) {
+        String msg = e.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(DefaultMessageSourceResolvable::getDefaultMessage)
                 .orElse("invalidRequest");
-        return ResponseEntity.badRequest()
-                .body(Map.of("message", msg));
-    }
-
-    @ExceptionHandler(CustomJWTException.class)
-    protected ResponseEntity<?> handleJWTException(CustomJWTException e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("message", e.getMessage()));
-    }
-
-    @ExceptionHandler(CustomAuthenticationException.class)
-    protected ResponseEntity<?> handleAuthenticationException(CustomAuthenticationException e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("message", "invalidCredentials"));
-    }
-
-    @ExceptionHandler(CustomServiceException.class)
-    protected ResponseEntity<?> handleServiceException(CustomServiceException e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("message", "internalServerError"));
+        return build(HttpStatus.BAD_REQUEST, msg);
     }
 
     @ExceptionHandler(CustomValidationException.class)
-    protected ResponseEntity<?> handleValidationException(CustomValidationException e) {
-        log.info("Validation Exception: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("message", e.getMessage()));
+    protected ResponseEntity<Map<String, String>> handleValidationException(CustomValidationException e) {
+        log.info("Validation failed: {}", e.getMessage());
+        return build(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
+    @ExceptionHandler(CustomJWTException.class)
+    protected ResponseEntity<Map<String, String>> handleJWTException(CustomJWTException e) {
+        return build(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
+    @ExceptionHandler(CustomAuthenticationException.class)
+    protected ResponseEntity<Map<String, String>> handleAuthenticationException(CustomAuthenticationException e) {
+        return build(HttpStatus.UNAUTHORIZED, "invalidCredentials");
+    }
+
+    @ExceptionHandler(CustomServiceException.class)
+    protected ResponseEntity<Map<String, String>> handleServiceException(CustomServiceException e) {
+        log.error("Service exception", e);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "internalServerError");
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    protected ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
+        HttpStatus status = "invalidToken".equals(e.getMessage())
+                ? HttpStatus.UNAUTHORIZED
+                : HttpStatus.BAD_REQUEST;
+        return build(status, e.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    protected ResponseEntity<Map<String, String>> handleGeneric(Exception e) {
+        log.error("Unhandled exception", e);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "internalServerError");
+    }
+
+    private ResponseEntity<Map<String, String>> build(HttpStatus status, String message) {
+        return ResponseEntity.status(status)
+                .body(Map.of("message", message));
+    }
 }
