@@ -1,4 +1,4 @@
-package com.tebutebu.apiserver.dto.refreshtoken.request;
+package com.tebutebu.apiserver.dto.token.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -8,8 +8,6 @@ import lombok.Setter;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter

@@ -1,9 +1,9 @@
 package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.RefreshToken;
-import com.tebutebu.apiserver.dto.refreshtoken.request.RefreshTokenCreateRequestDTO;
-import com.tebutebu.apiserver.dto.refreshtoken.request.RefreshTokenRotateRequestDTO;
-import com.tebutebu.apiserver.dto.refreshtoken.response.RefreshTokenResponseDTO;
+import com.tebutebu.apiserver.dto.token.request.RefreshTokenCreateRequestDTO;
+import com.tebutebu.apiserver.dto.token.request.RefreshTokenRotateRequestDTO;
+import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional

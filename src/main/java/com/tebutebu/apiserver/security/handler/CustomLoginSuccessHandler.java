@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.security.handler;
 
 import com.google.gson.Gson;
-import com.tebutebu.apiserver.dto.refreshtoken.request.RefreshTokenCreateRequestDTO;
+import com.tebutebu.apiserver.dto.token.request.RefreshTokenCreateRequestDTO;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.RefreshTokenService;
 import com.tebutebu.apiserver.util.JWTUtil;

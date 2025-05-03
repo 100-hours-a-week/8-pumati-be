@@ -1,4 +1,4 @@
-package com.tebutebu.apiserver.dto.refreshtoken.response;
+package com.tebutebu.apiserver.dto.token.response;
 
 import lombok.Getter;
 import lombok.Setter;
