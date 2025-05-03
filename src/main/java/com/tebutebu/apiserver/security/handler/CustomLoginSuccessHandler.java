@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.tebutebu.apiserver.dto.token.request.RefreshTokenCreateRequestDTO;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.RefreshTokenService;
+import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,8 @@ import java.util.Map;
 @Log4j2
 @AllArgsConstructor
 public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
+
+    private static final String REFRESH_COOKIE_NAME = "refreshToken";
 
     private final RefreshTokenService refreshTokenService;
 
@@ -42,7 +45,11 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         responseData.put("accessToken", accessToken);
 
-        Cookie refreshCookie = createCookie("refreshToken", refreshToken);
+        Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
+                REFRESH_COOKIE_NAME,
+                refreshToken,
+                60 * 60 * 60
+        );
         response.addCookie(refreshCookie);
 
         Map<String, Object> responseBody = Map.of(
@@ -55,15 +62,6 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
         try (PrintWriter out = response.getWriter()) {
             out.println(new Gson().toJson(responseBody));
         }
-    }
-
-    private Cookie createCookie(String key, String value) {
-        Cookie cookie = new Cookie(key, value);
-        cookie.setMaxAge(60 * 60 * 60);
-        // cookie.setSecure(true);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        return cookie;
     }
 
     private void persistRefreshToken(Long memberId, String refreshToken) {
