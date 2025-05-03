@@ -1,6 +1,5 @@
 package com.tebutebu.apiserver.config;
 
-import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.security.filter.JWTCheckFilter;
 import com.tebutebu.apiserver.security.handler.CustomAccessDeniedHandler;
 import com.tebutebu.apiserver.security.handler.CustomLoginFailHandler;
@@ -8,11 +7,9 @@ import com.tebutebu.apiserver.security.handler.CustomLoginSuccessHandler;
 import com.tebutebu.apiserver.security.handler.CustomLogoutHandler;
 import com.tebutebu.apiserver.security.service.CustomOAuth2UserService;
 import com.tebutebu.apiserver.service.RefreshTokenService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
@@ -43,11 +40,11 @@ public class CustomSecurityConfig {
 
     private final RefreshTokenService refreshTokenService;
 
-    @Value("${spring.jwt.access-token.expiration}")
-    private int accessTokenExpiration;
+    private final CustomLoginSuccessHandler loginSuccessHandler;
 
-    @Value("${spring.jwt.refresh-token.expiration}")
-    private int refreshTokenExpiration;
+    private final CustomLoginFailHandler loginFailHandler;
+
+    private final CustomLogoutHandler logoutHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder(){
@@ -81,8 +78,8 @@ public class CustomSecurityConfig {
                         .baseUri("/api/oauth/{registrationId}")
                 )
                 .userInfoEndpoint(uie -> uie.userService(customOAuth2UserService))
-                .successHandler(new CustomLoginSuccessHandler(refreshTokenService, accessTokenExpiration, refreshTokenExpiration))
-                .failureHandler(new CustomLoginFailHandler())
+                .successHandler(loginSuccessHandler)
+                .failureHandler(loginFailHandler)
         );
 
         http.addFilterBefore(new JWTCheckFilter(), UsernamePasswordAuthenticationFilter.class);

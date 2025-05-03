@@ -9,10 +9,12 @@ import com.tebutebu.apiserver.util.JWTUtil;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -21,14 +23,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Log4j2
-@AllArgsConstructor
+@Component
+@RequiredArgsConstructor
 public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
-
-    private static final String REFRESH_COOKIE_NAME = "refreshToken";
 
     private final RefreshTokenService refreshTokenService;
 
-    private int accessTokenExpiration, refreshTokenExpiration;
+    @Value("${spring.jwt.access-token.expiration}")
+    private int accessTokenExpiration;
+
+    @Value("${spring.jwt.refresh-token.expiration}")
+    private int refreshTokenExpiration;
+
+    @Value("${spring.jwt.refresh.cookie.name}")
+    private String refreshCookieName;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
@@ -46,7 +54,7 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
         responseData.put("accessToken", accessToken);
 
         Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
-                REFRESH_COOKIE_NAME,
+                refreshCookieName,
                 refreshToken,
                 60 * 60 * 60
         );
