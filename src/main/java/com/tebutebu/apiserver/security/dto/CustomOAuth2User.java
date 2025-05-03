@@ -36,6 +36,7 @@ public class CustomOAuth2User implements OAuth2User {
         attributes.put("nickname", member.getNickname());
         attributes.put("profileImageUrl", member.getProfileImageUrl());
         attributes.put("role", member.getRole().name());
+        attributes.put("state", member.getState());
         return Collections.unmodifiableMap(attributes);
     }
 
