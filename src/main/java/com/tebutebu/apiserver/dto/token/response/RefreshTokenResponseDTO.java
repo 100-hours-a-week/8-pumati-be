@@ -23,4 +23,8 @@ public class RefreshTokenResponseDTO {
 
     private LocalDateTime expiresAt;
 
+    public boolean isExpired() {
+        return expiresAt.isBefore(LocalDateTime.now());
+    }
+
 }

@@ -65,18 +65,13 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             throw new IllegalArgumentException("invalidOrExpiredRefreshToken");
         }
 
-        old.changeExpiresAt(LocalDateTime.now());
-        refreshTokenRepository.save(old);
+        LocalDateTime newExpiry = LocalDateTime.now().plusMinutes(dto.getNewExpiryMinutes());
+        old.changeExpiresAt(newExpiry);
 
         String newToken = UUID.randomUUID().toString();
-        LocalDateTime newExpiry = LocalDateTime.now().plusMinutes(dto.getNewExpiryMinutes());
-        RefreshToken next = RefreshToken.builder()
-                .member(Member.builder().id(dto.getMemberId()).build())
-                .token(newToken)
-                .expiresAt(newExpiry)
-                .build();
+        old.changeToken(newToken);
 
-        RefreshToken saved = refreshTokenRepository.save(next);
+        RefreshToken saved = refreshTokenRepository.save(old);
         return entityToDTO(saved);
     }
 

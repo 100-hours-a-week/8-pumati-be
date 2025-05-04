@@ -1,17 +1,14 @@
 package com.tebutebu.apiserver.service;
 
-import com.tebutebu.apiserver.domain.RefreshToken;
 import com.tebutebu.apiserver.dto.token.TokensDTO;
-import com.tebutebu.apiserver.repository.RefreshTokenRepository;
+import com.tebutebu.apiserver.dto.token.request.RefreshTokenRotateRequestDTO;
+import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
 import com.tebutebu.apiserver.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
@@ -20,16 +17,13 @@ public class AuthServiceImpl implements AuthService {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${spring.jwt.access-token.expiration}")
     private int accessTokenExpiration;
 
     @Value("${spring.jwt.refresh-token.expiration}")
     private int refreshTokenExpiration;
-
-    @Value("${spring.jwt.refresh.threshold}")
-    private int refreshThreshold;
 
     @Override
     public TokensDTO refreshTokens(String authorizationHeader, String refreshTokenCookie) {
@@ -43,15 +37,25 @@ public class AuthServiceImpl implements AuthService {
                     .build();
         }
 
-        Map<String, Object> claims = JWTUtil.validateToken(refreshTokenCookie);
-        RefreshToken stored = loadAndVerifyStoredRefreshToken(refreshTokenCookie);
+        RefreshTokenResponseDTO storedDto = refreshTokenService.findByToken(refreshTokenCookie);
+        if (storedDto.isExpired()) {
+            throw new IllegalArgumentException("expiredRefreshToken");
+        }
 
-        String newAccess  = JWTUtil.generateToken(claims, accessTokenExpiration);
-        String newRefresh = rotateRefreshToken(claims, stored);
+        Map<String, Object> claims = JWTUtil.validateToken(refreshTokenCookie);
+
+        String newAccess = JWTUtil.generateToken(claims, accessTokenExpiration);
+
+        RefreshTokenRotateRequestDTO rotateDto = RefreshTokenRotateRequestDTO.builder()
+                .memberId(storedDto.getMemberId())
+                .oldToken(storedDto.getToken())
+                .newExpiryMinutes(refreshTokenExpiration)
+                .build();
+        RefreshTokenResponseDTO rotated = refreshTokenService.rotateToken(rotateDto);
 
         return TokensDTO.builder()
                 .accessToken(newAccess)
-                .refreshToken(newRefresh)
+                .refreshToken(rotated.getToken())
                 .build();
     }
 
@@ -66,29 +70,6 @@ public class AuthServiceImpl implements AuthService {
 
     private String extractAccessToken(String authHeader) {
         return authHeader.substring(BEARER_PREFIX.length());
-    }
-
-    private RefreshToken loadAndVerifyStoredRefreshToken(String refreshToken) {
-        RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new IllegalArgumentException("refreshTokenNotFound"));
-        if (stored.isExpired()) {
-            throw new IllegalArgumentException("expiredRefreshToken");
-        }
-        return stored;
-    }
-
-    private String rotateRefreshToken(Map<String,Object> claims, RefreshToken stored) {
-        Instant expiresAt = Instant.ofEpochSecond(((Number)claims.get("exp")).longValue());
-        long minutesLeft = Duration.between(Instant.now(), expiresAt).toMinutes();
-
-        if (minutesLeft < refreshThreshold) {
-            String rotated = JWTUtil.generateToken(claims, refreshTokenExpiration);
-            stored.changeToken(rotated);
-            stored.changeExpiresAt(LocalDateTime.now().plusMinutes(refreshTokenExpiration));
-            refreshTokenRepository.save(stored);
-            return rotated;
-        }
-        return stored.getToken();
     }
 
     private boolean isExpired(String token) {
