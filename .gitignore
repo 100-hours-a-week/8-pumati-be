@@ -35,3 +35,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Java version ###
+.java-version
+
+### Environment variables ###
+.env.local
+
+### Local build ###
+build-local.sh
