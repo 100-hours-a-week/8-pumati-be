@@ -2,6 +2,7 @@ package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
+import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
 import com.tebutebu.apiserver.repository.TeamRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
@@ -9,8 +10,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2
@@ -34,6 +39,34 @@ public class TeamServiceImpl implements TeamService {
         Optional<Team> result = teamRepository.findByTermAndNumber(term, number);
         Team team = result.orElseThrow(() -> new NoSuchElementException("teamNotFound"));
         return entityToDTO(team);
+    }
+
+    @Override
+    public List<TeamListResponseDTO> getAllTeams() {
+        List<Team> all = teamRepository.findAll();
+        if (all.isEmpty()) {
+            throw new NoSuchElementException("noTeamNumbersAvailable");
+        }
+
+        Map<Integer, List<Integer>> grouped = all.stream()
+                .collect(Collectors.groupingBy(
+                        Team::getTerm,
+                        TreeMap::new,
+                        Collectors.mapping(
+                                Team::getNumber,
+                                Collectors.collectingAndThen(
+                                        Collectors.toSet(),
+                                        set -> set.stream().sorted().toList()
+                                )
+                        )
+                ));
+
+        return grouped.entrySet().stream()
+                .map(e -> TeamListResponseDTO.builder()
+                        .term(e.getKey())
+                        .teamNumbers(e.getValue())
+                        .build())
+                .toList();
     }
 
     @Override
