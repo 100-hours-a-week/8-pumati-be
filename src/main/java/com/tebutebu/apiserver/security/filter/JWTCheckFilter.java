@@ -39,7 +39,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         }
 
         if (request.getMethod().equals("POST")) {
-            if (path.equals("/api/members/social") || path.startsWith("/api/auth/")) {
+            if (path.equals("/api/members/social") || path.startsWith("/api/auth/") || path.equals("/api/pre-signed-url") || path.equals("/api/pre-signed-urls")) {
                 return true;
             }
         }
