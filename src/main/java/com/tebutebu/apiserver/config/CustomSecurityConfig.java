@@ -6,7 +6,6 @@ import com.tebutebu.apiserver.security.handler.CustomLoginFailHandler;
 import com.tebutebu.apiserver.security.handler.CustomLoginSuccessHandler;
 import com.tebutebu.apiserver.security.handler.CustomLogoutHandler;
 import com.tebutebu.apiserver.security.service.CustomOAuth2UserService;
-import com.tebutebu.apiserver.service.RefreshTokenService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -37,8 +36,6 @@ import java.util.List;
 public class CustomSecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
-
-    private final RefreshTokenService refreshTokenService;
 
     private final CustomLoginSuccessHandler loginSuccessHandler;
 
@@ -86,7 +83,7 @@ public class CustomSecurityConfig {
 
         http.logout(logout -> logout
                 .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/tokens", "DELETE"))
-                .addLogoutHandler(new CustomLogoutHandler(refreshTokenService))
+                .addLogoutHandler(logoutHandler)
                 .logoutSuccessHandler((req, res, auth) -> {
                     res.setStatus(HttpServletResponse.SC_NO_CONTENT);
                 })
