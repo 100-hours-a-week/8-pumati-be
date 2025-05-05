@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tebutebu.apiserver.security.filter.JWTCheckFilter;
 import com.tebutebu.apiserver.security.handler.CustomAccessDeniedHandler;
 import com.tebutebu.apiserver.security.handler.CustomLoginFailHandler;
@@ -28,6 +29,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -85,7 +87,11 @@ public class CustomSecurityConfig {
                 .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/tokens", "DELETE"))
                 .addLogoutHandler(logoutHandler)
                 .logoutSuccessHandler((req, res, auth) -> {
-                    res.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                    res.setStatus(HttpServletResponse.SC_OK);
+                    res.setContentType("application/json; charset=UTF-8");
+                    new ObjectMapper().writeValue(res.getWriter(),
+                            Map.of("message", "logoutSuccess")
+                    );
                 })
         );
 
