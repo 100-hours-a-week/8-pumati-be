@@ -8,10 +8,9 @@ import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.time.Duration;
@@ -28,11 +27,11 @@ public class PreSignedUrlServiceImpl implements PreSignedUrlService {
     @Value("${aws.s3.bucket.name}")
     private String bucketName;
 
+    @Value("${aws.region}")
+    private String region;
+
     @Value("${aws.s3.expiration.put.minutes:15}")
     private long putExpirationMinutes;
-
-    @Value("${aws.s3.expiration.get.hours:24}")
-    private long getExpirationHours;
 
     @Value("${aws.s3.max-request-count:10}")
     private int maxCount;
@@ -48,12 +47,15 @@ public class PreSignedUrlServiceImpl implements PreSignedUrlService {
         String objectKey = "uploads/" + UUID.randomUUID() + ext;
 
         String uploadUrl = generatePutPreSignedUrl(objectKey, dto.getContentType());
-        String downloadUrl = generateGetPreSignedUrl(objectKey);
+        String publicUrl = String.format(
+                "https://%s.s3.%s.amazonaws.com/%s",
+                bucketName, region, objectKey
+        );
 
         return SinglePreSignedUrlResponseDTO.builder()
                 .objectKey(objectKey)
                 .uploadUrl(uploadUrl)
-                .downloadUrl(downloadUrl)
+                .publicUrl(publicUrl)
                 .build();
     }
 
@@ -76,24 +78,13 @@ public class PreSignedUrlServiceImpl implements PreSignedUrlService {
                 .bucket(bucketName)
                 .key(objectKey)
                 .contentType(contentType)
+                .acl(ObjectCannedACL.PUBLIC_READ)
                 .build();
         PresignedPutObjectRequest preSignedPut = s3Presigner.presignPutObject(r -> r
                 .signatureDuration(Duration.ofMinutes(putExpirationMinutes))
                 .putObjectRequest(putReq)
         );
         return preSignedPut.url().toString();
-    }
-
-    private String generateGetPreSignedUrl(String objectKey) {
-        GetObjectRequest getReq = GetObjectRequest.builder()
-                .bucket(bucketName)
-                .key(objectKey)
-                .build();
-        PresignedGetObjectRequest preSignedGet = s3Presigner.presignGetObject(r -> r
-                .signatureDuration(Duration.ofHours(getExpirationHours))
-                .getObjectRequest(getReq)
-        );
-        return preSignedGet.url().toString();
     }
 
 }

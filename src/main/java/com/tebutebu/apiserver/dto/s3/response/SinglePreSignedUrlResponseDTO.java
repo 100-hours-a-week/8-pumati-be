@@ -13,6 +13,6 @@ public class SinglePreSignedUrlResponseDTO {
 
     private String uploadUrl;
 
-    private String downloadUrl;
+    private String publicUrl;
 
 }
