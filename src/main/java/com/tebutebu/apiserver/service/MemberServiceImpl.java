@@ -1,0 +1,170 @@
+package com.tebutebu.apiserver.service;
+
+import com.github.javafaker.Faker;
+import com.tebutebu.apiserver.domain.Member;
+import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
+import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
+import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
+import com.tebutebu.apiserver.dto.oauth.request.OAuthCreateRequestDTO;
+import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
+import com.tebutebu.apiserver.repository.MemberRepository;
+import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
+import com.tebutebu.apiserver.util.CookieUtil;
+import com.tebutebu.apiserver.util.JWTUtil;
+import com.tebutebu.apiserver.util.exception.CustomValidationException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.NoSuchElementException;
+
+@Service
+@Log4j2
+@RequiredArgsConstructor
+public class MemberServiceImpl implements MemberService {
+
+    @Value("${spring.jwt.refresh.cookie.name}")
+    private String REFRESH_COOKIE_NAME;
+
+    @Value("${spring.jwt.access-token.expiration}")
+    private int accessTokenExpiration;
+
+    @Value("${spring.jwt.refresh-token.expiration}")
+    private int refreshTokenExpiration;
+
+    private final MemberRepository memberRepository;
+
+    private final PasswordEncoder passwordEncoder;
+
+    private final TeamService teamService;
+
+    private final OAuthService oauthService;
+
+    private final RefreshTokenService refreshTokenService;
+
+    @Override
+    public MemberResponseDTO get(Long memberId) {
+        Member member = memberRepository.findByIdWithTeam(memberId)
+                .orElseThrow(() -> new NoSuchElementException("userNotFound"));
+        return entityToDTO(member);
+    }
+
+    @Override
+    public MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto,
+                                                     HttpServletResponse response) {
+
+        var auth = JWTUtil.parseSignupToken(dto.getSignupToken());
+        String provider = auth.provider();
+        String providerId = auth.providerId();
+        String email = auth.email();
+
+        if (memberRepository.existsByEmail(email)) {
+            throw new CustomValidationException("emailAlreadyExists");
+        }
+
+        Member member = memberRepository.save(dtoToEntity(dto, email));
+
+        CustomOAuth2User customOAuth2User = new CustomOAuth2User(member);
+        Map<String, Object> attributes = customOAuth2User.getAttributes();
+
+        String accessToken = JWTUtil.generateToken(attributes, accessTokenExpiration);
+        String refreshToken= JWTUtil.generateToken(attributes, refreshTokenExpiration);
+        refreshTokenService.persistRefreshToken(member.getId(), refreshToken);
+
+        Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
+                REFRESH_COOKIE_NAME,
+                refreshToken,
+                60 * 60 * 60
+        );
+        response.addCookie(refreshCookie);
+
+        OAuthCreateRequestDTO oauthDto = OAuthCreateRequestDTO.builder()
+                .memberId(member.getId())
+                .provider(provider)
+                .providerId(providerId)
+                .build();
+        oauthService.register(oauthDto);
+
+        return MemberSignupResponseDTO.builder()
+                .id(member.getId())
+                .teamId(member.getTeam() != null ? member.getTeam().getId() : null)
+                .email(member.getEmail())
+                .name(member.getName())
+                .nickname(member.getNickname())
+                .role(member.getRole().name())
+                .state(member.getState().name())
+                .accessToken(accessToken)
+                .build();
+    }
+
+    @Override
+    public void modify(String authorizationHeader, MemberUpdateRequestDTO dto) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomValidationException("memberNotFound"));
+
+        TeamResponseDTO teamDto = teamService.getByTermAndNumber(dto.getTerm(), dto.getTeamNumber());
+        member.changeTeam(teamDto == null ? null : Team.builder().id(teamDto.getId()).build());
+
+        if (dto.getProfileImageUrl() != null && !dto.getProfileImageUrl().isEmpty()) {
+            member.changeProfileImageUrl(dto.getProfileImageUrl());
+        }
+
+        member.changeName(dto.getName());
+        member.changeNickname(dto.getNickname());
+        member.changeCourse(dto.getCourse());
+        member.changeRole(dto.getRole());
+
+        memberRepository.save(member);
+    }
+
+    @Override
+    public void delete(String authorizationHeader) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+
+        refreshTokenService.deleteByMemberId(memberId);
+        oauthService.deleteByMemberId(memberId);
+
+        if (!memberRepository.existsById(memberId)) {
+            throw new CustomValidationException("memberNotFound");
+        }
+
+        memberRepository.deleteById(memberId);
+    }
+
+    public Long extractMemberIdFromHeader(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("invalidToken");
+        }
+        String token = authorizationHeader.substring(7);
+        Map<String,Object> claims = JWTUtil.validateToken(token);
+        Number idClaim = (Number) claims.get("id");
+        if (idClaim == null) {
+            throw new IllegalArgumentException("invalidToken");
+        }
+        return idClaim.longValue();
+    }
+
+    @Override
+    public Member dtoToEntity(MemberOAuthSignupRequestDTO dto, String email) {
+        TeamResponseDTO teamResponseDTO = teamService.getByTermAndNumber(dto.getTerm(), dto.getTeamNumber());
+        return Member.builder()
+                .team(teamResponseDTO == null ? null : Team.builder().id(teamResponseDTO.getId()).build())
+                .email(email)
+                .password(passwordEncoder.encode(new Faker().internet().password()))
+                .name(dto.getName())
+                .nickname(dto.getNickname())
+                .course(dto.getCourse())
+                .profileImageUrl(dto.getProfileImageUrl())
+                .role(dto.getRole())
+                .build();
+    }
+
+}
