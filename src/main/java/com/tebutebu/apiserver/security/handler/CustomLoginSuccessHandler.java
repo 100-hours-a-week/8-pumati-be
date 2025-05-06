@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.security.handler;
 
+import com.google.gson.Gson;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.RefreshTokenService;
 import com.tebutebu.apiserver.util.CookieUtil;
@@ -15,6 +16,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,9 +26,6 @@ import java.util.Map;
 public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final RefreshTokenService refreshTokenService;
-
-    @Value("${frontend.redirect-uri}")
-    private String frontendRedirectUri;
 
     @Value("${spring.jwt.access-token.expiration}")
     private int accessTokenExpiration;
@@ -59,10 +58,16 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
         );
         response.addCookie(refreshCookie);
 
-        String redirectUrl = frontendRedirectUri +
-                "?message=loginSuccess" +
-                "&accessToken=" + accessToken;
-        response.sendRedirect(redirectUrl);
+        Map<String, Object> responseBody = Map.of(
+                "message", "loginSuccess",
+                "data", responseData
+        );
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType("application/json; charset=UTF-8");
+        try (PrintWriter out = response.getWriter()) {
+            out.println(new Gson().toJson(responseBody));
+        }
     }
 
 }
