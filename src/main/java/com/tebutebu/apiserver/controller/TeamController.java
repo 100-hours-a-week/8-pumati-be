@@ -22,7 +22,7 @@ public class TeamController {
     private final TeamService teamService;
 
     @PostMapping("")
-    public ResponseEntity<?> register(@Valid TeamCreateRequestDTO dto) {
+    public ResponseEntity<?> register(@Valid @RequestBody TeamCreateRequestDTO dto) {
         long teamId = teamService.register(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("message", "registerSuccess", "data", Map.of("id", teamId)));
