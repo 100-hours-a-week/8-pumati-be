@@ -29,6 +29,14 @@ public class MemberController {
         return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<?> getByAuthHeader(
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        MemberResponseDTO dto = memberService.get(authorizationHeader);
+        return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
+    }
+
     @PostMapping("/social")
     public ResponseEntity<?> registerOAuthUser(
             @Valid @RequestBody MemberOAuthSignupRequestDTO dto,
