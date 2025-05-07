@@ -57,6 +57,14 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
+    public MemberResponseDTO get(String authorizationHeader) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+        Member member = memberRepository.findByIdWithTeam(memberId)
+                .orElseThrow(() -> new NoSuchElementException("userNotFound"));
+        return entityToDTO(member);
+    }
+
+    @Override
     public MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto,
                                                      HttpServletResponse response) {
 
