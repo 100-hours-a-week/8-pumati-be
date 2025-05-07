@@ -14,6 +14,9 @@ public interface MemberService {
     @Transactional(readOnly = true)
     MemberResponseDTO get(Long memberId);
 
+    @Transactional(readOnly = true)
+    MemberResponseDTO get(String authorizationHeader);
+
     MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto, HttpServletResponse response);
 
     void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
