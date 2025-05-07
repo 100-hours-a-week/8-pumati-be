@@ -52,9 +52,11 @@ public class Team extends TimeStampedEntity {
     List<Member> members;
 
     @Builder.Default
+    @Column(columnDefinition = "INT UNSIGNED")
     private Long givedPumatiCount = 0L;
 
     @Builder.Default
+    @Column(columnDefinition = "INT UNSIGNED")
     private Long receivedPumatiCount = 0L;
 
     @Size(max = 512, message = "이미지 URL은 최대 512자까지 가능합니다.")

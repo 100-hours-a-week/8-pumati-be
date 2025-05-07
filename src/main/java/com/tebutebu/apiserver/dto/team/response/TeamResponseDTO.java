@@ -17,6 +17,12 @@ public class TeamResponseDTO {
 
     private int number;
 
+    private Long givedPumatiCount;
+
+    private Long receivedPumatiCount;
+
+    private String badgeImageUrl;
+
     private LocalDateTime createdAt, modifiedAt;
 
 }
