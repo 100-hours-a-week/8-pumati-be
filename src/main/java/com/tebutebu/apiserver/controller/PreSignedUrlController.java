@@ -24,7 +24,7 @@ public class PreSignedUrlController {
 
     @PostMapping("/pre-signed-url")
     public ResponseEntity<?> createPreSignedUrl(
-            @Valid SinglePreSignedUrlRequestDTO dto
+            @Valid @RequestBody SinglePreSignedUrlRequestDTO dto
     ) {
         SinglePreSignedUrlResponseDTO data = preSignedUrlService.generatePreSignedUrl(dto);
         return ResponseEntity
@@ -37,7 +37,7 @@ public class PreSignedUrlController {
 
     @PostMapping("/pre-signed-urls")
     public ResponseEntity<?> createPreSignedUrls(
-            @Valid MultiplePreSignedUrlsRequestDTO dto
+            @Valid @RequestBody MultiplePreSignedUrlsRequestDTO dto
     ) {
         MultiplePreSignedUrlsResponseDTO data = preSignedUrlService.generatePreSignedUrls(dto);
         return ResponseEntity

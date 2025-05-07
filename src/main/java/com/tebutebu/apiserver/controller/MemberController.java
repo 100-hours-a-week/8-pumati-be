@@ -31,7 +31,7 @@ public class MemberController {
 
     @PostMapping("/social")
     public ResponseEntity<?> registerOAuthUser(
-            @Valid MemberOAuthSignupRequestDTO dto,
+            @Valid @RequestBody MemberOAuthSignupRequestDTO dto,
             HttpServletResponse response
     ) {
         MemberSignupResponseDTO data = memberService.registerOAuthUser(dto, response);
@@ -45,7 +45,7 @@ public class MemberController {
     @PutMapping("/me")
     public ResponseEntity<?> modify(
             @RequestHeader("Authorization") String authorizationHeader,
-            @Valid MemberUpdateRequestDTO dto
+            @Valid @RequestBody MemberUpdateRequestDTO dto
     ) {
         memberService.modify(authorizationHeader, dto);
         return ResponseEntity.ok(Map.of("message", "modifyMemberSuccess"));
