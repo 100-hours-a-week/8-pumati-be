@@ -18,6 +18,10 @@ public class ProjectResponseDTO {
 
     private Long teamId;
 
+    private Integer term;
+
+    private Integer teamNumber;
+
     private String title;
 
     private String introduction;

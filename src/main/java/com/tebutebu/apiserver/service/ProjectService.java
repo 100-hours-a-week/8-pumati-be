@@ -37,6 +37,8 @@ public interface ProjectService {
         return ProjectResponseDTO.builder()
                 .id(project.getId())
                 .teamId(team.getId())
+                .term(team.getTerm())
+                .teamNumber(team.getNumber())
                 .givedPumatiCount(team.getGivedPumatiCount())
                 .receivedPumatiCount(team.getReceivedPumatiCount())
                 .badgeImageUrl(team.getBadgeImageUrl())
