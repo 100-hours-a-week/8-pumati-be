@@ -10,7 +10,12 @@ import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.tag.request.TagCreateRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.ProjectRepository;
+import com.tebutebu.apiserver.repository.paging.project.ProjectPagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -27,9 +32,13 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
 
+    private final ProjectPagingRepository projectPagingRepository;
+
     private final ProjectImageService projectImageService;
 
     private final TagService tagService;
+
+    private final ProjectRankingSnapshotService snapshotService;
 
     @Override
     public ProjectResponseDTO get(Long id) {
@@ -44,6 +53,36 @@ public class ProjectServiceImpl implements ProjectService {
 
         return entityToDTO(project, team, imageDtos);
     }
+
+    @Override
+    public CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
+        Long snapshotId = dto.getContextId() != null ? dto.getContextId() : snapshotService.register();
+        dto.setContextId(snapshotId);
+
+        CursorPage<Project> cursorPage = projectPagingRepository.findByRankingCursor(dto);
+
+        List<ProjectResponseDTO> data = cursorPage.items().stream()
+                .map(p -> {
+                    List<ProjectImageResponseDTO> images = p.getImages().stream()
+                            .map(projectImageService::entityToDTO)
+                            .collect(Collectors.toList());
+                    return entityToDTO(p, p.getTeam(), images);
+                })
+                .collect(Collectors.toList());
+
+        CursorMetaDTO meta = CursorMetaDTO.builder()
+                .contextId(snapshotId)
+                .nextCursorId(cursorPage.nextCursorId())
+                .nextCursorTime(cursorPage.nextCursorTime())
+                .hasNext(cursorPage.hasNext())
+                .build();
+
+        return CursorPageResponseDTO.<ProjectResponseDTO>builder()
+                .data(data)
+                .meta(meta)
+                .build();
+    }
+
 
     @Override
     public Long register(ProjectCreateRequestDTO dto) {

@@ -7,6 +7,8 @@ import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -17,6 +19,8 @@ public interface ProjectService {
 
     @Transactional(readOnly = true)
     ProjectResponseDTO get(Long id);
+
+    CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto);
 
     Long register(ProjectCreateRequestDTO dto);
 
