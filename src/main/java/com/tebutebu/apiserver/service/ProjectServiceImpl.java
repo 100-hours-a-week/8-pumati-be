@@ -81,6 +81,28 @@ public class ProjectServiceImpl implements ProjectService {
                 .build();
     }
 
+    @Override
+    public CursorPageResponseDTO<ProjectResponseDTO> getLatestPage(CursorPageRequestDTO dto) {
+        CursorPage<Project> page = projectPagingRepository.findByLatestCursor(dto);
+
+        List<ProjectResponseDTO> data = page.items().stream()
+                .map(p -> {
+                    List<ProjectImageResponseDTO> images = p.getImages().stream()
+                            .map(projectImageService::entityToDTO)
+                            .collect(Collectors.toList());
+                    return entityToDTO(p, p.getTeam(), images);
+                })
+                .collect(Collectors.toList());
+
+        return CursorPageResponseDTO.<ProjectResponseDTO>builder()
+                .data(data)
+                .meta(CursorMetaDTO.builder()
+                        .nextCursorId(page.nextCursorId())
+                        .nextCursorTime(page.nextCursorTime())
+                        .hasNext(page.hasNext())
+                        .build())
+                .build();
+    }
 
     @Override
     public Long register(ProjectCreateRequestDTO dto) {

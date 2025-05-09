@@ -2,9 +2,14 @@ package com.tebutebu.apiserver.repository.paging.project;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.OrderSpecifier;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
+import com.tebutebu.apiserver.domain.QProject;
 import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
+import com.tebutebu.apiserver.pagination.factory.CursorPageSpec;
+import com.tebutebu.apiserver.pagination.factory.CursorPageFactory;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
@@ -26,7 +31,11 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final ProjectRepository projectRepository;
 
+    private final CursorPageFactory cursorPageFactory;
+
     private final ObjectMapper objectMapper;
+
+    private final QProject p = QProject.project;
 
     @Override
     public CursorPage<Project> findByRankingCursor(CursorPageRequestDTO req) {
@@ -55,6 +64,27 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                 .nextCursorTime(null)
                 .hasNext(hasNext)
                 .build();
+    }
+
+    @Override
+    public CursorPage<Project> findByLatestCursor(CursorPageRequestDTO req) {
+        BooleanBuilder where = new BooleanBuilder();
+        OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
+                p.createdAt.desc(),
+                p.id.desc()
+        };
+
+        CursorPageSpec<Project> spec = CursorPageSpec.<Project>builder()
+                .entityPath(p)
+                .where(where)
+                .orderBy(orderBy)
+                .createdAtExpr(p.createdAt)
+                .idExpr(p.id)
+                .cursorId(req.getCursorId())
+                .cursorTime(req.getCursorTime())
+                .pageSize(req.getPageSize())
+                .build();
+        return cursorPageFactory.create(spec);
     }
 
     private List<RankingItemDTO> parseSnapshotJson(ProjectRankingSnapshot snapshot) {

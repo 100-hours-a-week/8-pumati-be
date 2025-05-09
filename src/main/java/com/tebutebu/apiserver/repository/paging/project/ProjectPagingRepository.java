@@ -8,4 +8,6 @@ public interface ProjectPagingRepository {
 
     CursorPage<Project> findByRankingCursor(CursorPageRequestDTO req);
 
+    CursorPage<Project> findByLatestCursor(CursorPageRequestDTO req);
+
 }

@@ -15,10 +15,12 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
@@ -59,6 +61,26 @@ public class ProjectController {
         CursorPageResponseDTO<ProjectResponseDTO> page = projectService.getRankingPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getRankingPageSuccess",
+                "data", page.getData(),
+                "meta", page.getMeta()
+        ));
+    }
+
+    @GetMapping(params = "sort=latest")
+    public ResponseEntity<?> scrollLatest(
+            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
+            @RequestParam(name = "cursor-time", defaultValue = "#{T(java.time.LocalDateTime).now().format(T(java.time.format.DateTimeFormatter).ISO_DATE_TIME)}")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
+            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
+    ) {
+        CursorPageRequestDTO dto = CursorPageRequestDTO.builder()
+                .cursorId(cursorId)
+                .cursorTime(cursorTime)
+                .pageSize(pageSize)
+                .build();
+        CursorPageResponseDTO<ProjectResponseDTO> page = projectService.getLatestPage(dto);
+        return ResponseEntity.ok(Map.of(
+                "message", "getLatestPageSuccess",
                 "data", page.getData(),
                 "meta", page.getMeta()
         ));

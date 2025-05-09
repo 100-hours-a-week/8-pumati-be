@@ -22,6 +22,8 @@ public interface ProjectService {
 
     CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto);
 
+    CursorPageResponseDTO<ProjectResponseDTO> getLatestPage(CursorPageRequestDTO dto);
+
     Long register(ProjectCreateRequestDTO dto);
 
     void modify(Long projectId, ProjectUpdateRequestDTO dto);
