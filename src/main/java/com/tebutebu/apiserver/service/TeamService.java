@@ -26,6 +26,9 @@ public interface TeamService {
                 .id(team.getId())
                 .term(team.getTerm())
                 .number(team.getNumber())
+                .givedPumatiCount(team.getGivedPumatiCount())
+                .receivedPumatiCount(team.getReceivedPumatiCount())
+                .badgeImageUrl(team.getBadgeImageUrl())
                 .createdAt(team.getCreatedAt())
                 .modifiedAt(team.getModifiedAt())
                 .build();
