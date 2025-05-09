@@ -11,8 +11,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CursorMetaDTO {
 
-    private Long contextId;
-
     private Long nextCursorId;
 
     private LocalDateTime nextCursorTime;

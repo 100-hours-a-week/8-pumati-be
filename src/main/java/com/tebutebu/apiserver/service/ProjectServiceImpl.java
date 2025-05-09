@@ -70,7 +70,6 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
 
         CursorMetaDTO meta = CursorMetaDTO.builder()
-                .contextId(dto.getContextId())
                 .nextCursorId(cursorPage.nextCursorId())
                 .nextCursorTime(cursorPage.nextCursorTime())
                 .hasNext(cursorPage.hasNext())
