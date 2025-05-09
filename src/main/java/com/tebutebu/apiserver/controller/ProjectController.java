@@ -5,11 +5,14 @@ import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.service.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.ProjectService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -26,16 +29,25 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
+    private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
     @GetMapping("/{projectId}")
     public ResponseEntity<?> get(@PathVariable long projectId) {
         ProjectResponseDTO dto = projectService.get(projectId);
         return ResponseEntity.ok(Map.of("message", "getProjectSuccess", "data", dto));
     }
 
+    @PostMapping("/snapshot")
+    public ResponseEntity<?> registerSnapshot() {
+        Long snapshotId = projectRankingSnapshotService.register();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of("message", "snapshotCreated", "data", Map.of("id", snapshotId)));
+    }
+
     @GetMapping(params = "sort=rank")
     public ResponseEntity<?> scrollRanking(
-            @RequestParam(name = "context-id", required = false) Long contextId,
-            @RequestParam(name = "cursor-id", required = false) Long cursorId,
+            @RequestParam(name = "context-id") @NotNull Long contextId,
+            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
         CursorPageRequestDTO dto = CursorPageRequestDTO.builder()
@@ -51,7 +63,6 @@ public class ProjectController {
                 "meta", page.getMeta()
         ));
     }
-
 
     @PostMapping("")
     public ResponseEntity<?> register(@Valid @RequestBody ProjectCreateRequestDTO dto) {

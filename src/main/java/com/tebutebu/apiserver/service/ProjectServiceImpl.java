@@ -38,8 +38,6 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final TagService tagService;
 
-    private final ProjectRankingSnapshotService snapshotService;
-
     @Override
     public ProjectResponseDTO get(Long id) {
         Project project = projectRepository.findProjectWithTeamAndImagesById(id)
@@ -56,8 +54,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
-        Long snapshotId = dto.getContextId() != null ? dto.getContextId() : snapshotService.register();
-        dto.setContextId(snapshotId);
+        if (dto.getContextId() == null) {
+            throw new CustomValidationException("contextIdRequired");
+        }
 
         CursorPage<Project> cursorPage = projectPagingRepository.findByRankingCursor(dto);
 
@@ -71,7 +70,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .collect(Collectors.toList());
 
         CursorMetaDTO meta = CursorMetaDTO.builder()
-                .contextId(snapshotId)
+                .contextId(dto.getContextId())
                 .nextCursorId(cursorPage.nextCursorId())
                 .nextCursorTime(cursorPage.nextCursorTime())
                 .hasNext(cursorPage.hasNext())
