@@ -7,7 +7,6 @@ import com.tebutebu.apiserver.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.util.Map;
 
@@ -27,12 +26,20 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokensDTO refreshTokens(String authorizationHeader, String refreshTokenCookie) {
-        validateInputs(authorizationHeader, refreshTokenCookie);
+        if (refreshTokenCookie == null || refreshTokenCookie.isBlank()) {
+            throw new IllegalArgumentException("nullRefreshToken");
+        }
 
-        String currentAccess = extractAccessToken(authorizationHeader);
-        if (!isExpired(currentAccess)) {
+        boolean isValidAccessToken = false;
+        String currentAccessToken = null;
+        if (authorizationHeader != null && authorizationHeader.startsWith(BEARER_PREFIX)) {
+            currentAccessToken = authorizationHeader.substring(BEARER_PREFIX.length());
+            isValidAccessToken = !isExpired(currentAccessToken);
+        }
+
+        if (isValidAccessToken) {
             return TokensDTO.builder()
-                    .accessToken(currentAccess)
+                    .accessToken(currentAccessToken)
                     .refreshToken(refreshTokenCookie)
                     .build();
         }
@@ -57,19 +64,6 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(newAccess)
                 .refreshToken(rotated.getToken())
                 .build();
-    }
-
-    private void validateInputs(String authHeader, String refreshCookie) {
-        if (!StringUtils.hasText(refreshCookie)) {
-            throw new IllegalArgumentException("nullRefreshToken");
-        }
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
-            throw new IllegalArgumentException("invalidAccessTokenHeader");
-        }
-    }
-
-    private String extractAccessToken(String authHeader) {
-        return authHeader.substring(BEARER_PREFIX.length());
     }
 
     private boolean isExpired(String token) {

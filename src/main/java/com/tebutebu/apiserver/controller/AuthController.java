@@ -26,7 +26,7 @@ public class AuthController {
 
     @PutMapping("/tokens")
     public ResponseEntity<?> refreshToken(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @CookieValue(value = "refreshToken", required = false) String refreshTokenCookie,
             HttpServletResponse response
     ) {
@@ -35,7 +35,7 @@ public class AuthController {
         Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
                 REFRESH_COOKIE_NAME,
                 tokens.getRefreshToken(),
-                60 * 60 * 60
+                60 * 60 * 24
         );
         response.addCookie(refreshCookie);
 
