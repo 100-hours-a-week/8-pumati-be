@@ -42,6 +42,10 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     List<Map<String, Object>> rankingList = new ArrayList<>();
                     int rank = 1;
                     for (Project p : projects) {
+                        if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) {
+                            continue;
+                        }
+
                         rankingList.add(Map.of(
                                 "project_id", p.getId(),
                                 "rank", rank++,
