@@ -5,6 +5,7 @@ import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +18,7 @@ public interface MemberService {
     @Transactional(readOnly = true)
     MemberResponseDTO get(String authorizationHeader);
 
-    MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto, HttpServletResponse response);
+    MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto, HttpServletRequest request, HttpServletResponse response);
 
     void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
 

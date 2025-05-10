@@ -3,7 +3,7 @@ package com.tebutebu.apiserver.controller;
 import com.tebutebu.apiserver.dto.token.TokensDTO;
 import com.tebutebu.apiserver.service.AuthService;
 import com.tebutebu.apiserver.util.CookieUtil;
-import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -20,24 +20,35 @@ import java.util.Map;
 public class AuthController {
 
     @Value("${spring.jwt.refresh.cookie.name}")
-    private String REFRESH_COOKIE_NAME;
+    private String refreshCookieName;
 
     private final AuthService authService;
 
     @PutMapping("/tokens")
     public ResponseEntity<?> refreshToken(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @CookieValue(value = "refreshToken", required = false) String refreshTokenCookie,
+            @CookieValue(value = "${spring.jwt.refresh.cookie.name}", required = false) String refreshTokenCookie,
+            HttpServletRequest request,
             HttpServletResponse response
     ) {
         TokensDTO tokens = authService.refreshTokens(authorizationHeader, refreshTokenCookie);
 
-        Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
-                REFRESH_COOKIE_NAME,
-                tokens.getRefreshToken(),
-                60 * 60 * 24
-        );
-        response.addCookie(refreshCookie);
+        int maxAge = 60 * 60 * 24;
+        if (request.isSecure()) {
+            CookieUtil.addSecureRefreshTokenCookie(
+                    response,
+                    refreshCookieName,
+                    tokens.getRefreshToken(),
+                    maxAge
+            );
+        } else {
+            CookieUtil.addRefreshTokenCookie(
+                    response,
+                    refreshCookieName,
+                    tokens.getRefreshToken(),
+                    maxAge
+            );
+        }
 
         Map<String, Object> body = Map.of(
                 "message", "refreshSuccess",
