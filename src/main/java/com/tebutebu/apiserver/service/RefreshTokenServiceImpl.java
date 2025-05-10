@@ -6,12 +6,14 @@ import com.tebutebu.apiserver.dto.token.request.RefreshTokenCreateRequestDTO;
 import com.tebutebu.apiserver.dto.token.request.RefreshTokenRotateRequestDTO;
 import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
 import com.tebutebu.apiserver.repository.RefreshTokenRepository;
+import com.tebutebu.apiserver.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -65,14 +67,13 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             throw new IllegalArgumentException("invalidOrExpiredRefreshToken");
         }
 
-        LocalDateTime newExpiry = LocalDateTime.now().plusMinutes(dto.getNewExpiryMinutes());
-        old.changeExpiresAt(newExpiry);
+        Map<String, Object> claims = JWTUtil.validateToken(dto.getOldToken());
 
-        String newToken = UUID.randomUUID().toString();
+        String newToken = JWTUtil.generateToken(claims, dto.getNewExpiryMinutes());
+
         old.changeToken(newToken);
-
-        RefreshToken saved = refreshTokenRepository.save(old);
-        return entityToDTO(saved);
+        old.changeExpiresAt(LocalDateTime.now().plusMinutes(dto.getNewExpiryMinutes()));
+        return entityToDTO(refreshTokenRepository.save(old));
     }
 
     @Override
