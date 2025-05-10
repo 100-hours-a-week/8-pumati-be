@@ -36,7 +36,13 @@ public class CustomLogoutHandler implements LogoutHandler {
             Map<String,Object> claims = JWTUtil.validateToken(refreshToken);
             Long memberId = ((Number) claims.get("id")).longValue();
             refreshTokenService.deleteByMemberId(memberId);
-            CookieUtil.deleteCookie(response, refreshCookieName);
+
+            if (request.isSecure()) {
+                CookieUtil.deleteSecureRefreshTokenCookie(response, refreshCookieName);
+            } else {
+                CookieUtil.deleteRefreshTokenCookie(response, refreshCookieName);
+            }
         });
     }
+
 }

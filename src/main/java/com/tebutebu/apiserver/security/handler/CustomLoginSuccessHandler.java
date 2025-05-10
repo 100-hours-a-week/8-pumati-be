@@ -4,7 +4,6 @@ import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.RefreshTokenService;
 import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -52,12 +51,22 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         responseData.put("accessToken", accessToken);
 
-        Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
-                refreshCookieName,
-                refreshToken,
-                60 * 60 * 60
-        );
-        response.addCookie(refreshCookie);
+        int maxAge = 60 * 60 * 24;
+        if (request.isSecure()) {
+            CookieUtil.addSecureRefreshTokenCookie(
+                    response,
+                    refreshCookieName,
+                    refreshToken,
+                    maxAge
+            );
+        } else {
+            CookieUtil.addRefreshTokenCookie(
+                    response,
+                    refreshCookieName,
+                    refreshToken,
+                    maxAge
+            );
+        }
 
         String redirectUrl = frontendRedirectUri +
                 "?message=loginSuccess" +

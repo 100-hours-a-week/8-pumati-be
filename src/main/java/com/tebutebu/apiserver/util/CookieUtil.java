@@ -1,33 +1,71 @@
 package com.tebutebu.apiserver.util;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 
 public class CookieUtil {
 
-    private CookieUtil() {
+    private CookieUtil() {}
+
+    public static void addRefreshTokenCookie(
+            HttpServletResponse response,
+            String name,
+            String value,
+            int maxAgeSec
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("None")
+                .path("/")
+                .maxAge(maxAgeSec)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-    public static Cookie createHttpOnlyCookie(String name, String value, int maxAgeSec) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(maxAgeSec);
-        return cookie;
+    public static void addSecureRefreshTokenCookie(
+            HttpServletResponse response,
+            String name,
+            String value,
+            int maxAgeSec
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(maxAgeSec)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-    public static Cookie createSecureHttpOnlyCookie(String name, String value, int maxAgeSec, boolean isSecure) {
-        Cookie cookie = createHttpOnlyCookie(name, value, maxAgeSec);
-        cookie.setSecure(isSecure);
-        return cookie;
+    public static void deleteRefreshTokenCookie(
+            HttpServletResponse response,
+            String name
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("None")
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-    public static void deleteCookie(HttpServletResponse response, String name) {
-        Cookie cookie = new Cookie(name, null);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+    public static void deleteSecureRefreshTokenCookie(
+            HttpServletResponse response,
+            String name
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
 }

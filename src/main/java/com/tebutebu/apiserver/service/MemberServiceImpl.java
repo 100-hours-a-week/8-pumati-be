@@ -14,7 +14,7 @@ import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
-import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -31,7 +31,7 @@ import java.util.NoSuchElementException;
 public class MemberServiceImpl implements MemberService {
 
     @Value("${spring.jwt.refresh.cookie.name}")
-    private String REFRESH_COOKIE_NAME;
+    private String refreshCookieName;
 
     @Value("${spring.jwt.access-token.expiration}")
     private int accessTokenExpiration;
@@ -66,6 +66,7 @@ public class MemberServiceImpl implements MemberService {
 
     @Override
     public MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto,
+                                                     HttpServletRequest request,
                                                      HttpServletResponse response) {
 
         var auth = JWTUtil.parseSignupToken(dto.getSignupToken());
@@ -86,12 +87,22 @@ public class MemberServiceImpl implements MemberService {
         String refreshToken= JWTUtil.generateToken(attributes, refreshTokenExpiration);
         refreshTokenService.persistRefreshToken(member.getId(), refreshToken);
 
-        Cookie refreshCookie = CookieUtil.createHttpOnlyCookie(
-                REFRESH_COOKIE_NAME,
-                refreshToken,
-                60 * 60 * 60
-        );
-        response.addCookie(refreshCookie);
+        int maxAge = 60 * 60 * 24;
+        if (request.isSecure()) {
+            CookieUtil.addSecureRefreshTokenCookie(
+                    response,
+                    refreshCookieName,
+                    refreshToken,
+                    maxAge
+            );
+        } else {
+            CookieUtil.addRefreshTokenCookie(
+                    response,
+                    refreshCookieName,
+                    refreshToken,
+                    maxAge
+            );
+        }
 
         OAuthCreateRequestDTO oauthDto = OAuthCreateRequestDTO.builder()
                 .memberId(member.getId())

@@ -5,6 +5,7 @@ import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
 import com.tebutebu.apiserver.service.MemberService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,9 +41,10 @@ public class MemberController {
     @PostMapping("/social")
     public ResponseEntity<?> registerOAuthUser(
             @Valid @RequestBody MemberOAuthSignupRequestDTO dto,
+            HttpServletRequest request,
             HttpServletResponse response
     ) {
-        MemberSignupResponseDTO data = memberService.registerOAuthUser(dto, response);
+        MemberSignupResponseDTO data = memberService.registerOAuthUser(dto, request, response);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of(
                         "message", "signupSuccess",
