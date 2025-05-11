@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.domain;
 
 import com.tebutebu.apiserver.domain.common.TimeStampedEntity;
+import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
@@ -8,16 +9,19 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Entity
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = {"team", "images", "projectTags", "tagContents"})
+@ToString(exclude = {"team", "images", "projectTags"})
 public class Project extends TimeStampedEntity {
 
     @Id
@@ -61,14 +65,9 @@ public class Project extends TimeStampedEntity {
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProjectTag> projectTags = new ArrayList<>();
 
-    @Builder.Default
-    @ElementCollection
-    @CollectionTable(
-            name = "project_tag_contents",
-            joinColumns = @JoinColumn(name = "project_id")
-    )
-    @Column(name = "tag_content")
-    private List<String> tagContents = new ArrayList<>();
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tags", columnDefinition = "json")
+    private List<TagResponseDTO> tagContents;
 
     public void changeTitle(String title) {
         this.title = title;
@@ -111,8 +110,10 @@ public class Project extends TimeStampedEntity {
     }
 
     public void changeTagContents(List<String> contents) {
-        this.tagContents.clear();
-        if (contents != null) this.tagContents.addAll(contents);
+        this.tagContents = contents == null ? List.of() :
+                contents.stream()
+                        .map(TagResponseDTO::new)
+                        .collect(Collectors.toList());
     }
 
 }
