@@ -35,8 +35,8 @@ public interface ProjectService {
     default ProjectResponseDTO entityToDTO(Project project, Team team, List<ProjectImageResponseDTO> images) {
 
         List<TagResponseDTO> tags = project.getTagContents().stream()
-                .map(content -> TagResponseDTO.builder()
-                        .content(content)
+                .map(tagContentDTO -> TagResponseDTO.builder()
+                        .content(tagContentDTO.getContent())
                         .build())
                 .collect(Collectors.toList());
 
