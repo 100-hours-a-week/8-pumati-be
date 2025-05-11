@@ -34,7 +34,7 @@ public class AttendanceDaily extends TimeStampedEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @Column(name = "deve_luck_overall", nullable = false, length = 150)
+    @Column(name = "dev_luck_overall", nullable = false, length = 150)
     private String devLuckOverall;
 
     @Column(name = "checked_at", nullable = false)
