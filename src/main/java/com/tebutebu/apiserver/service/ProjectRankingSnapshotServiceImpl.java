@@ -35,37 +35,45 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(snapshotDurationMinutes);
         return projectRankingSnapshotRepository
                 .findTopByRequestedAtAfterOrderByRequestedAtDesc(threshold)
-                .map(ProjectRankingSnapshot::getId)
-                .orElseGet(() -> {
-                    List<Project> projects = projectRepository.findAllForRanking();
-
-                    List<Map<String, Object>> rankingList = new ArrayList<>();
-                    int rank = 1;
-                    for (Project p : projects) {
-                        if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) {
-                            continue;
-                        }
-
-                        rankingList.add(Map.of(
-                                "project_id", p.getId(),
-                                "rank", rank++,
-                                "gived_pumati_count", p.getTeam().getGivedPumatiCount()
-                        ));
+                .map(existingSnapshot -> {
+                    boolean hasNewProject = projectRepository.existsByCreatedAtAfter(existingSnapshot.getRequestedAt());
+                    if (!hasNewProject) {
+                        return existingSnapshot.getId();
                     }
+                    return createAndSaveSnapshot();
+                })
+                .orElseGet(this::createAndSaveSnapshot);
+    }
 
-                    String json;
-                    try {
-                        json = objectMapper.writeValueAsString(Map.of("projects", rankingList));
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e.getMessage());
-                    }
+    private Long createAndSaveSnapshot() {
+        List<Project> projects = projectRepository.findAllForRanking();
 
-                    ProjectRankingSnapshot snapshot = ProjectRankingSnapshot.builder()
-                            .rankingData(json)
-                            .requestedAt(LocalDateTime.now())
-                            .build();
-                    return projectRankingSnapshotRepository.save(snapshot).getId();
-                });
+        List<Map<String, Object>> rankingList = new ArrayList<>();
+        int rank = 1;
+        for (Project p : projects) {
+            if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) {
+                continue;
+            }
+            rankingList.add(Map.of(
+                    "project_id", p.getId(),
+                    "rank",           rank++,
+                    "gived_pumati_count", p.getTeam().getGivedPumatiCount()
+            ));
+        }
+
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(Map.of("projects", rankingList));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+
+        ProjectRankingSnapshot newSnap = ProjectRankingSnapshot.builder()
+                .rankingData(json)
+                .requestedAt(LocalDateTime.now())
+                .build();
+
+        return projectRankingSnapshotRepository.save(newSnap).getId();
     }
 
 }
