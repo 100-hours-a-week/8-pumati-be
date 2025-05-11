@@ -22,8 +22,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2
@@ -52,7 +54,7 @@ public class MemberServiceImpl implements MemberService {
     @Override
     public MemberResponseDTO get(Long memberId) {
         Member member = memberRepository.findByIdWithTeam(memberId)
-                .orElseThrow(() -> new NoSuchElementException("userNotFound"));
+                .orElseThrow(() -> new NoSuchElementException("memberNotFound"));
         return entityToDTO(member);
     }
 
@@ -60,8 +62,19 @@ public class MemberServiceImpl implements MemberService {
     public MemberResponseDTO get(String authorizationHeader) {
         Long memberId = extractMemberIdFromHeader(authorizationHeader);
         Member member = memberRepository.findByIdWithTeam(memberId)
-                .orElseThrow(() -> new NoSuchElementException("userNotFound"));
+                .orElseThrow(() -> new NoSuchElementException("memberNotFound"));
         return entityToDTO(member);
+    }
+
+    @Override
+    public List<MemberResponseDTO> getMembersByTeamId(Long teamId) {
+        List<Member> members = memberRepository.findAllByTeamId(teamId);
+        if (members.isEmpty()) {
+            throw new NoSuchElementException("membersNotFound");
+        }
+        return members.stream()
+                .map(this::entityToDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
