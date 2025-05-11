@@ -9,6 +9,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Transactional
 public interface MemberService {
 
@@ -17,6 +19,9 @@ public interface MemberService {
 
     @Transactional(readOnly = true)
     MemberResponseDTO get(String authorizationHeader);
+
+    @Transactional(readOnly = true)
+    List<MemberResponseDTO> getMembersByTeamId(Long teamId);
 
     MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto, HttpServletRequest request, HttpServletResponse response);
 
