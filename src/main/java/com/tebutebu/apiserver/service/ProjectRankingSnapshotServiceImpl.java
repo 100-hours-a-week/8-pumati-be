@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
+import com.tebutebu.apiserver.dto.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @Service
 @Log4j2
@@ -43,6 +45,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     return createAndSaveSnapshot();
                 })
                 .orElseGet(this::createAndSaveSnapshot);
+    }
+
+    @Override
+    public ProjectRankingSnapshotResponseDTO getLatestSnapshot() {
+        ProjectRankingSnapshot snapshot = projectRankingSnapshotRepository
+                .findTopByOrderByRequestedAtDesc()
+                .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
+        return entityToDTO(snapshot);
     }
 
     private Long createAndSaveSnapshot() {
