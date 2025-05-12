@@ -69,11 +69,6 @@ public class ProjectServiceImpl implements ProjectService {
 
         return entityToDTO(project, team, images, tags, teamRank);
     }
-  
-    @Override
-    public boolean existsByTeamId(Long teamId) {
-        return projectRepository.existsByTeamId(teamId);
-    }
 
     @Override
     public CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
