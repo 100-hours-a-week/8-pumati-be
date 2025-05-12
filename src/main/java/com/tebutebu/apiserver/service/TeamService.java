@@ -19,10 +19,6 @@ public interface TeamService {
 
     Long register(TeamCreateRequestDTO dto);
 
-    Long incrementGivedPumati(Long teamId);
-
-    Long incrementReceivedPumati(Long teamId);
-
     Team dtoToEntity(TeamCreateRequestDTO dto);
 
     default TeamResponseDTO entityToDTO(Team team) {
