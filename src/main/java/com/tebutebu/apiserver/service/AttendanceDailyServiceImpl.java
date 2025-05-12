@@ -27,6 +27,8 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
 
     private final FortuneService fortuneService;
 
+    private final AttendanceWeeklyService attendanceWeeklyService;
+
     @Override
     public AttendanceDailyResponseDTO register(Long memberId) {
         if (existsToday(memberId)) {
@@ -63,6 +65,7 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
                 .build();
 
         AttendanceDaily saved = attendanceDailyRepository.save(attendance);
+        attendanceWeeklyService.recordDailyAttendance(memberId);
         return entityToDTO(saved);
     }
 
