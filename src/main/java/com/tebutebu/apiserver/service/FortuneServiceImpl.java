@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Objects;
+
 @Service
 @Log4j2
 @RequiredArgsConstructor
@@ -21,18 +23,31 @@ public class FortuneServiceImpl implements FortuneService {
     @Value("${fortune.service.url}")
     private String fortuneServiceUrl;
 
+    @Value("${fortune.service.error-message}")
+    private String fortuneServiceErrorMessage;
+
     @Override
     public DevLuckDTO getnerateDevLuck(FortuneGenerateRequestDTO request) {
-        HttpEntity<FortuneGenerateRequestDTO> httpEntity = new HttpEntity<>(request);
-        ResponseEntity<FortuneResponseDTO> response = restTemplate.postForEntity(
-                fortuneServiceUrl + "/api/llm/fortune",
-                httpEntity,
-                FortuneResponseDTO.class
-        );
+        try {
+            HttpEntity<FortuneGenerateRequestDTO> httpEntity = new HttpEntity<>(request);
+            ResponseEntity<FortuneResponseDTO> response = restTemplate.postForEntity(
+                    fortuneServiceUrl + "/api/llm/fortune",
+                    httpEntity,
+                    FortuneResponseDTO.class
+            );
 
-        return (response.getBody() != null && response.getBody().getData() != null)
-                ? response.getBody().getData()
-                : DevLuckDTO.builder().build();
+            if (response.getStatusCode().is2xxSuccessful() && Objects.requireNonNull(response.getBody()).getData() != null) {
+                return response.getBody().getData();
+            } else {
+                log.warn("Fortune service returned non-200 status: {}, body: {}",
+                        response.getStatusCode(), response.getBody());
+            }
+
+        } catch (Exception e) {
+            log.warn("Error occurred while calling fortune service: {}", e.getMessage());
+        }
+
+        return DevLuckDTO.builder().overall(fortuneServiceErrorMessage).build();
     }
 
 }
