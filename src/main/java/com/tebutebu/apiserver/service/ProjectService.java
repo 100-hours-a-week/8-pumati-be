@@ -20,9 +20,6 @@ public interface ProjectService {
     @Transactional(readOnly = true)
     ProjectResponseDTO get(Long id);
 
-    @Transactional(readOnly = true)
-    boolean existsByTeamId(Long teamId);
-
     CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto);
 
     CursorPageResponseDTO<ProjectResponseDTO> getLatestPage(CursorPageRequestDTO dto);

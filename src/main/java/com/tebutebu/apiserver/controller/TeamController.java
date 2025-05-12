@@ -4,7 +4,6 @@ import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
 import com.tebutebu.apiserver.service.MemberService;
-import com.tebutebu.apiserver.service.ProjectService;
 import com.tebutebu.apiserver.service.TeamService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,17 +24,6 @@ public class TeamController {
     private final TeamService teamService;
 
     private final MemberService memberService;
-
-    private final ProjectService projectService;
-
-    @GetMapping("/{teamId}/projects/existence")
-    public ResponseEntity<?> checkProjectExistence(@PathVariable Long teamId) {
-        boolean exists = projectService.existsByTeamId(teamId);
-        return ResponseEntity.ok(Map.of(
-                "message", "checkProjectExistenceSuccess",
-                "data", Map.of("exists", exists)
-        ));
-    }
 
     @PostMapping("")
     public ResponseEntity<?> register(@Valid @RequestBody TeamCreateRequestDTO dto) {
