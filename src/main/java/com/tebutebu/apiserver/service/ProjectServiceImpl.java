@@ -8,12 +8,8 @@ import com.tebutebu.apiserver.dto.project.image.request.ProjectImageRequestDTO;
 import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
-import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
-import com.tebutebu.apiserver.dto.snapshot.response.ProjectRankingSnapshotResponseDTO;
-import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.request.TagCreateRequestDTO;
-import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
@@ -42,44 +38,40 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final TagService tagService;
 
-    private final ProjectRankingSnapshotService projectRankingSnapshotService;
-
     @Override
     public ProjectResponseDTO get(Long id) {
         Project project = projectRepository.findProjectWithTeamAndImagesById(id)
                 .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
 
         Team team = project.getTeam();
-        List<ProjectImageResponseDTO> images = project.getImages().stream()
+        log.info("team: {}", team);
+        List<ProjectImageResponseDTO> imageDtos = project.getImages().stream()
                 .map(projectImageService::entityToDTO)
                 .collect(Collectors.toList());
 
-        List<TagResponseDTO> tags = project.getTagContents().stream()
-                .map(tagContentDTO -> TagResponseDTO.builder()
-                        .content(tagContentDTO.getContent())
-                        .build())
-                .toList();
-
-        ProjectRankingSnapshotResponseDTO snapshot = projectRankingSnapshotService.getLatestSnapshot();
-        Integer teamRank = snapshot.getData().stream()
-                .filter(item -> id.equals(item.getProjectId()))
-                .findFirst()
-                .map(RankingItemDTO::getRank)
-                .orElse(null);
-
-        return entityToDTO(project, team, images, tags, teamRank);
+        return entityToDTO(project, team, imageDtos);
     }
 
     @Override
-    public CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
+    public boolean existsByTeamId(Long teamId) {
+        return projectRepository.existsByTeamId(teamId);
+    }
+
+    @Override
+    public CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
         if (dto.getContextId() == null) {
             throw new CustomValidationException("contextIdRequired");
         }
 
         CursorPage<Project> cursorPage = projectPagingRepository.findByRankingCursor(dto);
 
-        List<ProjectPageResponseDTO> data = cursorPage.items().stream()
-                .map(this::entityToPageDTO)
+        List<ProjectResponseDTO> data = cursorPage.items().stream()
+                .map(p -> {
+                    List<ProjectImageResponseDTO> images = p.getImages().stream()
+                            .map(projectImageService::entityToDTO)
+                            .collect(Collectors.toList());
+                    return entityToDTO(p, p.getTeam(), images);
+                })
                 .collect(Collectors.toList());
 
         CursorMetaDTO meta = CursorMetaDTO.builder()
@@ -88,21 +80,26 @@ public class ProjectServiceImpl implements ProjectService {
                 .hasNext(cursorPage.hasNext())
                 .build();
 
-        return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
+        return CursorPageResponseDTO.<ProjectResponseDTO>builder()
                 .data(data)
                 .meta(meta)
                 .build();
     }
 
     @Override
-    public CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<ProjectResponseDTO> getLatestPage(CursorPageRequestDTO dto) {
         CursorPage<Project> page = projectPagingRepository.findByLatestCursor(dto);
 
-        List<ProjectPageResponseDTO> data = page.items().stream()
-                .map(this::entityToPageDTO)
+        List<ProjectResponseDTO> data = page.items().stream()
+                .map(p -> {
+                    List<ProjectImageResponseDTO> images = p.getImages().stream()
+                            .map(projectImageService::entityToDTO)
+                            .collect(Collectors.toList());
+                    return entityToDTO(p, p.getTeam(), images);
+                })
                 .collect(Collectors.toList());
 
-        return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
+        return CursorPageResponseDTO.<ProjectResponseDTO>builder()
                 .data(data)
                 .meta(CursorMetaDTO.builder()
                         .nextCursorId(page.nextCursorId())
@@ -214,30 +211,6 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         return project;
-    }
-
-    private ProjectPageResponseDTO entityToPageDTO(Project project) {
-        Team team = project.getTeam();
-        List<TagResponseDTO> tags = project.getTagContents().stream()
-                .map(tagContentDTO -> TagResponseDTO.builder()
-                        .content(tagContentDTO.getContent())
-                        .build())
-                .toList();
-        return ProjectPageResponseDTO.builder()
-                .id(project.getId())
-                .teamId(team.getId())
-                .term(team.getTerm())
-                .teamNumber(team.getNumber())
-                .givedPumatiCount(team.getGivedPumatiCount())
-                .receivedPumatiCount(team.getReceivedPumatiCount())
-                .badgeImageUrl(team.getBadgeImageUrl())
-                .title(project.getTitle())
-                .introduction(project.getIntroduction())
-                .representativeImageUrl(project.getRepresentativeImageUrl())
-                .tags(tags)
-                .createdAt(project.getCreatedAt())
-                .modifiedAt(project.getModifiedAt())
-                .build();
     }
 
 }
