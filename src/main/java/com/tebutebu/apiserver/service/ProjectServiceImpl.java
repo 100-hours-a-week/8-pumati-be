@@ -71,7 +71,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto) 
         if (dto.getContextId() == null) {
             throw new CustomValidationException("contextIdRequired");
         }
