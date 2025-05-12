@@ -63,12 +63,4 @@ public class Team extends TimeStampedEntity {
     @Column(length = 512)
     private String badgeImageUrl;
 
-    public void increaseGivedPumati() {
-        this.givedPumatiCount++;
-    }
-
-    public void increaseReceivedPumati() {
-        this.receivedPumatiCount++;
-    }
-
 }
