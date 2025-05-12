@@ -1,6 +1,5 @@
 package com.tebutebu.apiserver.dto.project.response;
 
-import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,13 +11,11 @@ import java.util.List;
 @Getter
 @Builder
 @AllArgsConstructor
-public class ProjectResponseDTO {
+public class ProjectPageResponseDTO {
 
     private Long id;
 
     private Long teamId;
-
-    private Integer teamRank;
 
     private Integer term;
 
@@ -28,15 +25,7 @@ public class ProjectResponseDTO {
 
     private String introduction;
 
-    private String detailedDescription;
-
     private String representativeImageUrl;
-
-    private List<ProjectImageResponseDTO> images;
-
-    private String deploymentUrl;
-
-    private String githubUrl;
 
     private List<TagResponseDTO> tags;
 

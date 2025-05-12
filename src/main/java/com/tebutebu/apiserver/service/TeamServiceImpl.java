@@ -81,24 +81,6 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public Long incrementGivedPumati(Long teamId) {
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
-        team.increaseGivedPumati();
-        teamRepository.save(team);
-        return team.getGivedPumatiCount();
-    }
-
-    @Override
-    public Long incrementReceivedPumati(Long teamId) {
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
-        team.increaseReceivedPumati();
-        teamRepository.save(team);
-        return team.getReceivedPumatiCount();
-    }
-
-    @Override
     public Team dtoToEntity(TeamCreateRequestDTO dto) {
         return Team.builder()
                 .term(dto.getTerm())
