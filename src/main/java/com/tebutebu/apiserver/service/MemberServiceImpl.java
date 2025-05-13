@@ -41,6 +41,9 @@ public class MemberServiceImpl implements MemberService {
     @Value("${spring.jwt.refresh-token.expiration}")
     private int refreshTokenExpiration;
 
+    @Value("${default.profile.image.url}")
+    private String defaultProfileImageUrl;
+
     private final MemberRepository memberRepository;
 
     private final PasswordEncoder passwordEncoder;
@@ -188,7 +191,7 @@ public class MemberServiceImpl implements MemberService {
                 .name(dto.getName())
                 .nickname(dto.getNickname())
                 .course(dto.getCourse())
-                .profileImageUrl(dto.getProfileImageUrl())
+                .profileImageUrl(dto.getProfileImageUrl() == null ? defaultProfileImageUrl : dto.getProfileImageUrl())
                 .role(dto.getRole())
                 .build();
     }
