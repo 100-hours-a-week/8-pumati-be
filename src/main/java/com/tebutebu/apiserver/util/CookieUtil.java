@@ -1,70 +1,58 @@
 package com.tebutebu.apiserver.util;
 
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
+import org.springframework.stereotype.Component;
 
+@Component
+@RequiredArgsConstructor
 public class CookieUtil {
 
-    private CookieUtil() {}
+    @Value("${frontend.is-local:false}")
+    private boolean isFrontendLocal;
 
-    public static void addRefreshTokenCookie(
+    public void addRefreshTokenCookie(
             HttpServletResponse response,
             String name,
             String value,
-            int maxAgeSec
+            int maxAgeSec,
+            boolean secure
     ) {
-        ResponseCookie cookie = ResponseCookie.from(name, value)
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(false)
+                .secure(secure)
                 .sameSite("None")
                 .path("/")
-                .maxAge(maxAgeSec)
-                .build();
+                .maxAge(maxAgeSec);
+
+        if (isFrontendLocal) {
+            builder.domain("localhost");
+        }
+
+        ResponseCookie cookie = builder.build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-    public static void addSecureRefreshTokenCookie(
+    public void deleteRefreshTokenCookie(
             HttpServletResponse response,
             String name,
-            String value,
-            int maxAgeSec
+            boolean secure
     ) {
-        ResponseCookie cookie = ResponseCookie.from(name, value)
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(secure)
                 .sameSite("None")
                 .path("/")
-                .maxAge(maxAgeSec)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
+                .maxAge(0);
 
-    public static void deleteRefreshTokenCookie(
-            HttpServletResponse response,
-            String name
-    ) {
-        ResponseCookie cookie = ResponseCookie.from(name, "")
-                .httpOnly(true)
-                .secure(false)
-                .sameSite("None")
-                .path("/")
-                .maxAge(0)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
+        if (isFrontendLocal) {
+            builder.domain("localhost");
+        }
 
-    public static void deleteSecureRefreshTokenCookie(
-            HttpServletResponse response,
-            String name
-    ) {
-        ResponseCookie cookie = ResponseCookie.from(name, "")
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
-                .path("/")
-                .maxAge(0)
-                .build();
+        ResponseCookie cookie = builder.build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
