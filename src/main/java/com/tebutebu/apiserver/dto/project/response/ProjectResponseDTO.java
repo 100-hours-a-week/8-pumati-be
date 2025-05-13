@@ -18,8 +18,6 @@ public class ProjectResponseDTO {
 
     private Long teamId;
 
-    private Integer teamRank;
-
     private Integer term;
 
     private Integer teamNumber;

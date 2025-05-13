@@ -2,7 +2,6 @@ package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
-import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
@@ -59,7 +58,7 @@ public class ProjectController {
                 .cursorTime(null)
                 .pageSize(pageSize)
                 .build();
-        CursorPageResponseDTO<ProjectPageResponseDTO> page = projectService.getRankingPage(dto);
+        CursorPageResponseDTO<ProjectResponseDTO> page = projectService.getRankingPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getRankingPageSuccess",
                 "data", page.getData(),
@@ -79,7 +78,7 @@ public class ProjectController {
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
                 .build();
-        CursorPageResponseDTO<ProjectPageResponseDTO> page = projectService.getLatestPage(dto);
+        CursorPageResponseDTO<ProjectResponseDTO> page = projectService.getLatestPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getLatestPageSuccess",
                 "data", page.getData(),
