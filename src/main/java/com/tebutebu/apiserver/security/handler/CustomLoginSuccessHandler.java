@@ -36,6 +36,8 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
+    private final CookieUtil cookieUtil;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
 
@@ -52,21 +54,13 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
         responseData.put("accessToken", accessToken);
 
         int maxAge = 60 * 60 * 24;
-        if (request.isSecure()) {
-            CookieUtil.addSecureRefreshTokenCookie(
-                    response,
-                    refreshCookieName,
-                    refreshToken,
-                    maxAge
-            );
-        } else {
-            CookieUtil.addRefreshTokenCookie(
-                    response,
-                    refreshCookieName,
-                    refreshToken,
-                    maxAge
-            );
-        }
+        cookieUtil.addRefreshTokenCookie(
+                response,
+                refreshCookieName,
+                refreshToken,
+                maxAge,
+                request.isSecure()
+        );
 
         String redirectUrl = frontendRedirectUri +
                 "?message=loginSuccess" +

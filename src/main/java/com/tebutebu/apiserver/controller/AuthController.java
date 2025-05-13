@@ -24,6 +24,8 @@ public class AuthController {
 
     private final AuthService authService;
 
+    private final CookieUtil cookieUtil;
+
     @PutMapping("/tokens")
     public ResponseEntity<?> refreshToken(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
@@ -34,21 +36,13 @@ public class AuthController {
         TokensDTO tokens = authService.refreshTokens(authorizationHeader, refreshTokenCookie);
 
         int maxAge = 60 * 60 * 24;
-        if (request.isSecure()) {
-            CookieUtil.addSecureRefreshTokenCookie(
-                    response,
-                    refreshCookieName,
-                    tokens.getRefreshToken(),
-                    maxAge
-            );
-        } else {
-            CookieUtil.addRefreshTokenCookie(
-                    response,
-                    refreshCookieName,
-                    tokens.getRefreshToken(),
-                    maxAge
-            );
-        }
+        cookieUtil.addRefreshTokenCookie(
+                response,
+                refreshCookieName,
+                tokens.getRefreshToken(),
+                maxAge,
+                request.isSecure()
+        );
 
         Map<String, Object> body = Map.of(
                 "message", "refreshSuccess",

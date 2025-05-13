@@ -25,6 +25,8 @@ public class CustomLogoutHandler implements LogoutHandler {
 
     private final RefreshTokenService refreshTokenService;
 
+    private final CookieUtil cookieUtil;
+
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         Optional<Cookie> cookie = Arrays.stream(Optional.ofNullable(request.getCookies()).orElse(new Cookie[0]))
@@ -37,11 +39,7 @@ public class CustomLogoutHandler implements LogoutHandler {
             Long memberId = ((Number) claims.get("id")).longValue();
             refreshTokenService.deleteByMemberId(memberId);
 
-            if (request.isSecure()) {
-                CookieUtil.deleteSecureRefreshTokenCookie(response, refreshCookieName);
-            } else {
-                CookieUtil.deleteRefreshTokenCookie(response, refreshCookieName);
-            }
+            cookieUtil.deleteRefreshTokenCookie(response, refreshCookieName, request.isSecure());
         });
     }
 

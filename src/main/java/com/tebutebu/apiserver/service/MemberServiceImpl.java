@@ -51,6 +51,8 @@ public class MemberServiceImpl implements MemberService {
 
     private final RefreshTokenService refreshTokenService;
 
+    private final CookieUtil cookieUtil;
+
     @Override
     public MemberResponseDTO get(Long memberId) {
         Member member = memberRepository.findByIdWithTeam(memberId)
@@ -101,21 +103,13 @@ public class MemberServiceImpl implements MemberService {
         refreshTokenService.persistRefreshToken(member.getId(), refreshToken);
 
         int maxAge = 60 * 60 * 24;
-        if (request.isSecure()) {
-            CookieUtil.addSecureRefreshTokenCookie(
-                    response,
-                    refreshCookieName,
-                    refreshToken,
-                    maxAge
-            );
-        } else {
-            CookieUtil.addRefreshTokenCookie(
-                    response,
-                    refreshCookieName,
-                    refreshToken,
-                    maxAge
-            );
-        }
+        cookieUtil.addRefreshTokenCookie(
+                response,
+                refreshCookieName,
+                refreshToken,
+                maxAge,
+                request.isSecure()
+        );
 
         OAuthCreateRequestDTO oauthDto = OAuthCreateRequestDTO.builder()
                 .memberId(member.getId())
