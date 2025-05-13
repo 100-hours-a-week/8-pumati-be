@@ -10,4 +10,6 @@ public interface ProjectRankingSnapshotRepository extends JpaRepository<ProjectR
 
     Optional<ProjectRankingSnapshot> findTopByRequestedAtAfterOrderByRequestedAtDesc(LocalDateTime time);
 
+    Optional<ProjectRankingSnapshot> findTopByOrderByRequestedAtDesc();
+
 }
