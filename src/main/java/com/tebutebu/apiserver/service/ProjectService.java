@@ -5,7 +5,6 @@ import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
-import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
@@ -13,6 +12,7 @@ import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Transactional
 public interface ProjectService {
@@ -20,9 +20,9 @@ public interface ProjectService {
     @Transactional(readOnly = true)
     ProjectResponseDTO get(Long id);
 
-    CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto);
+    CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto);
 
-    CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorPageRequestDTO dto);
+    CursorPageResponseDTO<ProjectResponseDTO> getLatestPage(CursorPageRequestDTO dto);
 
     Long register(ProjectCreateRequestDTO dto);
 
@@ -32,11 +32,17 @@ public interface ProjectService {
 
     Project dtoToEntity(ProjectCreateRequestDTO dto);
 
-    default ProjectResponseDTO entityToDTO(Project project, Team team, List<ProjectImageResponseDTO> images, List<TagResponseDTO> tags, Integer teamRank) {
+    default ProjectResponseDTO entityToDTO(Project project, Team team, List<ProjectImageResponseDTO> images) {
+
+        List<TagResponseDTO> tags = project.getTagContents().stream()
+                .map(tagContentDTO -> TagResponseDTO.builder()
+                        .content(tagContentDTO.getContent())
+                        .build())
+                .collect(Collectors.toList());
+
         return ProjectResponseDTO.builder()
                 .id(project.getId())
                 .teamId(team.getId())
-                .teamRank(teamRank)
                 .term(team.getTerm())
                 .teamNumber(team.getNumber())
                 .givedPumatiCount(team.getGivedPumatiCount())
