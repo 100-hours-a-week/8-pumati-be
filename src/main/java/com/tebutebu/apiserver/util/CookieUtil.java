@@ -11,8 +11,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CookieUtil {
 
-    @Value("${frontend.is-local:false}")
+    @Value("${frontend.is-local:true}")
     private boolean isFrontendLocal;
+
+    @Value("${cookie.dev-domain:localhost}")
+    private String devCookieDomain;
 
     public void addRefreshTokenCookie(
             HttpServletResponse response,
@@ -29,7 +32,7 @@ public class CookieUtil {
                 .maxAge(maxAgeSec);
 
         if (isFrontendLocal) {
-            builder.domain("localhost");
+            builder.domain(devCookieDomain);
         }
 
         ResponseCookie cookie = builder.build();
@@ -49,7 +52,7 @@ public class CookieUtil {
                 .maxAge(0);
 
         if (isFrontendLocal) {
-            builder.domain("localhost");
+            builder.domain(devCookieDomain);
         }
 
         ResponseCookie cookie = builder.build();
