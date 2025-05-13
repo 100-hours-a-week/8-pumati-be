@@ -1,13 +1,14 @@
 package com.tebutebu.apiserver.service;
 
-import com.tebutebu.apiserver.dto.fortune.response.DevLuckDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.tebutebu.apiserver.dto.fortune.request.FortuneGenerateRequestDTO;
+import com.tebutebu.apiserver.dto.fortune.response.DevLuckDTO;
 import com.tebutebu.apiserver.dto.fortune.response.FortuneResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -20,8 +21,8 @@ public class FortuneServiceImpl implements FortuneService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${fortune.service.url}")
-    private String fortuneServiceUrl;
+    @Value("${fortune.service.uri}")
+    private String fortuneServiceUri;
 
     @Value("${fortune.service.error-message}")
     private String fortuneServiceErrorMessage;
@@ -29,9 +30,18 @@ public class FortuneServiceImpl implements FortuneService {
     @Override
     public DevLuckDTO getnerateDevLuck(FortuneGenerateRequestDTO request) {
         try {
-            HttpEntity<FortuneGenerateRequestDTO> httpEntity = new HttpEntity<>(request);
-            ResponseEntity<FortuneResponseDTO> response = restTemplate.postForEntity(
-                    fortuneServiceUrl + "/api/llm/fortune",
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            String jsonBody = mapper.writeValueAsString(request);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<String> httpEntity = new HttpEntity<>(jsonBody, headers);
+
+            ResponseEntity<FortuneResponseDTO> response = restTemplate.exchange(
+                    fortuneServiceUri,
+                    HttpMethod.POST,
                     httpEntity,
                     FortuneResponseDTO.class
             );
