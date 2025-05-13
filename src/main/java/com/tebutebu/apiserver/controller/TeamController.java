@@ -50,4 +50,20 @@ public class TeamController {
         ));
     }
 
+    @PatchMapping("/{teamId}/gived-pumati")
+    public ResponseEntity<?> increaseGivedPumati(@PathVariable Long teamId) {
+        return ResponseEntity.ok(Map.of(
+                "message", "increaseGivedPumatiSuccess",
+                "data", Map.of("givedPumatiCount", teamService.incrementGivedPumati(teamId))
+        ));
+    }
+
+    @PatchMapping("/{teamId}/received-pumati")
+    public ResponseEntity<?> increaseReceivedPumati(@PathVariable Long teamId) {
+        return ResponseEntity.ok(Map.of(
+                "message", "increaseReceivedPumatiSuccess",
+                "data", Map.of("receivedPumatiCount", teamService.incrementReceivedPumati(teamId))
+        ));
+    }
+
 }
