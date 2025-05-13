@@ -5,6 +5,7 @@ import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
 import com.tebutebu.apiserver.service.MemberService;
+import com.tebutebu.apiserver.service.ProjectService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -24,6 +25,8 @@ public class MemberController {
 
     private final MemberService memberService;
 
+    private final ProjectService projectService;
+
     @GetMapping("/{memberId}")
     public ResponseEntity<?> get(@PathVariable("memberId") Long memberId) {
         MemberResponseDTO dto = memberService.get(memberId);
@@ -36,6 +39,22 @@ public class MemberController {
     ) {
         MemberResponseDTO dto = memberService.get(authorizationHeader);
         return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
+    }
+
+    @GetMapping("/projects/existence")
+    public ResponseEntity<?> checkProjectExistence(
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        MemberResponseDTO member = memberService.get(authorizationHeader);
+        Long teamId = member.getTeamId();
+
+        if (teamId == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "teamIdIsNull", "data", false));
+        }
+
+        boolean exists = projectService.existsByTeamId(teamId);
+        return ResponseEntity.ok(Map.of("message", "checkProjectExistenceSuccess", "data", exists));
     }
 
     @PostMapping("/social")

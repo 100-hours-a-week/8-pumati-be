@@ -53,6 +53,11 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public boolean existsByTeamId(Long teamId) {
+        return projectRepository.existsByTeamId(teamId);
+    }
+
+    @Override
     public CursorPageResponseDTO<ProjectResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
         if (dto.getContextId() == null) {
             throw new CustomValidationException("contextIdRequired");
