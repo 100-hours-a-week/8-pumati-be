@@ -41,7 +41,7 @@ public class MemberController {
         return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
     }
 
-    @GetMapping("/projects/existence")
+    @GetMapping("/teams/projects/existence")
     public ResponseEntity<?> checkProjectExistence(
             @RequestHeader("Authorization") String authorizationHeader
     ) {
@@ -50,11 +50,11 @@ public class MemberController {
 
         if (teamId == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "teamIdIsNull", "data", false));
+                    .body(Map.of("message", "onlyTraineeAllowed"));
         }
 
         boolean exists = projectService.existsByTeamId(teamId);
-        return ResponseEntity.ok(Map.of("message", "checkProjectExistenceSuccess", "data", exists));
+        return ResponseEntity.ok(Map.of("message", "checkProjectExistenceSuccess", "data", Map.of("exists", exists)));
     }
 
     @PostMapping("/social")
