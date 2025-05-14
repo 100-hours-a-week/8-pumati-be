@@ -27,7 +27,7 @@ public interface MemberService {
 
     void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
 
-    void delete(String authorizationHeader);
+    void delete(String authorizationHeader, HttpServletRequest request, HttpServletResponse response);
 
     Member dtoToEntity(MemberOAuthSignupRequestDTO dto, String email);
 

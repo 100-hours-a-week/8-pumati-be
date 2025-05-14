@@ -155,7 +155,7 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
-    public void delete(String authorizationHeader) {
+    public void delete(String authorizationHeader, HttpServletRequest request, HttpServletResponse response) {
         Long memberId = extractMemberIdFromHeader(authorizationHeader);
 
         refreshTokenService.deleteByMemberId(memberId);
@@ -164,6 +164,13 @@ public class MemberServiceImpl implements MemberService {
         if (!memberRepository.existsById(memberId)) {
             throw new CustomValidationException("memberNotFound");
         }
+
+        refreshTokenService.deleteByMemberId(memberId);
+        cookieUtil.deleteRefreshTokenCookie(
+                response,
+                refreshCookieName,
+                request.isSecure()
+        );
 
         memberRepository.deleteById(memberId);
     }

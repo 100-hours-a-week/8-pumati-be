@@ -82,9 +82,11 @@ public class MemberController {
 
     @DeleteMapping("/me")
     public ResponseEntity<?> delete(
-            @RequestHeader("Authorization") String authorizationHeader
+            @RequestHeader("Authorization") String authorizationHeader,
+            HttpServletRequest request,
+            HttpServletResponse response
     ) {
-        memberService.delete(authorizationHeader);
+        memberService.delete(authorizationHeader, request, response);
         return ResponseEntity.ok(Map.of("message", "memberDeleted"));
     }
 

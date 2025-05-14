@@ -9,6 +9,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.OneToMany;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -18,6 +20,8 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
+
+import java.util.List;
 
 @Entity
 @Builder
@@ -76,6 +80,12 @@ public class Member extends TimeStampedEntity {
 
     @Builder.Default
     private MemberState state = MemberState.ACTIVE;
+
+    @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
+    private List<AttendanceDaily> attendancesDaily;
+
+    @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
+    private List<AttendanceWeekly> attendancesWeekly;
 
     public void changeCourse(Course course) {
         this.course = course;
