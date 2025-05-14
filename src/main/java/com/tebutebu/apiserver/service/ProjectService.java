@@ -13,7 +13,6 @@ import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Transactional
 public interface ProjectService {
@@ -24,8 +23,10 @@ public interface ProjectService {
     @Transactional(readOnly = true)
     boolean existsByTeamId(Long teamId);
 
+    @Transactional(readOnly = true)
     CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto);
 
+    @Transactional(readOnly = true)
     CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorPageRequestDTO dto);
 
     Long register(ProjectCreateRequestDTO dto);
