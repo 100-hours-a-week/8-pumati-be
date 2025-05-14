@@ -43,4 +43,19 @@ public class CommentController {
         return ResponseEntity.ok(Map.of("message", "commentDeleted"));
     }
 
+    @PutMapping("/ai/{commentId}")
+    public ResponseEntity<?> modifyAiComment(
+            @PathVariable Long commentId,
+            @RequestBody @Valid CommentUpdateRequestDTO dto
+    ) {
+        commentService.modifyAiComment(commentId, dto.getContent());
+        return ResponseEntity.ok(Map.of("message", "modifyAiCommentSuccess"));
+    }
+
+    @DeleteMapping("/ai/{commentId}")
+    public ResponseEntity<?> deleteAiComment(@PathVariable Long commentId) {
+        commentService.removeAiComment(commentId);
+        return ResponseEntity.ok(Map.of("message", "commentDeleted"));
+    }
+
 }

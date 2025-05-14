@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Comment;
+import com.tebutebu.apiserver.dto.comment.request.AiCommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
@@ -22,6 +23,12 @@ public interface CommentService {
     void modify(Long commentId, Long memberId, CommentUpdateRequestDTO dto);
 
     void remove(Long commentId);
+
+    Long registerAiComment(Long projectId, AiCommentCreateRequestDTO dto);
+
+    void modifyAiComment(Long commentId, String content);
+
+    void removeAiComment(Long commentId);
 
     Comment dtoToEntity(Long projectId, Long memberId, CommentCreateRequestDTO dto);
 

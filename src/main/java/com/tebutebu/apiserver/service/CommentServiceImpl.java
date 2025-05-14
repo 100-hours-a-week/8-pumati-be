@@ -4,10 +4,12 @@ import com.tebutebu.apiserver.domain.Comment;
 import com.tebutebu.apiserver.domain.CommentType;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.Project;
+import com.tebutebu.apiserver.dto.comment.request.AiCommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.AuthorDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
+import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
@@ -17,6 +19,7 @@ import com.tebutebu.apiserver.repository.paging.comment.CommentPagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,9 +30,14 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class CommentServiceImpl implements CommentService {
 
+    @Value("${default.profile.image.url}")
+    private String defaultProfileImageUrl;
+
     private final CommentRepository commentRepository;
 
     private final CommentPagingRepository commentPagingRepository;
+
+    private final MemberService memberService;
 
     @Override
     public CommentResponseDTO get(Long commentId) {
@@ -70,7 +78,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public void modify(Long commentId, Long memberId, CommentUpdateRequestDTO dto) {
-        Comment comment = commentRepository.findByIdWithMemberAndProject(commentId)
+        Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new NoSuchElementException("commentNotFound"));
 
         if (!comment.getMember().getId().equals(memberId)) {
@@ -87,6 +95,49 @@ public class CommentServiceImpl implements CommentService {
             throw new NoSuchElementException("commentNotFound");
         }
         commentRepository.deleteById(commentId);
+    }
+
+    @Override
+    public Long registerAiComment(Long projectId, AiCommentCreateRequestDTO dto) {
+        AiMemberSignupRequestDTO aiMemberDto = AiMemberSignupRequestDTO.builder()
+                .name(dto.getAuthorName())
+                .nickname(dto.getAuthorNickname())
+                .build();
+        Long aiMemberId = memberService.registerAiMember(aiMemberDto);
+
+        Comment comment = Comment.builder()
+                .member(Member.builder().id(aiMemberId).build())
+                .project(Project.builder().id(projectId).build())
+                .type(CommentType.AI)
+                .content(dto.getContent())
+                .build();
+
+        return commentRepository.save(comment).getId();
+    }
+
+    @Override
+    public void modifyAiComment(Long commentId, String content) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NoSuchElementException("commentNotFound"));
+
+        if (comment.getType() != CommentType.AI) {
+            throw new IllegalArgumentException("notAiComment");
+        }
+
+        comment.changeContent(content);
+        commentRepository.save(comment);
+    }
+
+    @Override
+    public void removeAiComment(Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NoSuchElementException("commentNotFound"));
+
+        if (comment.getType() != CommentType.AI) {
+            throw new IllegalArgumentException("notAiComment");
+        }
+
+        commentRepository.delete(comment);
     }
 
     @Override

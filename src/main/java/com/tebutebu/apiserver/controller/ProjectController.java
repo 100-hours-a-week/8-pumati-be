@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.controller;
 
+import com.tebutebu.apiserver.dto.comment.request.AiCommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
@@ -150,6 +151,18 @@ public class ProjectController {
     ) {
         Long memberId = memberService.get(authorizationHeader).getId();
         Long commentId = commentService.register(projectId, memberId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "registerSuccess",
+                "data", Map.of("id", commentId)
+        ));
+    }
+
+    @PostMapping("/{projectId}/comments/ai")
+    public ResponseEntity<?> registerAiComment(
+            @PathVariable Long projectId,
+            @Valid @RequestBody AiCommentCreateRequestDTO dto
+    ) {
+        Long commentId = commentService.registerAiComment(projectId, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "message", "registerSuccess",
                 "data", Map.of("id", commentId)
