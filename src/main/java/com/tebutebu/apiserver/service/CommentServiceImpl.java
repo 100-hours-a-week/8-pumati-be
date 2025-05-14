@@ -8,12 +8,18 @@ import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.AuthorDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
+import com.tebutebu.apiserver.repository.paging.comment.CommentPagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -22,6 +28,8 @@ import java.util.NoSuchElementException;
 public class CommentServiceImpl implements CommentService {
 
     private final CommentRepository commentRepository;
+
+    private final CommentPagingRepository commentPagingRepository;
 
     @Override
     public CommentResponseDTO get(Long commentId) {
@@ -32,6 +40,26 @@ public class CommentServiceImpl implements CommentService {
             throw new NoSuchElementException("projectNotFound");
         }
         return entityToDTO(comment);
+    }
+
+    @Override
+    public CursorPageResponseDTO<CommentResponseDTO> getLatestCommentsByProject(Long projectId, CursorPageRequestDTO dto) {
+        CursorPage<Comment> page = commentPagingRepository.findByProjectLatestCursor(projectId, dto);
+
+        List<CommentResponseDTO> responseData = page.items().stream()
+                .map(this::entityToDTO)
+                .toList();
+
+        CursorMetaDTO meta = CursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
+
+        return CursorPageResponseDTO.<CommentResponseDTO>builder()
+                .data(responseData)
+                .meta(meta)
+                .build();
     }
 
     @Override

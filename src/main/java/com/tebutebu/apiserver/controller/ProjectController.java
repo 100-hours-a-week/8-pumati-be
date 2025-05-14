@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
+import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
@@ -89,6 +90,28 @@ public class ProjectController {
         CursorPageResponseDTO<ProjectPageResponseDTO> page = projectService.getLatestPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getLatestPageSuccess",
+                "data", page.getData(),
+                "meta", page.getMeta()
+        ));
+    }
+
+    @GetMapping("/{projectId}/comments")
+    public ResponseEntity<?> scrollComments(
+            @PathVariable("projectId") Long projectId,
+            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
+            @RequestParam(name = "cursor-time", defaultValue = "#{T(java.time.LocalDateTime).now().format(T(java.time.format.DateTimeFormatter).ISO_DATE_TIME)}")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
+            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
+    ) {
+        CursorPageRequestDTO dto = CursorPageRequestDTO.builder()
+                .cursorId(cursorId)
+                .cursorTime(cursorTime)
+                .pageSize(pageSize)
+                .build();
+
+        CursorPageResponseDTO<CommentResponseDTO> page = commentService.getLatestCommentsByProject(projectId, dto);
+        return ResponseEntity.ok(Map.of(
+                "message", "getCommentPageSuccess",
                 "data", page.getData(),
                 "meta", page.getMeta()
         ));
