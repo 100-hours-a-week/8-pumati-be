@@ -1,11 +1,14 @@
 package com.tebutebu.apiserver.controller;
 
+import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.service.CommentService;
+import com.tebutebu.apiserver.service.MemberService;
 import com.tebutebu.apiserver.service.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.ProjectService;
 import jakarta.validation.Valid;
@@ -33,6 +36,10 @@ public class ProjectController {
     private final ProjectService projectService;
 
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
+    private final MemberService memberService;
+
+    private final CommentService commentService;
 
     @GetMapping("/{projectId}")
     public ResponseEntity<?> get(@PathVariable long projectId) {
@@ -110,6 +117,20 @@ public class ProjectController {
     public ResponseEntity<?> delete(@PathVariable long projectId) {
         projectService.delete(projectId);
         return ResponseEntity.ok(Map.of("message", "projectDeleted"));
+    }
+
+    @PostMapping("/{projectId}/comments")
+    public ResponseEntity<?> registerComment(
+            @PathVariable("projectId") Long projectId,
+            @RequestHeader("Authorization") String authorizationHeader,
+            @Valid @RequestBody CommentCreateRequestDTO dto
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        Long commentId = commentService.register(projectId, memberId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "registerSuccess",
+                "data", Map.of("id", commentId)
+        ));
     }
 
 }
