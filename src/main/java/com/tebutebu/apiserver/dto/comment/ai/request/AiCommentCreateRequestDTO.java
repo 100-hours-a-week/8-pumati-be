@@ -1,4 +1,4 @@
-package com.tebutebu.apiserver.dto.comment.request;
+package com.tebutebu.apiserver.dto.comment.ai.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

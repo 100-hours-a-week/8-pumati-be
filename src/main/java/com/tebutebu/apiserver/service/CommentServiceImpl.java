@@ -4,7 +4,7 @@ import com.tebutebu.apiserver.domain.Comment;
 import com.tebutebu.apiserver.domain.CommentType;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.Project;
-import com.tebutebu.apiserver.dto.comment.request.AiCommentCreateRequestDTO;
+import com.tebutebu.apiserver.dto.comment.ai.request.AiCommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.AuthorDTO;
@@ -19,7 +19,6 @@ import com.tebutebu.apiserver.repository.paging.comment.CommentPagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,9 +28,6 @@ import java.util.NoSuchElementException;
 @Log4j2
 @RequiredArgsConstructor
 public class CommentServiceImpl implements CommentService {
-
-    @Value("${default.profile.image.url}")
-    private String defaultProfileImageUrl;
 
     private final CommentRepository commentRepository;
 

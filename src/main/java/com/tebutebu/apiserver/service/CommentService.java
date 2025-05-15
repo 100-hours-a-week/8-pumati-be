@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Comment;
-import com.tebutebu.apiserver.dto.comment.request.AiCommentCreateRequestDTO;
+import com.tebutebu.apiserver.dto.comment.ai.request.AiCommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
