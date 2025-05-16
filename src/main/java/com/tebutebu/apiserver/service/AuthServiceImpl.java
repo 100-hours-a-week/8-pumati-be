@@ -1,14 +1,18 @@
 package com.tebutebu.apiserver.service;
 
+import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.dto.token.TokensDTO;
 import com.tebutebu.apiserver.dto.token.request.RefreshTokenRotateRequestDTO;
 import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
+import com.tebutebu.apiserver.repository.MemberRepository;
+import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -18,8 +22,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final RefreshTokenService refreshTokenService;
 
-    @Value("${spring.jwt.access-token.expiration}")
-    private int accessTokenExpiration;
+    private final MemberRepository memberRepository;
 
     @Value("${spring.jwt.refresh-token.expiration}")
     private int refreshTokenExpiration;
@@ -50,8 +53,15 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Map<String, Object> claims = JWTUtil.validateToken(refreshTokenCookie);
+        Long memberId = ((Number) claims.get("sub")).longValue();
 
-        String newAccess = JWTUtil.generateToken(claims, accessTokenExpiration);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new NoSuchElementException("memberNotFound"));
+
+        CustomOAuth2User customOAuth2User = new CustomOAuth2User(member);
+        Map<String, Object> attributes = customOAuth2User.getAttributes();
+
+        String newAccess = JWTUtil.generateAccessToken(attributes);
 
         RefreshTokenRotateRequestDTO rotateDto = RefreshTokenRotateRequestDTO.builder()
                 .memberId(storedDto.getMemberId())
@@ -70,8 +80,9 @@ public class AuthServiceImpl implements AuthService {
         try {
             JWTUtil.validateToken(token);
             return false;
-        } catch (RuntimeException ex) {
-            return "Expired".equals(ex.getMessage());
+        } catch (RuntimeException e) {
+            String msg = e.getMessage();
+            return msg != null && msg.toLowerCase().contains("expired");
         }
     }
 

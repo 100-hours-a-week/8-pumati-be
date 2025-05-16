@@ -33,22 +33,27 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        TokensDTO tokens = authService.refreshTokens(authorizationHeader, refreshTokenCookie);
+        try {
+            TokensDTO tokens = authService.refreshTokens(authorizationHeader, refreshTokenCookie);
 
-        int maxAge = 60 * 60 * 24;
-        cookieUtil.addRefreshTokenCookie(
-                response,
-                refreshCookieName,
-                tokens.getRefreshToken(),
-                maxAge,
-                request.isSecure()
-        );
+            int maxAge = 60 * 60 * 24;
+            cookieUtil.addRefreshTokenCookie(
+                    response,
+                    refreshCookieName,
+                    tokens.getRefreshToken(),
+                    maxAge,
+                    request.isSecure()
+            );
 
-        Map<String, Object> body = Map.of(
-                "message", "refreshSuccess",
-                "data", Map.of("accessToken", tokens.getAccessToken())
-        );
-        return ResponseEntity.ok(body);
+            Map<String, Object> body = Map.of(
+                    "message", "refreshSuccess",
+                    "data", Map.of("accessToken", tokens.getAccessToken())
+            );
+            return ResponseEntity.ok(body);
+        } catch (Exception e) {
+            cookieUtil.deleteRefreshTokenCookie(response, refreshCookieName, request.isSecure());
+            throw e;
+        }
     }
 
 }

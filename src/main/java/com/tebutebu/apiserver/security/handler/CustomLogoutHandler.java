@@ -36,7 +36,7 @@ public class CustomLogoutHandler implements LogoutHandler {
         cookie.ifPresent(c -> {
             String refreshToken = c.getValue();
             Map<String,Object> claims = JWTUtil.validateToken(refreshToken);
-            Long memberId = ((Number) claims.get("id")).longValue();
+            Long memberId = ((Number) claims.get("sub")).longValue();
             refreshTokenService.deleteByMemberId(memberId);
 
             cookieUtil.deleteRefreshTokenCookie(response, refreshCookieName, request.isSecure());

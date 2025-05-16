@@ -39,12 +39,6 @@ public class MemberServiceImpl implements MemberService {
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
-    @Value("${spring.jwt.access-token.expiration}")
-    private int accessTokenExpiration;
-
-    @Value("${spring.jwt.refresh-token.expiration}")
-    private int refreshTokenExpiration;
-
     @Value("${default.profile.image.url}")
     private String defaultProfileImageUrl;
 
@@ -105,9 +99,11 @@ public class MemberServiceImpl implements MemberService {
         CustomOAuth2User customOAuth2User = new CustomOAuth2User(member);
         Map<String, Object> attributes = customOAuth2User.getAttributes();
 
-        String accessToken = JWTUtil.generateToken(attributes, accessTokenExpiration);
-        String refreshToken= JWTUtil.generateToken(attributes, refreshTokenExpiration);
-        refreshTokenService.persistRefreshToken(member.getId(), refreshToken);
+        Long memberId = member.getId();
+
+        String accessToken = JWTUtil.generateAccessToken(attributes);
+        String refreshToken= JWTUtil.generateRefreshToken(memberId);
+        refreshTokenService.persistRefreshToken(memberId, refreshToken);
 
         int maxAge = 60 * 60 * 24;
         cookieUtil.addRefreshTokenCookie(
