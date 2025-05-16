@@ -15,34 +15,55 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class JWTUtil {
 
     private static String secretKey;
 
+    private static long accessTokenExpireMin;
+
+    private static long refreshTokenExpireMin;
+
     @Value("${spring.jwt.secret}")
     public void setSecretKey(String secretKey) {
         JWTUtil.secretKey = secretKey;
     }
 
-    public static String generateToken(Map<String, Object> valueMap, int min) {
+    @Value("${spring.jwt.access-token.expiration}")
+    public void setAccessTokenExpireMin(long minutes) {
+        JWTUtil.accessTokenExpireMin = minutes;
+    }
 
-        SecretKey key = null;
+    @Value("${spring.jwt.refresh-token.expiration}")
+    public void setRefreshTokenExpireMin(long minutes) {
+        JWTUtil.refreshTokenExpireMin = minutes;
+    }
 
-        try {
-            key = Keys.hmacShaKeyFor(JWTUtil.secretKey.getBytes(StandardCharsets.UTF_8));
-        } catch(Exception e) {
-            throw new RuntimeException(e.getMessage());
-        }
-
+    public static String generateToken(Map<String, Object> claims, long expireMin) {
+        SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
         return Jwts.builder()
-                .setHeader(Map.of("typ","JWT"))
-                .setClaims(valueMap)
-                .setIssuedAt(Date.from(ZonedDateTime.now().toInstant()))
-                .setExpiration(Date.from(ZonedDateTime.now().plusMinutes(min).toInstant()))
+                .setHeaderParam("typ", "JWT")
+                .setClaims(claims)
+                .setIssuedAt(new Date())
+                .setExpiration(Date.from(ZonedDateTime.now().plusMinutes(expireMin).toInstant()))
                 .signWith(key)
                 .compact();
+    }
+
+    public static String generateAccessToken(Map<String, Object> claims) {
+        return generateToken(claims, accessTokenExpireMin);
+    }
+
+    public static String generateRefreshToken(Long memberId) {
+        String jti = UUID.randomUUID().toString();
+        Map<String, Object> claims = Map.of(
+                "sub", memberId,
+                "jti", jti,
+                "typ", "refresh"
+        );
+        return generateToken(claims, refreshTokenExpireMin);
     }
 
     public static Map<String, Object> validateToken(String token) {
@@ -54,16 +75,16 @@ public class JWTUtil {
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-        } catch(MalformedJwtException malformedJwtException) {
-            throw new CustomJWTException("MalFormed");
-        } catch(ExpiredJwtException expiredJwtException) {
-            throw new CustomJWTException("Expired");
-        } catch(InvalidClaimException invalidClaimException) {
-            throw new CustomJWTException("Invalid");
-        } catch(JwtException jwtException) {
-            throw new CustomJWTException("JWTError");
-        } catch(Exception e) {
-            throw new CustomJWTException("Error");
+        } catch (MalformedJwtException malformedJwtException) {
+            throw new CustomJWTException("tokenMalformed");
+        } catch (ExpiredJwtException expiredJwtException) {
+            throw new CustomJWTException("tokenExpired");
+        } catch (InvalidClaimException invalidClaimException) {
+            throw new CustomJWTException("invalidClaim");
+        } catch (JwtException jwtException) {
+            throw new CustomJWTException("jwtException");
+        } catch (Exception e) {
+            throw new CustomJWTException(e.getMessage());
         }
         return claim;
     }

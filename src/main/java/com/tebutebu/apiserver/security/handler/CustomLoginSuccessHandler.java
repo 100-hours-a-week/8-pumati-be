@@ -27,12 +27,6 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${frontend.redirect-uri}")
     private String frontendRedirectUri;
 
-    @Value("${spring.jwt.access-token.expiration}")
-    private int accessTokenExpiration;
-
-    @Value("${spring.jwt.refresh-token.expiration}")
-    private int refreshTokenExpiration;
-
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
@@ -46,10 +40,12 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
         Map<String, Object> originalAttributes = customOAuth2User.getAttributes();
         Map<String, Object> responseData = new HashMap<>(originalAttributes);
 
-        String accessToken = JWTUtil.generateToken(originalAttributes, accessTokenExpiration);
-        String refreshToken = JWTUtil.generateToken(originalAttributes, refreshTokenExpiration);
+        Long memberId = customOAuth2User.getMemberId();
 
-        refreshTokenService.persistRefreshToken(customOAuth2User.getMemberId(), refreshToken);
+        String accessToken = JWTUtil.generateAccessToken(originalAttributes);
+        String refreshToken = JWTUtil.generateRefreshToken(memberId);
+
+        refreshTokenService.persistRefreshToken(memberId, refreshToken);
 
         responseData.put("accessToken", accessToken);
 

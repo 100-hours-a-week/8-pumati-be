@@ -13,9 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.UUID;
 
 @Service
 @Log4j2
@@ -67,9 +65,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             throw new IllegalArgumentException("invalidOrExpiredRefreshToken");
         }
 
-        Map<String, Object> claims = JWTUtil.validateToken(dto.getOldToken());
-
-        String newToken = JWTUtil.generateToken(claims, dto.getNewExpiryMinutes());
+        String newToken = JWTUtil.generateRefreshToken(dto.getMemberId());
 
         old.changeToken(newToken);
         old.changeExpiresAt(LocalDateTime.now().plusMinutes(dto.getNewExpiryMinutes()));
