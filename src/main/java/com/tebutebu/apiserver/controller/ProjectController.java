@@ -1,11 +1,16 @@
 package com.tebutebu.apiserver.controller;
 
+import com.tebutebu.apiserver.dto.comment.ai.request.AiCommentCreateRequestDTO;
+import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
+import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.service.CommentService;
+import com.tebutebu.apiserver.service.MemberService;
 import com.tebutebu.apiserver.service.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.ProjectService;
 import jakarta.validation.Valid;
@@ -33,6 +38,10 @@ public class ProjectController {
     private final ProjectService projectService;
 
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
+    private final MemberService memberService;
+
+    private final CommentService commentService;
 
     @GetMapping("/{projectId}")
     public ResponseEntity<?> get(@PathVariable long projectId) {
@@ -87,6 +96,28 @@ public class ProjectController {
         ));
     }
 
+    @GetMapping("/{projectId}/comments")
+    public ResponseEntity<?> scrollComments(
+            @PathVariable("projectId") Long projectId,
+            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
+            @RequestParam(name = "cursor-time", defaultValue = "#{T(java.time.LocalDateTime).now().format(T(java.time.format.DateTimeFormatter).ISO_DATE_TIME)}")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
+            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
+    ) {
+        CursorPageRequestDTO dto = CursorPageRequestDTO.builder()
+                .cursorId(cursorId)
+                .cursorTime(cursorTime)
+                .pageSize(pageSize)
+                .build();
+
+        CursorPageResponseDTO<CommentResponseDTO> page = commentService.getLatestCommentsByProject(projectId, dto);
+        return ResponseEntity.ok(Map.of(
+                "message", "getCommentPageSuccess",
+                "data", page.getData(),
+                "meta", page.getMeta()
+        ));
+    }
+
     @PostMapping("")
     public ResponseEntity<?> register(@Valid @RequestBody ProjectCreateRequestDTO dto) {
         long projectId = projectService.register(dto);
@@ -110,6 +141,32 @@ public class ProjectController {
     public ResponseEntity<?> delete(@PathVariable long projectId) {
         projectService.delete(projectId);
         return ResponseEntity.ok(Map.of("message", "projectDeleted"));
+    }
+
+    @PostMapping("/{projectId}/comments")
+    public ResponseEntity<?> registerComment(
+            @PathVariable("projectId") Long projectId,
+            @RequestHeader("Authorization") String authorizationHeader,
+            @Valid @RequestBody CommentCreateRequestDTO dto
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        Long commentId = commentService.register(projectId, memberId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "registerSuccess",
+                "data", Map.of("id", commentId)
+        ));
+    }
+
+    @PostMapping("/{projectId}/comments/ai")
+    public ResponseEntity<?> registerAiComment(
+            @PathVariable Long projectId,
+            @Valid @RequestBody AiCommentCreateRequestDTO dto
+    ) {
+        Long commentId = commentService.registerAiComment(projectId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "registerSuccess",
+                "data", Map.of("id", commentId)
+        ));
     }
 
 }

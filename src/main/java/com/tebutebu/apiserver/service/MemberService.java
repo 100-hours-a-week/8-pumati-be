@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Member;
+import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
@@ -24,6 +25,8 @@ public interface MemberService {
     List<MemberResponseDTO> getMembersByTeamId(Long teamId);
 
     MemberSignupResponseDTO registerOAuthUser(MemberOAuthSignupRequestDTO dto, HttpServletRequest request, HttpServletResponse response);
+
+    Long registerAiMember(AiMemberSignupRequestDTO dto);
 
     void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
 

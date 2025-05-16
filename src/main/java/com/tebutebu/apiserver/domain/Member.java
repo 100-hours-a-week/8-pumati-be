@@ -82,6 +82,9 @@ public class Member extends TimeStampedEntity {
     private MemberState state = MemberState.ACTIVE;
 
     @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
+    private List<Comment> comments;
+
+    @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<AttendanceDaily> attendancesDaily;
 
     @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)

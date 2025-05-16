@@ -33,13 +33,16 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         }
 
         if (request.getMethod().equals("GET")) {
-            if (path.equals("/") || path.equals("/docs") || path.startsWith("/api/oauth/") || path.startsWith("/api/teams") || path.startsWith("/api/projects")) {
+            if (path.equals("/") || path.equals("/docs") || path.startsWith("/api/oauth/")
+                    || path.startsWith("/api/teams") || path.startsWith("/api/projects") || path.startsWith("/api/comments")) {
                 return true;
             }
         }
 
         if (request.getMethod().equals("POST")) {
-            if (path.equals("/api/members/social") || path.startsWith("/api/auth/") || path.equals("/api/pre-signed-url") || path.equals("/api/pre-signed-urls") || path.equals("/api/projects/snapshot")) {
+            if (path.equals("/api/members/social") || path.startsWith("/api/auth/")
+                    || path.equals("/api/pre-signed-url") || path.equals("/api/pre-signed-urls")
+                    || path.equals("/api/projects/snapshot") || path.endsWith("/ai")) {
                 return true;
             }
         }

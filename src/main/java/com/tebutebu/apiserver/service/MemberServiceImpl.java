@@ -2,7 +2,10 @@ package com.tebutebu.apiserver.service;
 
 import com.github.javafaker.Faker;
 import com.tebutebu.apiserver.domain.Member;
+import com.tebutebu.apiserver.domain.MemberRole;
+import com.tebutebu.apiserver.domain.MemberState;
 import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -134,6 +138,23 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
+    public Long registerAiMember(AiMemberSignupRequestDTO dto) {
+        String email = generateUniqueAiEmail();
+
+        Member member = Member.builder()
+                .email(email)
+                .password(passwordEncoder.encode("!A1ai-comment"))
+                .name(dto.getName())
+                .nickname(dto.getNickname())
+                .profileImageUrl(defaultProfileImageUrl)
+                .isSocial(false)
+                .role(MemberRole.USER)
+                .state(MemberState.ACTIVE)
+                .build();
+        return memberRepository.save(member).getId();
+    }
+
+    @Override
     public void modify(String authorizationHeader, MemberUpdateRequestDTO dto) {
         Long memberId = extractMemberIdFromHeader(authorizationHeader);
         Member member = memberRepository.findById(memberId)
@@ -201,6 +222,10 @@ public class MemberServiceImpl implements MemberService {
                 .profileImageUrl(dto.getProfileImageUrl() == null ? defaultProfileImageUrl : dto.getProfileImageUrl())
                 .role(dto.getRole())
                 .build();
+    }
+
+    private String generateUniqueAiEmail() {
+        return "ai_" + UUID.randomUUID() + "@tebutebu.ai";
     }
 
 }

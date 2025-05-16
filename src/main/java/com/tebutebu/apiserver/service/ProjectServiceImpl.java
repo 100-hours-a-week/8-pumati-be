@@ -4,6 +4,8 @@ import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectImage;
 import com.tebutebu.apiserver.domain.Tag;
 import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.dto.comment.ai.request.AiCommentGenerateRequestDTO;
+import com.tebutebu.apiserver.dto.comment.ai.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.image.request.ProjectImageRequestDTO;
 import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
@@ -23,6 +25,7 @@ import com.tebutebu.apiserver.repository.paging.project.ProjectPagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -43,6 +46,11 @@ public class ProjectServiceImpl implements ProjectService {
     private final TagService tagService;
 
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
+    private final AiCommentRequestService aiCommentRequestService;
+
+    @Value("${ai.comment.default.type}")
+    private String aiCommentDefaultType;
 
     @Override
     public ProjectResponseDTO get(Long id) {
@@ -141,7 +149,24 @@ public class ProjectServiceImpl implements ProjectService {
         project.changeTagContents(tagContents);
 
         projectRepository.save(project);
-        return project.getId();
+
+        AiCommentGenerateRequestDTO aiDto = AiCommentGenerateRequestDTO.builder()
+                .commentType(aiCommentDefaultType)
+                .projectSummary(ProjectSummaryDTO.builder()
+                        .title(project.getTitle())
+                        .introduction(project.getIntroduction())
+                        .detailedDescription(project.getDetailedDescription())
+                        .deploymentUrl(project.getDeploymentUrl())
+                        .githubUrl(project.getGithubUrl())
+                        .tags(tagContents)
+                        .teamId(dto.getTeamId())
+                        .build())
+                .build();
+
+        Long projectId = project.getId();
+        aiCommentRequestService.requestAiComment(projectId, aiDto);
+
+        return projectId;
     }
 
     @Override
