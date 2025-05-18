@@ -69,8 +69,9 @@ public class Project extends TimeStampedEntity {
     @Column(name = "tags", columnDefinition = "json")
     private List<TagResponseDTO> tagContents;
 
+    @Builder.Default
     @OneToMany(mappedBy="project", cascade=CascadeType.ALL, orphanRemoval=true)
-    private List<Comment> comments;
+    private List<Comment> comments = new ArrayList<>();
 
     public void changeTitle(String title) {
         this.title = title;
