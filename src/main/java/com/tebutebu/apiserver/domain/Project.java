@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = {"team", "images", "projectTags"})
+@ToString(exclude = {"team", "images", "projectTags", "comments"})
 public class Project extends TimeStampedEntity {
 
     @Id
@@ -68,6 +68,9 @@ public class Project extends TimeStampedEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "tags", columnDefinition = "json")
     private List<TagResponseDTO> tagContents;
+
+    @OneToMany(mappedBy="project", cascade=CascadeType.ALL, orphanRemoval=true)
+    private List<Comment> comments;
 
     public void changeTitle(String title) {
         this.title = title;
