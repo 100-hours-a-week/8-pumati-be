@@ -29,6 +29,8 @@ public class ProjectPageResponseDTO {
 
     private List<TagResponseDTO> tags;
 
+    private Long commentCount;
+
     private Long givedPumatiCount;
 
     private Long receivedPumatiCount;

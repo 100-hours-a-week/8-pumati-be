@@ -20,6 +20,7 @@ import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
+import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import com.tebutebu.apiserver.repository.paging.project.ProjectPagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
@@ -29,6 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -40,6 +42,8 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
 
     private final ProjectPagingRepository projectPagingRepository;
+
+    private final CommentRepository commentRepository;
 
     private final ProjectImageService projectImageService;
 
@@ -75,7 +79,10 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(RankingItemDTO::getRank)
                 .orElse(null);
 
-        return entityToDTO(project, team, images, tags, teamRank);
+        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(List.of(id));
+        long commentCount = commentCountMap.getOrDefault(id, 0L);
+
+        return entityToDTO(project, team, images, tags, teamRank, commentCount);
     }
 
     @Override
@@ -89,39 +96,33 @@ public class ProjectServiceImpl implements ProjectService {
             throw new CustomValidationException("contextIdRequired");
         }
 
-        CursorPage<Project> cursorPage = projectPagingRepository.findByRankingCursor(dto);
-
-        List<ProjectPageResponseDTO> data = cursorPage.items().stream()
-                .map(this::entityToPageDTO)
-                .collect(Collectors.toList());
+        CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByRankingCursor(dto);
 
         CursorMetaDTO meta = CursorMetaDTO.builder()
-                .nextCursorId(cursorPage.nextCursorId())
-                .nextCursorTime(cursorPage.nextCursorTime())
-                .hasNext(cursorPage.hasNext())
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
                 .build();
 
         return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
-                .data(data)
+                .data(page.items())
                 .meta(meta)
                 .build();
     }
 
     @Override
     public CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorPageRequestDTO dto) {
-        CursorPage<Project> page = projectPagingRepository.findByLatestCursor(dto);
+        CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByLatestCursor(dto);
 
-        List<ProjectPageResponseDTO> data = page.items().stream()
-                .map(this::entityToPageDTO)
-                .collect(Collectors.toList());
+        CursorMetaDTO meta = CursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
 
         return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
-                .data(data)
-                .meta(CursorMetaDTO.builder()
-                        .nextCursorId(page.nextCursorId())
-                        .nextCursorTime(page.nextCursorTime())
-                        .hasNext(page.hasNext())
-                        .build())
+                .data(page.items())
+                .meta(meta)
                 .build();
     }
 
@@ -244,30 +245,6 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         return project;
-    }
-
-    private ProjectPageResponseDTO entityToPageDTO(Project project) {
-        Team team = project.getTeam();
-        List<TagResponseDTO> tags = project.getTagContents().stream()
-                .map(tagContentDTO -> TagResponseDTO.builder()
-                        .content(tagContentDTO.getContent())
-                        .build())
-                .toList();
-        return ProjectPageResponseDTO.builder()
-                .id(project.getId())
-                .teamId(team.getId())
-                .term(team.getTerm())
-                .teamNumber(team.getNumber())
-                .givedPumatiCount(team.getGivedPumatiCount())
-                .receivedPumatiCount(team.getReceivedPumatiCount())
-                .badgeImageUrl(team.getBadgeImageUrl())
-                .title(project.getTitle())
-                .introduction(project.getIntroduction())
-                .representativeImageUrl(project.getRepresentativeImageUrl())
-                .tags(tags)
-                .createdAt(project.getCreatedAt())
-                .modifiedAt(project.getModifiedAt())
-                .build();
     }
 
 }

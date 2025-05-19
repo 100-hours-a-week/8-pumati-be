@@ -7,11 +7,14 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.domain.QProject;
+import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
+import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import com.tebutebu.apiserver.pagination.factory.CursorPageSpec;
 import com.tebutebu.apiserver.pagination.factory.CursorPageFactory;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,8 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final ProjectRepository projectRepository;
 
+    private final CommentRepository commentRepository;
+
     private final CursorPageFactory cursorPageFactory;
 
     private final ObjectMapper objectMapper;
@@ -38,7 +43,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
     private final QProject p = QProject.project;
 
     @Override
-    public CursorPage<Project> findByRankingCursor(CursorPageRequestDTO req) {
+    public CursorPage<ProjectPageResponseDTO> findByRankingCursor(CursorPageRequestDTO req) {
         ProjectRankingSnapshot snapshot = snapshotRepository.findById(req.getContextId())
                 .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
 
@@ -53,13 +58,20 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
         List<Project> projects = projectRepository.findAllById(projectIds).stream()
                 .sorted(Comparator.comparingInt(p -> projectIds.indexOf(p.getId())))
+                .toList();
+
+        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+
+        // 5) DTO 매핑
+        List<ProjectPageResponseDTO> data = projects.stream()
+                .map(proj -> toPageDto(proj, commentCountMap))
                 .collect(Collectors.toList());
 
         boolean hasNext = end < dtoList.size();
         Long nextCursorId = hasNext ? dtoList.get(end - 1).getProjectId() : null;
 
-        return CursorPage.<Project>builder()
-                .items(projects)
+        return CursorPage.<ProjectPageResponseDTO>builder()
+                .items(data)
                 .nextCursorId(nextCursorId)
                 .nextCursorTime(null)
                 .hasNext(hasNext)
@@ -67,7 +79,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
     }
 
     @Override
-    public CursorPage<Project> findByLatestCursor(CursorPageRequestDTO req) {
+    public CursorPage<ProjectPageResponseDTO> findByLatestCursor(CursorPageRequestDTO req) {
         BooleanBuilder where = new BooleanBuilder();
         OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
                 p.createdAt.desc(),
@@ -84,7 +96,23 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                 .cursorTime(req.getCursorTime())
                 .pageSize(req.getPageSize())
                 .build();
-        return cursorPageFactory.create(spec);
+        CursorPage<Project> page = cursorPageFactory.create(spec);
+
+        List<Long> projectIds = page.items().stream()
+                .map(Project::getId)
+                .collect(Collectors.toList());
+        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+
+        List<ProjectPageResponseDTO> data = page.items().stream()
+                .map(proj -> toPageDto(proj, commentCountMap))
+                .collect(Collectors.toList());
+
+        return CursorPage.<ProjectPageResponseDTO>builder()
+                .items(data)
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
     }
 
     private List<RankingItemDTO> parseSnapshotJson(ProjectRankingSnapshot snapshot) {
@@ -109,6 +137,27 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
             }
         }
         return 0;
+    }
+
+    private ProjectPageResponseDTO toPageDto(Project proj, Map<Long, Long> commentCountMap) {
+        return ProjectPageResponseDTO.builder()
+                .id(proj.getId())
+                .teamId(proj.getTeam().getId())
+                .term(proj.getTeam().getTerm())
+                .teamNumber(proj.getTeam().getNumber())
+                .title(proj.getTitle())
+                .introduction(proj.getIntroduction())
+                .representativeImageUrl(proj.getRepresentativeImageUrl())
+                .tags(proj.getTagContents().stream()
+                        .map(t -> new TagResponseDTO(t.getContent()))
+                        .toList())
+                .commentCount(commentCountMap.getOrDefault(proj.getId(), 0L))
+                .givedPumatiCount(proj.getTeam().getGivedPumatiCount())
+                .receivedPumatiCount(proj.getTeam().getReceivedPumatiCount())
+                .badgeImageUrl(proj.getTeam().getBadgeImageUrl())
+                .createdAt(proj.getCreatedAt())
+                .modifiedAt(proj.getModifiedAt())
+                .build();
     }
 
 }
