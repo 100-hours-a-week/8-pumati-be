@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -78,7 +79,8 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(RankingItemDTO::getRank)
                 .orElse(null);
 
-        long commentCount = commentRepository.countByProjectId(id);
+        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(List.of(id));
+        long commentCount = commentCountMap.getOrDefault(id, 0L);
 
         return entityToDTO(project, team, images, tags, teamRank, commentCount);
     }
@@ -94,39 +96,33 @@ public class ProjectServiceImpl implements ProjectService {
             throw new CustomValidationException("contextIdRequired");
         }
 
-        CursorPage<Project> cursorPage = projectPagingRepository.findByRankingCursor(dto);
-
-        List<ProjectPageResponseDTO> data = cursorPage.items().stream()
-                .map(this::entityToPageDTO)
-                .collect(Collectors.toList());
+        CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByRankingCursor(dto);
 
         CursorMetaDTO meta = CursorMetaDTO.builder()
-                .nextCursorId(cursorPage.nextCursorId())
-                .nextCursorTime(cursorPage.nextCursorTime())
-                .hasNext(cursorPage.hasNext())
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
                 .build();
 
         return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
-                .data(data)
+                .data(page.items())
                 .meta(meta)
                 .build();
     }
 
     @Override
     public CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorPageRequestDTO dto) {
-        CursorPage<Project> page = projectPagingRepository.findByLatestCursor(dto);
+        CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByLatestCursor(dto);
 
-        List<ProjectPageResponseDTO> data = page.items().stream()
-                .map(this::entityToPageDTO)
-                .collect(Collectors.toList());
+        CursorMetaDTO meta = CursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
 
         return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
-                .data(data)
-                .meta(CursorMetaDTO.builder()
-                        .nextCursorId(page.nextCursorId())
-                        .nextCursorTime(page.nextCursorTime())
-                        .hasNext(page.hasNext())
-                        .build())
+                .data(page.items())
+                .meta(meta)
                 .build();
     }
 
@@ -249,32 +245,6 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         return project;
-    }
-
-    private ProjectPageResponseDTO entityToPageDTO(Project project) {
-        Team team = project.getTeam();
-        List<TagResponseDTO> tags = project.getTagContents().stream()
-                .map(tagContentDTO -> TagResponseDTO.builder()
-                        .content(tagContentDTO.getContent())
-                        .build())
-                .toList();
-        long commentCount = commentRepository.countByProjectId(project.getId());
-        return ProjectPageResponseDTO.builder()
-                .id(project.getId())
-                .teamId(team.getId())
-                .term(team.getTerm())
-                .teamNumber(team.getNumber())
-                .commentCount(commentCount)
-                .givedPumatiCount(team.getGivedPumatiCount())
-                .receivedPumatiCount(team.getReceivedPumatiCount())
-                .badgeImageUrl(team.getBadgeImageUrl())
-                .title(project.getTitle())
-                .introduction(project.getIntroduction())
-                .representativeImageUrl(project.getRepresentativeImageUrl())
-                .tags(tags)
-                .createdAt(project.getCreatedAt())
-                .modifiedAt(project.getModifiedAt())
-                .build();
     }
 
 }
