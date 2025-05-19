@@ -7,7 +7,6 @@ import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.dto.comment.ai.request.AiCommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
-import com.tebutebu.apiserver.dto.comment.response.AuthorDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
@@ -21,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -48,11 +46,8 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public CursorPageResponseDTO<CommentResponseDTO> getLatestCommentsByProject(Long projectId, CursorPageRequestDTO dto) {
-        CursorPage<Comment> page = commentPagingRepository.findByProjectLatestCursor(projectId, dto);
-
-        List<CommentResponseDTO> responseData = page.items().stream()
-                .map(this::entityToDTO)
-                .toList();
+        CursorPage<CommentResponseDTO> page =
+                commentPagingRepository.findByProjectLatestCursor(projectId, dto);
 
         CursorMetaDTO meta = CursorMetaDTO.builder()
                 .nextCursorId(page.nextCursorId())
@@ -61,7 +56,7 @@ public class CommentServiceImpl implements CommentService {
                 .build();
 
         return CursorPageResponseDTO.<CommentResponseDTO>builder()
-                .data(responseData)
+                .data(page.items())
                 .meta(meta)
                 .build();
     }
@@ -143,25 +138,6 @@ public class CommentServiceImpl implements CommentService {
                 .project(Project.builder().id(projectId).build())
                 .type(CommentType.USER)
                 .content(dto.getContent())
-                .build();
-    }
-
-    @Override
-    public CommentResponseDTO entityToDTO(Comment comment) {
-        return CommentResponseDTO.builder()
-                .id(comment.getId())
-                .projectId(comment.getProject().getId())
-                .type(comment.getType())
-                .content(comment.getContent())
-                .createdAt(comment.getCreatedAt())
-                .modifiedAt(comment.getModifiedAt())
-                .author(AuthorDTO.builder()
-                        .id(comment.getMember().getId())
-                        .name(comment.getMember().getName())
-                        .nickname(comment.getMember().getNickname())
-                        .course(comment.getMember().getCourse())
-                        .profileImageUrl(comment.getMember().getProfileImageUrl())
-                        .build())
                 .build();
     }
 
