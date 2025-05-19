@@ -10,10 +10,11 @@ import com.tebutebu.apiserver.domain.QProject;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.factory.CursorPageSpec;
 import com.tebutebu.apiserver.pagination.factory.CursorPageFactory;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
@@ -43,7 +44,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
     private final QProject p = QProject.project;
 
     @Override
-    public CursorPage<ProjectPageResponseDTO> findByRankingCursor(CursorPageRequestDTO req) {
+    public CursorPage<ProjectPageResponseDTO> findByRankingCursor(ContextCursorPageRequestDTO req) {
         ProjectRankingSnapshot snapshot = snapshotRepository.findById(req.getContextId())
                 .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
 
@@ -79,7 +80,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
     }
 
     @Override
-    public CursorPage<ProjectPageResponseDTO> findByLatestCursor(CursorPageRequestDTO req) {
+    public CursorPage<ProjectPageResponseDTO> findByLatestCursor(CursorTimePageRequestDTO req) {
         BooleanBuilder where = new BooleanBuilder();
         OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
                 p.createdAt.desc(),

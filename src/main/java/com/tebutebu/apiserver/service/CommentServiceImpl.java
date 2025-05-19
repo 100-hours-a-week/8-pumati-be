@@ -9,9 +9,9 @@ import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
-import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.paging.comment.CommentPagingRepository;
@@ -45,17 +45,17 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public CursorPageResponseDTO<CommentResponseDTO> getLatestCommentsByProject(Long projectId, CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<CommentResponseDTO, TimeCursorMetaDTO> getLatestCommentsByProject(Long projectId, CursorTimePageRequestDTO dto) {
         CursorPage<CommentResponseDTO> page =
                 commentPagingRepository.findByProjectLatestCursor(projectId, dto);
 
-        CursorMetaDTO meta = CursorMetaDTO.builder()
+        TimeCursorMetaDTO meta = TimeCursorMetaDTO.builder()
                 .nextCursorId(page.nextCursorId())
                 .nextCursorTime(page.nextCursorTime())
                 .hasNext(page.hasNext())
                 .build();
 
-        return CursorPageResponseDTO.<CommentResponseDTO>builder()
+        return CursorPageResponseDTO.<CommentResponseDTO, TimeCursorMetaDTO>builder()
                 .data(page.items())
                 .meta(meta)
                 .build();

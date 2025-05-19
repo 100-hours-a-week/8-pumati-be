@@ -16,9 +16,11 @@ import com.tebutebu.apiserver.dto.snapshot.response.ProjectRankingSnapshotRespon
 import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.request.TagCreateRequestDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
-import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
+import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.CursorMetaDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
@@ -91,7 +93,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> getRankingPage(ContextCursorPageRequestDTO dto) {
         if (dto.getContextId() == null) {
             throw new CustomValidationException("contextIdRequired");
         }
@@ -100,27 +102,26 @@ public class ProjectServiceImpl implements ProjectService {
 
         CursorMetaDTO meta = CursorMetaDTO.builder()
                 .nextCursorId(page.nextCursorId())
-                .nextCursorTime(page.nextCursorTime())
                 .hasNext(page.hasNext())
                 .build();
 
-        return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
+        return CursorPageResponseDTO.<ProjectPageResponseDTO, CursorMetaDTO>builder()
                 .data(page.items())
                 .meta(meta)
                 .build();
     }
 
     @Override
-    public CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> getLatestPage(CursorTimePageRequestDTO dto) {
         CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByLatestCursor(dto);
 
-        CursorMetaDTO meta = CursorMetaDTO.builder()
+        TimeCursorMetaDTO meta = TimeCursorMetaDTO.builder()
                 .nextCursorId(page.nextCursorId())
                 .nextCursorTime(page.nextCursorTime())
                 .hasNext(page.hasNext())
                 .build();
 
-        return CursorPageResponseDTO.<ProjectPageResponseDTO>builder()
+        return CursorPageResponseDTO.<ProjectPageResponseDTO, TimeCursorMetaDTO>builder()
                 .data(page.items())
                 .meta(meta)
                 .build();

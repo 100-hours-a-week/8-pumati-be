@@ -6,8 +6,9 @@ import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.AuthorDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -17,7 +18,7 @@ public interface CommentService {
     CommentResponseDTO get(Long commentId);
 
     @Transactional(readOnly = true)
-    CursorPageResponseDTO<CommentResponseDTO> getLatestCommentsByProject(Long projectId, CursorPageRequestDTO dto);
+    CursorPageResponseDTO<CommentResponseDTO, TimeCursorMetaDTO> getLatestCommentsByProject(Long projectId, CursorTimePageRequestDTO dto);
 
     Long register(Long projectId, Long memberId, CommentCreateRequestDTO dto);
 
