@@ -9,7 +9,7 @@ import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
@@ -45,7 +45,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public CursorPageResponseDTO<CommentResponseDTO> getLatestCommentsByProject(Long projectId, CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<CommentResponseDTO> getLatestCommentsByProject(Long projectId, CursorTimePageRequestDTO dto) {
         CursorPage<CommentResponseDTO> page =
                 commentPagingRepository.findByProjectLatestCursor(projectId, dto);
 

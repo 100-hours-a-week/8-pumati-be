@@ -6,7 +6,7 @@ import com.tebutebu.apiserver.domain.Comment;
 import com.tebutebu.apiserver.domain.QComment;
 import com.tebutebu.apiserver.dto.comment.response.AuthorDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.factory.CursorPageFactory;
 import com.tebutebu.apiserver.pagination.factory.CursorPageSpec;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
@@ -25,7 +25,7 @@ public class CommentPagingRepositoryImpl implements CommentPagingRepository {
     private final QComment c = QComment.comment;
 
     @Override
-    public CursorPage<CommentResponseDTO> findByProjectLatestCursor(Long projectId, CursorPageRequestDTO req) {
+    public CursorPage<CommentResponseDTO> findByProjectLatestCursor(Long projectId, CursorTimePageRequestDTO req) {
         BooleanBuilder where = new BooleanBuilder();
         where.and(c.project.id.eq(projectId));
 

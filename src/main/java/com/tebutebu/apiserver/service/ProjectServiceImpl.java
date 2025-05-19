@@ -16,7 +16,8 @@ import com.tebutebu.apiserver.dto.snapshot.response.ProjectRankingSnapshotRespon
 import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.request.TagCreateRequestDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
@@ -91,7 +92,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(ContextCursorPageRequestDTO dto) {
         if (dto.getContextId() == null) {
             throw new CustomValidationException("contextIdRequired");
         }
@@ -111,7 +112,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorPageRequestDTO dto) {
+    public CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorTimePageRequestDTO dto) {
         CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByLatestCursor(dto);
 
         CursorMetaDTO meta = CursorMetaDTO.builder()

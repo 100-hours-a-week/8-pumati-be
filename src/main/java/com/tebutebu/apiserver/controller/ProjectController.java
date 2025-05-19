@@ -7,7 +7,8 @@ import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.service.CommentService;
 import com.tebutebu.apiserver.service.MemberService;
@@ -62,10 +63,9 @@ public class ProjectController {
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
-        CursorPageRequestDTO dto = CursorPageRequestDTO.builder()
+        ContextCursorPageRequestDTO dto = ContextCursorPageRequestDTO.builder()
                 .contextId(contextId)
                 .cursorId(cursorId)
-                .cursorTime(null)
                 .pageSize(pageSize)
                 .build();
         CursorPageResponseDTO<ProjectPageResponseDTO> page = projectService.getRankingPage(dto);
@@ -79,11 +79,11 @@ public class ProjectController {
     @GetMapping(params = "sort=latest")
     public ResponseEntity<?> scrollLatest(
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
-            @RequestParam(name = "cursor-time", defaultValue = "#{T(java.time.LocalDateTime).now().format(T(java.time.format.DateTimeFormatter).ISO_DATE_TIME)}")
+            @RequestParam(name = "cursor-time", defaultValue = "#{T(LocalDateTime).now().format(T(DateTimeFormatter).ISO_DATE_TIME)}")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
-        CursorPageRequestDTO dto = CursorPageRequestDTO.builder()
+        CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
                 .cursorId(cursorId)
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
@@ -100,16 +100,15 @@ public class ProjectController {
     public ResponseEntity<?> scrollComments(
             @PathVariable("projectId") Long projectId,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
-            @RequestParam(name = "cursor-time", defaultValue = "#{T(java.time.LocalDateTime).now().format(T(java.time.format.DateTimeFormatter).ISO_DATE_TIME)}")
+            @RequestParam(name = "cursor-time", defaultValue = "#{T(LocalDateTime).now().format(T(DateTimeFormatter).ISO_DATE_TIME)}")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
-        CursorPageRequestDTO dto = CursorPageRequestDTO.builder()
+        CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
                 .cursorId(cursorId)
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
                 .build();
-
         CursorPageResponseDTO<CommentResponseDTO> page = commentService.getLatestCommentsByProject(projectId, dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getCommentPageSuccess",
