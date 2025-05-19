@@ -10,6 +10,8 @@ import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.CursorMetaDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.service.CommentService;
 import com.tebutebu.apiserver.service.MemberService;
 import com.tebutebu.apiserver.service.ProjectRankingSnapshotService;
@@ -68,7 +70,7 @@ public class ProjectController {
                 .cursorId(cursorId)
                 .pageSize(pageSize)
                 .build();
-        CursorPageResponseDTO<ProjectPageResponseDTO> page = projectService.getRankingPage(dto);
+        CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> page = projectService.getRankingPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getRankingPageSuccess",
                 "data", page.getData(),
@@ -88,7 +90,7 @@ public class ProjectController {
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
                 .build();
-        CursorPageResponseDTO<ProjectPageResponseDTO> page = projectService.getLatestPage(dto);
+        CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page = projectService.getLatestPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getLatestPageSuccess",
                 "data", page.getData(),
@@ -109,7 +111,7 @@ public class ProjectController {
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
                 .build();
-        CursorPageResponseDTO<CommentResponseDTO> page = commentService.getLatestCommentsByProject(projectId, dto);
+        CursorPageResponseDTO<CommentResponseDTO, TimeCursorMetaDTO> page = commentService.getLatestCommentsByProject(projectId, dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getCommentPageSuccess",
                 "data", page.getData(),

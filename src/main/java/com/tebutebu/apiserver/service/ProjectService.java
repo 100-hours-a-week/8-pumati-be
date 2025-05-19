@@ -11,6 +11,8 @@ import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.CursorMetaDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -25,10 +27,10 @@ public interface ProjectService {
     boolean existsByTeamId(Long teamId);
 
     @Transactional(readOnly = true)
-    CursorPageResponseDTO<ProjectPageResponseDTO> getRankingPage(ContextCursorPageRequestDTO dto);
+    CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> getRankingPage(ContextCursorPageRequestDTO dto);
 
     @Transactional(readOnly = true)
-    CursorPageResponseDTO<ProjectPageResponseDTO> getLatestPage(CursorTimePageRequestDTO dto);
+    CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> getLatestPage(CursorTimePageRequestDTO dto);
 
     Long register(ProjectCreateRequestDTO dto);
 
