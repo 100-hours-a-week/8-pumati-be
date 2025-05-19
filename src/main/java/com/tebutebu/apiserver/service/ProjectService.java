@@ -37,13 +37,14 @@ public interface ProjectService {
 
     Project dtoToEntity(ProjectCreateRequestDTO dto);
 
-    default ProjectResponseDTO entityToDTO(Project project, Team team, List<ProjectImageResponseDTO> images, List<TagResponseDTO> tags, Integer teamRank) {
+    default ProjectResponseDTO entityToDTO(Project project, Team team, List<ProjectImageResponseDTO> images, List<TagResponseDTO> tags, Integer teamRank, Long commentCount) {
         return ProjectResponseDTO.builder()
                 .id(project.getId())
                 .teamId(team.getId())
                 .teamRank(teamRank)
                 .term(team.getTerm())
                 .teamNumber(team.getNumber())
+                .commentCount(commentCount)
                 .givedPumatiCount(team.getGivedPumatiCount())
                 .receivedPumatiCount(team.getReceivedPumatiCount())
                 .badgeImageUrl(team.getBadgeImageUrl())

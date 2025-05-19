@@ -20,6 +20,7 @@ import com.tebutebu.apiserver.pagination.dto.request.CursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorMetaDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
+import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import com.tebutebu.apiserver.repository.paging.project.ProjectPagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
@@ -40,6 +41,8 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
 
     private final ProjectPagingRepository projectPagingRepository;
+
+    private final CommentRepository commentRepository;
 
     private final ProjectImageService projectImageService;
 
@@ -75,7 +78,9 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(RankingItemDTO::getRank)
                 .orElse(null);
 
-        return entityToDTO(project, team, images, tags, teamRank);
+        long commentCount = commentRepository.countByProjectId(id);
+
+        return entityToDTO(project, team, images, tags, teamRank, commentCount);
     }
 
     @Override
@@ -253,11 +258,13 @@ public class ProjectServiceImpl implements ProjectService {
                         .content(tagContentDTO.getContent())
                         .build())
                 .toList();
+        long commentCount = commentRepository.countByProjectId(project.getId());
         return ProjectPageResponseDTO.builder()
                 .id(project.getId())
                 .teamId(team.getId())
                 .term(team.getTerm())
                 .teamNumber(team.getNumber())
+                .commentCount(commentCount)
                 .givedPumatiCount(team.getGivedPumatiCount())
                 .receivedPumatiCount(team.getReceivedPumatiCount())
                 .badgeImageUrl(team.getBadgeImageUrl())

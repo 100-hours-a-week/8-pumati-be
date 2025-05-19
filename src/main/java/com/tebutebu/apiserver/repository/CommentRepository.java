@@ -15,4 +15,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             "WHERE c.id = :id")
     Optional<Comment> findByIdWithMemberAndProject(@Param("id") Long id);
 
+    long countByProjectId(Long projectId);
+
 }
