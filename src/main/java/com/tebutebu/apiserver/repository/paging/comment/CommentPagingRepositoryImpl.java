@@ -22,43 +22,43 @@ public class CommentPagingRepositoryImpl implements CommentPagingRepository {
 
     private final CursorPageFactory cursorPageFactory;
 
-    private final QComment c = QComment.comment;
+    private final QComment qComment = QComment.comment;
 
     @Override
     public CursorPage<CommentResponseDTO> findByProjectLatestCursor(Long projectId, CursorTimePageRequestDTO req) {
         BooleanBuilder where = new BooleanBuilder();
-        where.and(c.project.id.eq(projectId));
+        where.and(qComment.project.id.eq(projectId));
 
         OrderSpecifier<?>[] orderBy = new OrderSpecifier[]{
-                c.createdAt.desc(),
-                c.id.desc()
+                qComment.createdAt.desc(),
+                qComment.id.desc()
         };
 
         CursorPageSpec<Comment> spec = CursorPageSpec.<Comment>builder()
-                .entityPath(c)
+                .entityPath(qComment)
                 .where(where)
                 .orderBy(orderBy)
-                .createdAtExpr(c.createdAt)
-                .idExpr(c.id)
+                .createdAtExpr(qComment.createdAt)
+                .idExpr(qComment.id)
                 .cursorId(req.getCursorId())
                 .cursorTime(req.getCursorTime())
                 .pageSize(req.getPageSize())
                 .build();
         CursorPage<Comment> page = cursorPageFactory.create(spec);
 
-        List<CommentResponseDTO> dtos = page.items().stream()
-                .map(this::toDto)
+        List<CommentResponseDTO> commentResponseDtoList = page.items().stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
 
         return CursorPage.<CommentResponseDTO>builder()
-                .items(dtos)
+                .items(commentResponseDtoList)
                 .nextCursorId(page.nextCursorId())
                 .nextCursorTime(page.nextCursorTime())
                 .hasNext(page.hasNext())
                 .build();
     }
 
-    private CommentResponseDTO toDto(Comment comment) {
+    private CommentResponseDTO toResponseDTO(Comment comment) {
         return CommentResponseDTO.builder()
                 .id(comment.getId())
                 .projectId(comment.getProject().getId())
