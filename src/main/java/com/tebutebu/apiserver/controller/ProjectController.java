@@ -81,10 +81,14 @@ public class ProjectController {
     @GetMapping(params = "sort=latest")
     public ResponseEntity<?> scrollLatest(
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
-            @RequestParam(name = "cursor-time", defaultValue = "#{T(LocalDateTime).now().format(T(DateTimeFormatter).ISO_DATE_TIME)}")
+            @RequestParam(name = "cursor-time", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
+        if (cursorTime == null) {
+            cursorTime = LocalDateTime.now();
+        }
+
         CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
                 .cursorId(cursorId)
                 .cursorTime(cursorTime)
@@ -102,10 +106,14 @@ public class ProjectController {
     public ResponseEntity<?> scrollComments(
             @PathVariable("projectId") Long projectId,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
-            @RequestParam(name = "cursor-time", defaultValue = "#{T(LocalDateTime).now().format(T(DateTimeFormatter).ISO_DATE_TIME)}")
+            @RequestParam(name = "cursor-time", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
+        if (cursorTime == null) {
+            cursorTime = LocalDateTime.now();
+        }
+
         CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
                 .cursorId(cursorId)
                 .cursorTime(cursorTime)
