@@ -32,7 +32,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -62,29 +61,21 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectResponseDTO get(Long id) {
         Project project = projectRepository.findProjectWithTeamAndImagesById(id)
                 .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
+        return buildProjectResponseDTO(project);
+    }
 
-        Team team = project.getTeam();
-        List<ProjectImageResponseDTO> images = project.getImages().stream()
-                .map(projectImageService::entityToDTO)
-                .collect(Collectors.toList());
+    @Override
+    public ProjectResponseDTO getByTeamId(Long teamId) {
+        Project project = projectRepository.findProjectByTeamId(teamId)
+                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
+        return buildProjectResponseDTO(project);
+    }
 
-        List<TagResponseDTO> tags = project.getTagContents().stream()
-                .map(tagContentDTO -> TagResponseDTO.builder()
-                        .content(tagContentDTO.getContent())
-                        .build())
-                .toList();
-
-        ProjectRankingSnapshotResponseDTO snapshot = projectRankingSnapshotService.getLatestSnapshot();
-        Integer teamRank = snapshot.getData().stream()
-                .filter(item -> id.equals(item.getProjectId()))
-                .findFirst()
-                .map(RankingItemDTO::getRank)
-                .orElse(null);
-
-        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(List.of(id));
-        long commentCount = commentCountMap.getOrDefault(id, 0L);
-
-        return entityToDTO(project, team, images, tags, teamRank, commentCount);
+    @Override
+    public Long getIdByTeamId(Long teamId) {
+        return projectRepository
+                .findProjectIdByTeamId(teamId)
+                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
     }
 
     @Override
@@ -246,6 +237,34 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         return project;
+    }
+
+    private ProjectResponseDTO buildProjectResponseDTO(Project project) {
+        Long id = project.getId();
+
+        Team team = project.getTeam();
+
+        List<ProjectImageResponseDTO> images = project.getImages().stream()
+                .map(projectImageService::entityToDTO)
+                .collect(Collectors.toList());
+
+        List<TagResponseDTO> tags = project.getTagContents().stream()
+                .map(contentDto -> TagResponseDTO.builder()
+                        .content(contentDto.getContent())
+                        .build())
+                .toList();
+
+        ProjectRankingSnapshotResponseDTO snapshot = projectRankingSnapshotService.getLatestSnapshot();
+        Integer teamRank = snapshot.getData().stream()
+                .filter(item -> id.equals(item.getProjectId()))
+                .findFirst()
+                .map(RankingItemDTO::getRank)
+                .orElse(null);
+
+        long commentCount = commentRepository.findCommentCountMap(List.of(id))
+                .getOrDefault(id, 0L);
+
+        return entityToDTO(project, team, images, tags, teamRank, commentCount);
     }
 
 }

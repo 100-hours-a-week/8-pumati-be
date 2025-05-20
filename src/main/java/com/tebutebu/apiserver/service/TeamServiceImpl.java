@@ -1,6 +1,8 @@
 package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
+import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
@@ -14,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,21 +25,38 @@ public class TeamServiceImpl implements TeamService {
 
     private final TeamRepository teamRepository;
 
+    private final ProjectService projectService;
+
+    private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
     @Override
     public TeamResponseDTO get(Long id) {
-        Optional<Team> result = teamRepository.findById(id);
-        Team team = result.orElseThrow(() -> new NoSuchElementException("teamNotFound"));
-        return entityToDTO(team);
+        Team team = teamRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+        Long projectId = findTeamProjectId(id);
+        if (projectId == null) {
+            return entityToDTO(team, null, null);
+        } else {
+            Integer rank = findTeamProjectRank(id);
+            return entityToDTO(team, projectId, rank);
+        }
     }
 
     @Override
     public TeamResponseDTO getByTermAndNumber(Integer term, Integer number) {
         if (term == null && number == null) {
-            return null;
+            throw new CustomValidationException("termAndNumberRequired");
         }
-        Optional<Team> result = teamRepository.findByTermAndNumber(term, number);
-        Team team = result.orElseThrow(() -> new NoSuchElementException("teamNotFound"));
-        return entityToDTO(team);
+        Team team = teamRepository.findByTermAndNumber(term, number)
+                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+        Long teamId = team.getId();
+        Long projectId = findTeamProjectId(teamId);
+        if (projectId == null) {
+            return entityToDTO(team, null, null);
+        } else {
+            Integer rank = findTeamProjectRank(teamId);
+            return entityToDTO(team, projectId, rank);
+        }
     }
 
     @Override
@@ -104,6 +122,35 @@ public class TeamServiceImpl implements TeamService {
                 .term(dto.getTerm())
                 .number(dto.getNumber())
                 .build();
+    }
+
+    private Integer findTeamProjectRank(Long teamId) {
+        if (!projectService.existsByTeamId(teamId)) {
+            return null;
+        }
+
+        ProjectResponseDTO project = projectService.getByTeamId(teamId);
+        Long projectId = project.getId();
+
+        try {
+            return projectRankingSnapshotService.getLatestSnapshot()
+                    .getData().stream()
+                    .filter(item -> projectId.equals(item.getProjectId()))
+                    .findFirst()
+                    .map(RankingItemDTO::getRank)
+                    .orElse(null);
+        } catch (NoSuchElementException ex) {
+            return null;
+        }
+    }
+
+    private Long findTeamProjectId(Long teamId) {
+        if (!projectService.existsByTeamId(teamId)) {
+            return null;
+        }
+
+        ProjectResponseDTO project = projectService.getByTeamId(teamId);
+        return project.getId();
     }
 
 }

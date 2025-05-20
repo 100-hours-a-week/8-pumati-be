@@ -17,6 +17,10 @@ public class TeamResponseDTO {
 
     private int number;
 
+    private Long projectId;
+
+    private Integer rank;
+
     private Long givedPumatiCount;
 
     private Long receivedPumatiCount;

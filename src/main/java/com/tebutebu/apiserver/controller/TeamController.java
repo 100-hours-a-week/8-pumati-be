@@ -25,6 +25,14 @@ public class TeamController {
 
     private final MemberService memberService;
 
+    @GetMapping("/{teamId}")
+    public ResponseEntity<?> getTeam(@PathVariable Long teamId) {
+        return ResponseEntity.ok(Map.of(
+                "message", "getTeamSuccess",
+                "data", teamService.get(teamId)
+        ));
+    }
+
     @PostMapping("")
     public ResponseEntity<?> register(@Valid @RequestBody TeamCreateRequestDTO dto) {
         long teamId = teamService.register(dto);

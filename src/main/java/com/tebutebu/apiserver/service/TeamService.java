@@ -11,10 +11,13 @@ import java.util.List;
 @Transactional
 public interface TeamService {
 
+    @Transactional(readOnly = true)
     TeamResponseDTO get(Long id);
 
+    @Transactional(readOnly = true)
     TeamResponseDTO getByTermAndNumber(Integer term, Integer number);
 
+    @Transactional(readOnly = true)
     List<TeamListResponseDTO> getAllTeams();
 
     Long register(TeamCreateRequestDTO dto);
@@ -25,11 +28,13 @@ public interface TeamService {
 
     Team dtoToEntity(TeamCreateRequestDTO dto);
 
-    default TeamResponseDTO entityToDTO(Team team) {
+    default TeamResponseDTO entityToDTO(Team team, Long projectId, Integer rank) {
         return TeamResponseDTO.builder()
                 .id(team.getId())
                 .term(team.getTerm())
                 .number(team.getNumber())
+                .projectId(projectId)
+                .rank(rank)
                 .givedPumatiCount(team.getGivedPumatiCount())
                 .receivedPumatiCount(team.getReceivedPumatiCount())
                 .badgeImageUrl(team.getBadgeImageUrl())
