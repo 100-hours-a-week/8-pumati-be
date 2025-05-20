@@ -41,7 +41,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final ObjectMapper objectMapper;
 
-    private final QProject p = QProject.project;
+    private final QProject qProject = QProject.project;
 
     @Override
     public CursorPage<ProjectPageResponseDTO> findByRankingCursor(ContextCursorPageRequestDTO req) {
@@ -63,16 +63,15 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
         Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
 
-        // 5) DTO 매핑
-        List<ProjectPageResponseDTO> data = projects.stream()
-                .map(proj -> toPageDto(proj, commentCountMap))
+        List<ProjectPageResponseDTO> projectPageResponseDtoList = projects.stream()
+                .map(proj -> toPageResponseDTO(proj, commentCountMap))
                 .collect(Collectors.toList());
 
         boolean hasNext = end < dtoList.size();
         Long nextCursorId = hasNext ? dtoList.get(end - 1).getProjectId() : null;
 
         return CursorPage.<ProjectPageResponseDTO>builder()
-                .items(data)
+                .items(projectPageResponseDtoList)
                 .nextCursorId(nextCursorId)
                 .nextCursorTime(null)
                 .hasNext(hasNext)
@@ -83,16 +82,16 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
     public CursorPage<ProjectPageResponseDTO> findByLatestCursor(CursorTimePageRequestDTO req) {
         BooleanBuilder where = new BooleanBuilder();
         OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
-                p.createdAt.desc(),
-                p.id.desc()
+                qProject.createdAt.desc(),
+                qProject.id.desc()
         };
 
         CursorPageSpec<Project> spec = CursorPageSpec.<Project>builder()
-                .entityPath(p)
+                .entityPath(qProject)
                 .where(where)
                 .orderBy(orderBy)
-                .createdAtExpr(p.createdAt)
-                .idExpr(p.id)
+                .createdAtExpr(qProject.createdAt)
+                .idExpr(qProject.id)
                 .cursorId(req.getCursorId())
                 .cursorTime(req.getCursorTime())
                 .pageSize(req.getPageSize())
@@ -104,12 +103,12 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                 .collect(Collectors.toList());
         Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
 
-        List<ProjectPageResponseDTO> data = page.items().stream()
-                .map(proj -> toPageDto(proj, commentCountMap))
+        List<ProjectPageResponseDTO> projectPageResponseDtoList = page.items().stream()
+                .map(proj -> toPageResponseDTO(proj, commentCountMap))
                 .collect(Collectors.toList());
 
         return CursorPage.<ProjectPageResponseDTO>builder()
-                .items(data)
+                .items(projectPageResponseDtoList)
                 .nextCursorId(page.nextCursorId())
                 .nextCursorTime(page.nextCursorTime())
                 .hasNext(page.hasNext())
@@ -140,7 +139,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
         return 0;
     }
 
-    private ProjectPageResponseDTO toPageDto(Project proj, Map<Long, Long> commentCountMap) {
+    private ProjectPageResponseDTO toPageResponseDTO(Project proj, Map<Long, Long> commentCountMap) {
         return ProjectPageResponseDTO.builder()
                 .id(proj.getId())
                 .teamId(proj.getTeam().getId())
