@@ -2,7 +2,7 @@ package com.tebutebu.apiserver.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.tebutebu.apiserver.dto.fortune.request.FortuneGenerateRequestDTO;
+import com.tebutebu.apiserver.dto.fortune.request.AiFortuneGenerateRequestDTO;
 import com.tebutebu.apiserver.dto.fortune.response.DevLuckDTO;
 import com.tebutebu.apiserver.dto.fortune.response.FortuneResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.Objects;
 @Service
 @Log4j2
 @RequiredArgsConstructor
-public class FortuneServiceImpl implements FortuneService {
+public class AiFortuneServiceImpl implements AiFortuneService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -30,7 +30,7 @@ public class FortuneServiceImpl implements FortuneService {
     private final ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Override
-    public DevLuckDTO getnerateDevLuck(FortuneGenerateRequestDTO request) {
+    public DevLuckDTO generateDevLuck(AiFortuneGenerateRequestDTO request) {
         try {
             String jsonBody = mapper.writeValueAsString(request);
 

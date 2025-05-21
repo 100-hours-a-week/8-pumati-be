@@ -17,11 +17,11 @@ import java.time.LocalDate;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class FortuneGenerateRequestDTO {
+public class AiFortuneGenerateRequestDTO {
 
-    @NotBlank(message = "이름은 필수 입력 값입니다.")
-    @Size(max = 10, message = "이름은 최대 10자까지 가능합니다.")
-    private String name;
+    @NotBlank(message = "닉네임은 필수 입력 값입니다.")
+    @Size(max = 50, message = "닉네임은 최대 50자까지 가능합니다.")
+    private String nickname;
 
     private Course course;
 

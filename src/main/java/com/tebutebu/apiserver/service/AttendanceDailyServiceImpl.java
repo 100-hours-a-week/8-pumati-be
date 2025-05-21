@@ -3,7 +3,7 @@ package com.tebutebu.apiserver.service;
 import com.tebutebu.apiserver.domain.AttendanceDaily;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.dto.attendance.daily.response.AttendanceDailyResponseDTO;
-import com.tebutebu.apiserver.dto.fortune.request.FortuneGenerateRequestDTO;
+import com.tebutebu.apiserver.dto.fortune.request.AiFortuneGenerateRequestDTO;
 import com.tebutebu.apiserver.dto.fortune.response.DevLuckDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.repository.AttendanceDailyRepository;
@@ -25,7 +25,7 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
 
     private final MemberService memberService;
 
-    private final FortuneService fortuneService;
+    private final AiFortuneService aiFortuneService;
 
     private final AttendanceWeeklyService attendanceWeeklyService;
 
@@ -50,13 +50,13 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
             throw new NoSuchElementException("memberNotFound");
         }
 
-        FortuneGenerateRequestDTO requestDTO = FortuneGenerateRequestDTO.builder()
-                .name(memberDTO.getName())
+        AiFortuneGenerateRequestDTO requestDTO = AiFortuneGenerateRequestDTO.builder()
+                .nickname(memberDTO.getNickname())
                 .course(memberDTO.getCourse())
                 .date(LocalDate.now())
                 .build();
 
-        DevLuckDTO devLuckDTO = fortuneService.getnerateDevLuck(requestDTO);
+        DevLuckDTO devLuckDTO = aiFortuneService.generateDevLuck(requestDTO);
 
         AttendanceDaily attendance = AttendanceDaily.builder()
                 .member(Member.builder().id(memberId).build())
@@ -83,7 +83,7 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
     public AttendanceDaily dtoToEntity(AttendanceDailyResponseDTO dto) {
         return AttendanceDaily.builder()
                 .id(dto.getId())
-                .devLuckOverall(dto.getDevLuckDTO().getOverall())
+                .devLuckOverall(dto.getDevLuck().getOverall())
                 .checkedAt(dto.getCheckedAt())
                 .build();
     }

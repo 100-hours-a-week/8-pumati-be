@@ -14,7 +14,7 @@ public class AttendanceDailyResponseDTO {
 
     private Long id;
 
-    private DevLuckDTO devLuckDTO;
+    private DevLuckDTO devLuck;
 
     private LocalDateTime checkedAt;
 
