@@ -17,7 +17,7 @@ public interface AttendanceDailyService {
     default AttendanceDailyResponseDTO entityToDTO(AttendanceDaily attendanceDaily) {
         return AttendanceDailyResponseDTO.builder()
                 .id(attendanceDaily.getId())
-                .devLuckDTO(DevLuckDTO.builder()
+                .devLuck(DevLuckDTO.builder()
                         .overall(attendanceDaily.getDevLuckOverall())
                         .build())
                 .checkedAt(attendanceDaily.getCheckedAt())
