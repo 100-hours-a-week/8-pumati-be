@@ -73,7 +73,7 @@ public class MemberServiceImpl implements MemberService {
     public List<MemberResponseDTO> getMembersByTeamId(Long teamId) {
         List<Member> members = memberRepository.findAllByTeamId(teamId);
         if (members.isEmpty()) {
-            throw new NoSuchElementException("membersNotFound");
+            return List.of();
         }
         return members.stream()
                 .map(this::entityToDTO)
