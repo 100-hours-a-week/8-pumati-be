@@ -26,6 +26,8 @@ public class AttendanceWeeklyServiceImpl implements AttendanceWeeklyService {
                 .orElseGet(() -> createEmptyWeekly(memberId));
 
         LocalDate today = LocalDate.now();
+        resetWeeklySummaryIfNewWeek(weekly, today);
+
         boolean isToday = weekly.getSummary().getOrDefault(
                 today.getDayOfWeek().name().toLowerCase(), false
         );
@@ -41,6 +43,8 @@ public class AttendanceWeeklyServiceImpl implements AttendanceWeeklyService {
         AttendanceWeekly weekly = attendanceWeeklyRepository.findByMemberId(memberId)
                 .orElseGet(() -> createEmptyWeekly(memberId));
 
+        resetWeeklySummaryIfNewWeek(weekly, today);
+
         LocalDate lastDate = weekly.getLastCheckedDate();
         if (lastDate != null && lastDate.isEqual(today.minusDays(1))) {
             weekly.incrementStreak();
@@ -55,6 +59,18 @@ public class AttendanceWeeklyServiceImpl implements AttendanceWeeklyService {
         weekly.updateLastCheckedDate(today);
 
         attendanceWeeklyRepository.save(weekly);
+    }
+
+    private void resetWeeklySummaryIfNewWeek(AttendanceWeekly weekly, LocalDate today) {
+        LocalDate monday = today.with(DayOfWeek.MONDAY);
+        LocalDate lastDate = weekly.getLastCheckedDate();
+        if (lastDate == null || lastDate.isBefore(monday)) {
+            Map<String, Boolean> newSummary = new LinkedHashMap<>();
+            for (DayOfWeek dow : DayOfWeek.values()) {
+                newSummary.put(dow.name().toLowerCase(), false);
+            }
+            weekly.updateSummary(newSummary);
+        }
     }
 
     private AttendanceWeekly createEmptyWeekly(Long memberId) {
