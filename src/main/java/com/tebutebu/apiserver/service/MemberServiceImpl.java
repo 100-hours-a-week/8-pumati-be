@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,8 +40,11 @@ public class MemberServiceImpl implements MemberService {
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
-    @Value("${default.profile.image.url}")
-    private String defaultProfileImageUrl;
+    @Value("${default.profile.image.pu.url}")
+    private String defaultProfileImagePuUrl;
+
+    @Value("${default.profile.image.mati.url}")
+    private String defaultProfileImageMatiUrl;
 
     private final MemberRepository memberRepository;
 
@@ -142,7 +146,7 @@ public class MemberServiceImpl implements MemberService {
                 .password(passwordEncoder.encode("!A1ai-comment"))
                 .name(dto.getName())
                 .nickname(dto.getNickname())
-                .profileImageUrl(defaultProfileImageUrl)
+                .profileImageUrl(getRandomDefaultProfileImageUrl())
                 .isSocial(false)
                 .role(MemberRole.USER)
                 .state(MemberState.ACTIVE)
@@ -215,13 +219,19 @@ public class MemberServiceImpl implements MemberService {
                 .name(dto.getName())
                 .nickname(dto.getNickname())
                 .course(dto.getCourse())
-                .profileImageUrl(dto.getProfileImageUrl() == null ? defaultProfileImageUrl : dto.getProfileImageUrl())
+                .profileImageUrl(dto.getProfileImageUrl() == null ? getRandomDefaultProfileImageUrl() : dto.getProfileImageUrl())
                 .role(dto.getRole())
                 .build();
     }
 
     private String generateUniqueAiEmail() {
         return "ai_" + UUID.randomUUID() + "@tebutebu.ai";
+    }
+
+    private String getRandomDefaultProfileImageUrl() {
+        return ThreadLocalRandom.current().nextBoolean()
+                ? defaultProfileImagePuUrl
+                : defaultProfileImageMatiUrl;
     }
 
 }
