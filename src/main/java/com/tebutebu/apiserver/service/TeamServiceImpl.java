@@ -45,7 +45,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public TeamResponseDTO getByTermAndNumber(Integer term, Integer number) {
         if (term == null && number == null) {
-            throw new CustomValidationException("termAndNumberRequired");
+            return null;
         }
         Team team = teamRepository.findByTermAndNumber(term, number)
                 .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
