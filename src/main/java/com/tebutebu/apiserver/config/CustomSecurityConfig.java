@@ -52,9 +52,10 @@ public class CustomSecurityConfig {
 
     @Bean
     public RoleHierarchy roleHierarchy() {
-        RoleHierarchyImpl hierarchy = new RoleHierarchyImpl();
-        hierarchy.setHierarchy("ADMIN > TRAINEE > USER");
-        return hierarchy;
+        return RoleHierarchyImpl.fromHierarchy(
+                "ROLE_ADMIN > ROLE_TRAINEE\n" +
+                        "ROLE_TRAINEE > ROLE_USER"
+        );
     }
 
     @Bean
