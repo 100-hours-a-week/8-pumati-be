@@ -1,15 +1,29 @@
 package com.tebutebu.apiserver.service;
 
+import com.tebutebu.apiserver.domain.Member;
+import com.tebutebu.apiserver.domain.MemberTeamBadge;
 import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.dto.badge.request.BadgeImageModificationRequestDTO;
+import com.tebutebu.apiserver.dto.badge.request.MemberTeamBadgeUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.badge.response.MemberTeamBadgePageResponseDTO;
+import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
+import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.CountCursorMetaDTO;
+import com.tebutebu.apiserver.pagination.internal.CursorPage;
+import com.tebutebu.apiserver.repository.MemberTeamBadgeRepository;
 import com.tebutebu.apiserver.repository.TeamRepository;
+import com.tebutebu.apiserver.repository.paging.badge.MemberTeamBadgePagingRepository;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,11 +37,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TeamServiceImpl implements TeamService {
 
+    @Value("${default.badge.image.url}")
+    private String defaultBadgeImageUrl;
+
     private final TeamRepository teamRepository;
+
+    private final MemberTeamBadgeRepository memberTeamBadgeRepository;
+
+    private final MemberTeamBadgePagingRepository memberTeamBadgePagingRepository;
 
     private final ProjectService projectService;
 
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
+    private final AiBadgeImageRequestService aiBadgeImageRequestService;
 
     @Override
     public TeamResponseDTO get(Long id) {
@@ -94,8 +117,99 @@ public class TeamServiceImpl implements TeamService {
             throw new CustomValidationException("teamAlreadyExists");
         }
 
-        Team team = teamRepository.save(dtoToEntity(dto));
-        return team.getId();
+        Team team = dtoToEntity(dto);
+        team.changeBadgeImageUrl(defaultBadgeImageUrl);
+        return teamRepository.save(team).getId();
+    }
+
+    @Override
+    public CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(ContextCountCursorPageRequestDTO req) {
+        CursorPage<MemberTeamBadgePageResponseDTO> page = memberTeamBadgePagingRepository.findByAcquiredCountCursor(req);
+
+        CountCursorMetaDTO meta = CountCursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .nextCount(page.nextCursorCount())
+                .hasNext(page.hasNext())
+                .build();
+
+        return CursorPageResponseDTO.<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO>builder()
+                .data(page.items())
+                .meta(meta)
+                .build();
+    }
+
+    @Override
+    public void increaseOrCreateBadge(Long memberId, Long teamId) {
+        MemberTeamBadge badge = memberTeamBadgeRepository.findByMemberIdAndTeamId(memberId, teamId)
+                .orElseGet(() -> MemberTeamBadge.builder()
+                        .member(Member.builder().id(memberId).build())
+                        .team(Team.builder().id(teamId).build())
+                        .acquiredCount(0)
+                        .build());
+
+        badge.incrementAcquiredCount();
+        memberTeamBadgeRepository.save(badge);
+    }
+
+    @Override
+    public void requestUpdateBadgeImage(Long teamId, BadgeImageModificationRequestDTO badgeImageModificationRequestDTO) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+
+        ProjectResponseDTO project = projectService.getByTeamId(teamId);
+        if (project == null) {
+            throw new NoSuchElementException("projectNotFound");
+        }
+
+        List<String> tagContents = project.getTags().stream()
+                .map(TagResponseDTO::getContent)
+                .toList();
+
+        ProjectSummaryDTO projectSummaryDTO = ProjectSummaryDTO.builder()
+                .title(project.getTitle())
+                .introduction(project.getIntroduction())
+                .detailedDescription(project.getDetailedDescription())
+                .deploymentUrl(project.getDeploymentUrl())
+                .githubUrl(project.getGithubUrl())
+                .tags(tagContents)
+                .teamId(teamId)
+                .term(team.getTerm())
+                .teamNumber(team.getNumber())
+                .build();
+
+        MemberTeamBadgeUpdateRequestDTO updateReq = MemberTeamBadgeUpdateRequestDTO.builder()
+                .modificationTags(badgeImageModificationRequestDTO)
+                .projectSummary(projectSummaryDTO)
+                .build();
+
+        aiBadgeImageRequestService.requestUpdateBadgeImage(updateReq);
+    }
+
+    @Override
+    public void updateBadgeImageUrl(Long teamId, String badgeImageUrl) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+
+        team.changeBadgeImageUrl(badgeImageUrl);
+
+        teamRepository.save(team);
+    }
+
+    @Override
+    public CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(Long memberId, ContextCountCursorPageRequestDTO req) {
+        req.setContextId(memberId);
+        CursorPage<MemberTeamBadgePageResponseDTO> page = memberTeamBadgePagingRepository.findByAcquiredCountCursor(req);
+
+        CountCursorMetaDTO meta = CountCursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .nextCount(page.nextCursorCount())
+                .hasNext(page.hasNext())
+                .build();
+
+        return CursorPageResponseDTO.<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO>builder()
+                .data(page.items())
+                .meta(meta)
+                .build();
     }
 
     @Override

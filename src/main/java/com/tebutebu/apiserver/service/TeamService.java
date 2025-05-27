@@ -1,9 +1,14 @@
 package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.dto.badge.request.BadgeImageModificationRequestDTO;
+import com.tebutebu.apiserver.dto.badge.response.MemberTeamBadgePageResponseDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.CountCursorMetaDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,6 +26,18 @@ public interface TeamService {
     List<TeamListResponseDTO> getAllTeams();
 
     Long register(TeamCreateRequestDTO dto);
+
+    @Transactional(readOnly = true)
+    CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(ContextCountCursorPageRequestDTO req);
+
+    void increaseOrCreateBadge(Long memberId, Long teamId);
+
+    void requestUpdateBadgeImage(Long teamId, BadgeImageModificationRequestDTO badgeImageModificationRequestDTO);
+
+    void updateBadgeImageUrl(Long teamId, String badgeImageUrl);
+
+    @Transactional(readOnly = true)
+    CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(Long memberId, ContextCountCursorPageRequestDTO req);
 
     Long incrementGivedPumati(Long teamId);
 

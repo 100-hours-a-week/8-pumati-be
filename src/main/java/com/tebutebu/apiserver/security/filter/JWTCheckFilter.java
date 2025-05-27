@@ -55,6 +55,12 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             }
         }
 
+        if (request.getMethod().equals("PATCH")) {
+            if (path.matches("^/api/teams/\\d+/badge-image-url$")) {
+                return true;
+            }
+        }
+
         return false;
     }
 

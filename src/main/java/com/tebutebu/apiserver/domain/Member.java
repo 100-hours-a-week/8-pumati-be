@@ -28,7 +28,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = {"team"})
+@ToString(exclude = {"team", "comments", "attendancesDaily", "attendancesWeekly", "teamBadges"})
 public class Member extends TimeStampedEntity {
 
     @Id
@@ -89,6 +89,9 @@ public class Member extends TimeStampedEntity {
 
     @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<AttendanceWeekly> attendancesWeekly;
+
+    @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
+    private List<MemberTeamBadge> teamBadges;
 
     public void changeCourse(Course course) {
         this.course = course;
