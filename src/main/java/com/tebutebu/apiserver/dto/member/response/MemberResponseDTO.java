@@ -18,6 +18,10 @@ public class MemberResponseDTO {
 
     private Long teamId;
 
+    private Integer term;
+
+    private Integer teamNumber;
+
     private String email;
 
     private String password;

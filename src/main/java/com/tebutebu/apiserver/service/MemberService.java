@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.service;
 
 import com.tebutebu.apiserver.domain.Member;
+import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
@@ -35,9 +36,12 @@ public interface MemberService {
     Member dtoToEntity(MemberOAuthSignupRequestDTO dto, String email);
 
     default MemberResponseDTO entityToDTO(Member member) {
+        Team team = member.getTeam();
         return MemberResponseDTO.builder()
                 .id(member.getId())
-                .teamId(member.getTeam() != null ? member.getTeam().getId() : null)
+                .teamId(team != null ? team.getId() : null)
+                .term(team != null ? team.getTerm() : null)
+                .teamNumber(team != null ? team.getNumber() : null)
                 .email(member.getEmail())
                 .isSocial(member.isSocial())
                 .name(member.getName())
