@@ -26,9 +26,13 @@ public class CursorPageSpec<E> {
 
     private NumberExpression<Long> idExpr;
 
+    private NumberExpression<Integer> countExpr;
+
     private Long cursorId;
 
     private LocalDateTime cursorTime;
+
+    private Integer cursorCount;
 
     private int pageSize;
 

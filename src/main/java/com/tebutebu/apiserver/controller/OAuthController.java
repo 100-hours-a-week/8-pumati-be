@@ -1,16 +1,16 @@
 package com.tebutebu.apiserver.controller;
 
+import com.tebutebu.apiserver.service.OAuthService;
+import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -18,15 +18,18 @@ import java.util.List;
 @RequestMapping("/api/oauth")
 public class OAuthController {
 
-    private static final List<String> ALLOWED = List.of("kakao");
+    private final OAuthService oAuthService;
 
     @GetMapping("/{provider}/redirection")
     public void redirectToProvider(@PathVariable String provider, HttpServletResponse response) throws IOException {
-        if (!ALLOWED.contains(provider)) {
-            response.sendError(HttpStatus.BAD_REQUEST.value(), "invalidProvider");
-            return;
+        try {
+            oAuthService.validateProvider(provider);
+            response.sendRedirect("/oauth2/authorization/" + provider);
+        } catch (CustomValidationException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.setContentType("application/json; charset=UTF-8");
+            response.getWriter().write("{\"message\": \"" + e.getMessage() + "\"}");
         }
-        response.sendRedirect("/oauth2/authorization/" + provider);
     }
 
 }

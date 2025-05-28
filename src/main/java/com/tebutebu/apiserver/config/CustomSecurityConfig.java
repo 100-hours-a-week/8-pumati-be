@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -21,7 +22,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -52,9 +53,10 @@ public class CustomSecurityConfig {
 
     @Bean
     public RoleHierarchy roleHierarchy() {
-        RoleHierarchyImpl hierarchy = new RoleHierarchyImpl();
-        hierarchy.setHierarchy("ADMIN > TRAINEE > USER");
-        return hierarchy;
+        return RoleHierarchyImpl.fromHierarchy(
+                "ROLE_ADMIN > ROLE_TRAINEE\n" +
+                        "ROLE_TRAINEE > ROLE_USER"
+        );
     }
 
     @Bean
@@ -81,7 +83,14 @@ public class CustomSecurityConfig {
                 .failureHandler(loginFailHandler)
         );
 
-        http.addFilterBefore(new JWTCheckFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(new JWTCheckFilter(), AuthorizationFilter.class);
+
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.POST, "/api/teams").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/comments/ai/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/comments/ai/**").hasRole("ADMIN")
+                .anyRequest().permitAll()
+        );
 
         http.logout(logout -> logout
                 .logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/tokens", "DELETE"))

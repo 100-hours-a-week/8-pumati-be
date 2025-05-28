@@ -10,6 +10,8 @@ public interface OAuthService {
 
     Long register(OAuthCreateRequestDTO dto);
 
+    void validateProvider(String provider);
+
     void deleteByMemberId(Long memberId);
 
     OAuth dtoToEntity(OAuthCreateRequestDTO dto);

@@ -5,7 +5,7 @@ import com.tebutebu.apiserver.domain.ProjectImage;
 import com.tebutebu.apiserver.domain.Tag;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.comment.ai.request.AiCommentGenerateRequestDTO;
-import com.tebutebu.apiserver.dto.comment.ai.request.ProjectSummaryDTO;
+import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.image.request.ProjectImageRequestDTO;
 import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
@@ -54,6 +54,8 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final AiCommentRequestService aiCommentRequestService;
 
+    private final AiBadgeImageRequestService aiBadgeImageRequestService;
+
     @Value("${ai.comment.default.type}")
     private String aiCommentDefaultType;
 
@@ -69,13 +71,6 @@ public class ProjectServiceImpl implements ProjectService {
         Project project = projectRepository.findProjectByTeamId(teamId)
                 .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
         return buildProjectResponseDTO(project);
-    }
-
-    @Override
-    public Long getIdByTeamId(Long teamId) {
-        return projectRepository
-                .findProjectIdByTeamId(teamId)
-                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
     }
 
     @Override
@@ -125,6 +120,7 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         Project project = projectRepository.save(dtoToEntity(dto));
+        Team team = project.getTeam();
 
         List<String> tagContents = dto.getTags().stream()
                 .map(TagCreateRequestDTO::getContent)
@@ -143,21 +139,27 @@ public class ProjectServiceImpl implements ProjectService {
 
         projectRepository.save(project);
 
+        ProjectSummaryDTO projectSummaryDTO = ProjectSummaryDTO.builder()
+                .title(project.getTitle())
+                .introduction(project.getIntroduction())
+                .detailedDescription(project.getDetailedDescription())
+                .deploymentUrl(project.getDeploymentUrl())
+                .githubUrl(project.getGithubUrl())
+                .tags(tagContents)
+                .teamId(dto.getTeamId())
+                .term(team.getTerm())
+                .teamNumber(team.getNumber())
+                .build();
+
         AiCommentGenerateRequestDTO aiDto = AiCommentGenerateRequestDTO.builder()
                 .commentType(aiCommentDefaultType)
-                .projectSummary(ProjectSummaryDTO.builder()
-                        .title(project.getTitle())
-                        .introduction(project.getIntroduction())
-                        .detailedDescription(project.getDetailedDescription())
-                        .deploymentUrl(project.getDeploymentUrl())
-                        .githubUrl(project.getGithubUrl())
-                        .tags(tagContents)
-                        .teamId(dto.getTeamId())
-                        .build())
+                .projectSummary(projectSummaryDTO)
                 .build();
 
         Long projectId = project.getId();
         aiCommentRequestService.requestAiComment(projectId, aiDto);
+
+        aiBadgeImageRequestService.requestGenerateBadgeImage(projectSummaryDTO);
 
         return projectId;
     }

@@ -1,4 +1,4 @@
-package com.tebutebu.apiserver.dto.comment.ai.request;
+package com.tebutebu.apiserver.dto.badge.request;
 
 import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import lombok.Getter;
@@ -12,9 +12,9 @@ import lombok.AllArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AiCommentGenerateRequestDTO {
+public class MemberTeamBadgeUpdateRequestDTO {
 
-    private String commentType;
+    private BadgeImageModificationRequestDTO modificationTags;
 
     private ProjectSummaryDTO projectSummary;
 
