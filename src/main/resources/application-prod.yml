@@ -44,6 +44,7 @@ spring:
     refresh:
       cookie:
         name: ${jwt.refresh.cookie.name}
+        max-age: ${jwt.refresh.cookie.max-age}
 
 server:
   forward-headers-strategy: framework

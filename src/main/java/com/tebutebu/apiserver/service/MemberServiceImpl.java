@@ -40,6 +40,9 @@ public class MemberServiceImpl implements MemberService {
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
+    @Value("${jwt.refresh.cookie.max-age}")
+    private int refreshCookieMaxAge;
+
     @Value("${default.profile.image.pu.url}")
     private String defaultProfileImagePuUrl;
 
@@ -109,12 +112,11 @@ public class MemberServiceImpl implements MemberService {
         String refreshToken= JWTUtil.generateRefreshToken(memberId);
         refreshTokenService.persistRefreshToken(memberId, refreshToken);
 
-        int maxAge = 60 * 60 * 24;
         cookieUtil.addRefreshTokenCookie(
                 response,
                 refreshCookieName,
                 refreshToken,
-                maxAge,
+                refreshCookieMaxAge,
                 request.isSecure()
         );
 
