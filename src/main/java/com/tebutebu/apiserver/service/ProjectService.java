@@ -4,6 +4,7 @@ import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
+import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
@@ -28,9 +29,6 @@ public interface ProjectService {
 
     @Transactional(readOnly = true)
     ProjectResponseDTO getByTeamId(Long teamId);
-
-    @Transactional(readOnly = true)
-    Long getIdByTeamId(Long teamId);
 
     @Transactional(readOnly = true)
     CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> getRankingPage(ContextCursorPageRequestDTO dto);

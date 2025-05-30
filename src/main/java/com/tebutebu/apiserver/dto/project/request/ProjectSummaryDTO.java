@@ -1,4 +1,4 @@
-package com.tebutebu.apiserver.dto.comment.ai.request;
+package com.tebutebu.apiserver.dto.project.request;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -28,5 +28,9 @@ public class ProjectSummaryDTO {
     private List<String> tags;
 
     private Long teamId;
+
+    private Integer term;
+
+    private Integer teamNumber;
 
 }

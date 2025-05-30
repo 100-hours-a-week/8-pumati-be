@@ -32,7 +32,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = {"members"})
+@ToString(exclude = {"members", "memberBadges"})
 public class Team extends TimeStampedEntity {
 
     @Id
@@ -50,6 +50,9 @@ public class Team extends TimeStampedEntity {
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
     List<Member> members;
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MemberTeamBadge> memberBadges;
 
     @Builder.Default
     @Column(columnDefinition = "INT UNSIGNED")
@@ -69,6 +72,10 @@ public class Team extends TimeStampedEntity {
 
     public void increaseReceivedPumati() {
         this.receivedPumatiCount++;
+    }
+
+    public void changeBadgeImageUrl(String badgeImageUrl) {
+        this.badgeImageUrl = badgeImageUrl;
     }
 
 }
