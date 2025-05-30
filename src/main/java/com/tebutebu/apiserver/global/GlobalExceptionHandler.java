@@ -1,4 +1,4 @@
-package com.tebutebu.apiserver.controller.advice;
+package com.tebutebu.apiserver.global;
 
 import com.tebutebu.apiserver.util.exception.*;
 import lombok.extern.log4j.Log4j2;
@@ -14,7 +14,7 @@ import java.util.NoSuchElementException;
 
 @RestControllerAdvice
 @Log4j2
-public class CustomControllerAdvice {
+public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoSuchElementException.class)
     protected ResponseEntity<Map<String, String>> handleNotFound(NoSuchElementException e) {
