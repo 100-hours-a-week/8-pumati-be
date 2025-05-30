@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 
 @Entity
 @Table(
@@ -16,6 +17,7 @@ import lombok.Getter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = {"member", "team"})
 public class MemberTeamBadge extends TimeStampedEntity {
 
     @Id
