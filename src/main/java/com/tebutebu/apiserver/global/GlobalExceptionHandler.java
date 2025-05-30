@@ -41,11 +41,6 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, e.getMessage());
     }
 
-    @ExceptionHandler(CustomAuthenticationException.class)
-    protected ResponseEntity<Map<String, String>> handleAuthenticationException(CustomAuthenticationException e) {
-        return build(HttpStatus.UNAUTHORIZED, "invalidCredentials");
-    }
-
     @ExceptionHandler(CustomServiceException.class)
     protected ResponseEntity<Map<String, String>> handleServiceException(CustomServiceException e) {
         log.error("Service exception", e);
