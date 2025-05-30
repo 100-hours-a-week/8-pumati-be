@@ -1,0 +1,103 @@
+spring:
+  application:
+    name: apiserver
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${local.db.host}:${local.db.port}/${local.db.name}
+    username: ${local.db.username}
+    password: ${local.db.password}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-name: ${kakao.client.name}
+            client-id: ${kakao.client.id}
+            client-secret: ${kakao.client.secret}
+            redirect-uri: ${kakao.redirect.uri}
+            authorization-grant-type: ${kakao.authorization.grant.type}
+            client-authentication-method: ${kakao.client.authentication.method}
+            scope: ${kakao.scope}
+        provider:
+          kakao:
+            authorization-uri: ${kakao.authorization.uri}
+            user-name-attribute: ${kakao.user.name.attribute}
+            token-uri: ${kakao.token.uri}
+            user-info-uri: ${kakao.user.info.uri}
+
+  jwt:
+    secret: ${jwt.secret}
+    access-token:
+      expiration: ${jwt.access.token.expiration}
+    refresh-token:
+      expiration: ${jwt.refresh.token.expiration}
+    refresh:
+      cookie:
+        name: ${jwt.refresh.cookie.name}
+
+server:
+  forward-headers-strategy: framework
+
+logging:
+  level:
+    root: info
+    com.zaxxer: debug
+    org.springframework.security.web: trace
+
+frontend:
+  is-local: ${frontend.is-local}
+  redirect-uri: ${frontend.redirect-uri}
+
+cookie:
+  dev-domain: ${cookie.dev-domain}
+
+fortune:
+  service:
+    uri: ${fortune.service.uri}
+    error-message: ${fortune.service.error-message}
+
+ai:
+  comment:
+    service:
+      url: ${ai.comment.service.url}
+    default:
+      type: ${ai.comment.default.type}
+
+ranking:
+  snapshot:
+    duration:
+      minutes: ${ranking.snapshot.duration.minutes}
+
+default:
+  profile:
+    image:
+      pu:
+        url: ${default.profile.image.pu.url}
+      mati:
+        url: ${default.profile.image.mati.url}
+
+oauth:
+  allowed-providers: ${oauth.allowed-providers}
+
+aws:
+  region: ${aws.region}
+  credentials:
+    access-key: ${aws.credentials.access-key}
+    secret-key: ${aws.credentials.secret-key}
+  s3:
+    bucket:
+      name: ${aws.s3.bucket.name}
+    expiration:
+      put:
+        minutes: ${aws.s3.expiration.put.minutes}
+    max-request-count: ${aws.s3.max-request-count}
