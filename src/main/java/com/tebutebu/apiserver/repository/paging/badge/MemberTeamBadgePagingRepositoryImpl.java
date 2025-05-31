@@ -4,7 +4,7 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.OrderSpecifier;
 import com.tebutebu.apiserver.domain.MemberTeamBadge;
 import com.tebutebu.apiserver.domain.QMemberTeamBadge;
-import com.tebutebu.apiserver.dto.badge.response.MemberTeamBadgePageResponseDTO;
+import com.tebutebu.apiserver.dto.ai.badge.response.MemberTeamBadgePageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.factory.CursorPageFactory;
 import com.tebutebu.apiserver.pagination.factory.CursorPageSpec;

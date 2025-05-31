@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.controller;
 
-import com.tebutebu.apiserver.dto.badge.request.BadgeImageModificationRequestDTO;
-import com.tebutebu.apiserver.dto.badge.response.MemberTeamBadgePageResponseDTO;
+import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
+import com.tebutebu.apiserver.dto.ai.badge.response.MemberTeamBadgePageResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.team.request.BadgeImageUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
@@ -9,8 +9,8 @@ import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.CountCursorMetaDTO;
-import com.tebutebu.apiserver.service.MemberService;
-import com.tebutebu.apiserver.service.TeamService;
+import com.tebutebu.apiserver.service.member.MemberService;
+import com.tebutebu.apiserver.service.team.TeamService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

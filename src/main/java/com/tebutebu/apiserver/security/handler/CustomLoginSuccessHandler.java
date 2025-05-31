@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.security.handler;
 
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
-import com.tebutebu.apiserver.service.RefreshTokenService;
+import com.tebutebu.apiserver.service.token.RefreshTokenService;
 import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
 import jakarta.servlet.http.HttpServletRequest;

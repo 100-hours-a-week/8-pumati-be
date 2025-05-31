@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.token.TokensDTO;
-import com.tebutebu.apiserver.service.AuthService;
+import com.tebutebu.apiserver.service.auth.AuthService;
 import com.tebutebu.apiserver.util.CookieUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

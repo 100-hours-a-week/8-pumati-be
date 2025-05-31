@@ -1,6 +1,6 @@
 package com.tebutebu.apiserver.controller;
 
-import com.tebutebu.apiserver.service.OAuthService;
+import com.tebutebu.apiserver.service.oauth.OAuthService;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

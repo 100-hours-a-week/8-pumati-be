@@ -4,7 +4,7 @@ import com.tebutebu.apiserver.dto.s3.request.MultiplePreSignedUrlsRequestDTO;
 import com.tebutebu.apiserver.dto.s3.request.SinglePreSignedUrlRequestDTO;
 import com.tebutebu.apiserver.dto.s3.response.MultiplePreSignedUrlsResponseDTO;
 import com.tebutebu.apiserver.dto.s3.response.SinglePreSignedUrlResponseDTO;
-import com.tebutebu.apiserver.service.PreSignedUrlService;
+import com.tebutebu.apiserver.service.s3.PreSignedUrlService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
