@@ -119,7 +119,7 @@ class PreSignedUrlServiceTest {
             MultiplePreSignedUrlsResponseDTO multiplePreSignedUrlsResponseDTO = preSignedUrlService.generatePreSignedUrls(multiplePreSignedUrlsRequestDTO);
 
             assertNotNull(multiplePreSignedUrlsResponseDTO);
-            assertEquals(2, multiplePreSignedUrlsResponseDTO.getUrls().size());
+            assertEquals(maxCount, multiplePreSignedUrlsResponseDTO.getUrls().size());
             multiplePreSignedUrlsResponseDTO.getUrls().forEach(url -> {
                 assertNotNull(url.getObjectKey());
                 assertNotNull(url.getUploadUrl());
