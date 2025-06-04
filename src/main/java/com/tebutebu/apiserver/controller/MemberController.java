@@ -53,7 +53,7 @@ public class MemberController {
         return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
     }
 
-    @GetMapping("/members/badges")
+    @GetMapping("/badges")
     public ResponseEntity<?> getBadgesPage(
             @RequestHeader("Authorization") String authorizationHeader,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
