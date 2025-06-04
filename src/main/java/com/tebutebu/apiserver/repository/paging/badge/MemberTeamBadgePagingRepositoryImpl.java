@@ -9,6 +9,7 @@ import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageReque
 import com.tebutebu.apiserver.pagination.factory.CursorPageFactory;
 import com.tebutebu.apiserver.pagination.factory.CursorPageSpec;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
+import com.tebutebu.apiserver.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -19,6 +20,8 @@ import java.util.List;
 public class MemberTeamBadgePagingRepositoryImpl implements MemberTeamBadgePagingRepository {
 
     private final CursorPageFactory cursorPageFactory;
+
+    private final ProjectRepository projectRepository;
 
     private final QMemberTeamBadge qMemberTeamBadge = QMemberTeamBadge.memberTeamBadge;
 
@@ -58,6 +61,7 @@ public class MemberTeamBadgePagingRepositoryImpl implements MemberTeamBadgePagin
         List<MemberTeamBadgePageResponseDTO> memberTeamBadgePageResponseDtoList = page.items().stream()
                 .map(badge -> MemberTeamBadgePageResponseDTO.builder()
                         .id(badge.getId())
+                        .projectId(projectRepository.findProjectIdByTeamId(badge.getTeam().getId()).orElse(null))
                         .teamId(badge.getTeam().getId())
                         .term(badge.getTeam().getTerm())
                         .teamNumber(badge.getTeam().getNumber())

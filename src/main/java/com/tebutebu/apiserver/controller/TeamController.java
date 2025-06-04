@@ -72,13 +72,14 @@ public class TeamController {
 
     @GetMapping("/members/badges")
     public ResponseEntity<?> getBadgesPage(
-            @RequestParam(name = "context-id") @NotNull Long contextId,
+            @RequestHeader("Authorization") String authorizationHeader,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
             @RequestParam(name = "cursor-count", required = false) @PositiveOrZero Integer cursorCount,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
         ContextCountCursorPageRequestDTO dto = ContextCountCursorPageRequestDTO.builder()
-                .contextId(contextId)
+                .contextId(memberId)
                 .cursorId(cursorId)
                 .pageSize(pageSize)
                 .build();
