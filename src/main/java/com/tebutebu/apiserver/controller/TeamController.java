@@ -1,22 +1,13 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
-import com.tebutebu.apiserver.dto.ai.badge.response.MemberTeamBadgePageResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.team.request.BadgeImageUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageRequestDTO;
-import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.response.meta.CountCursorMetaDTO;
 import com.tebutebu.apiserver.service.member.MemberService;
 import com.tebutebu.apiserver.service.team.TeamService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -25,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -67,29 +57,6 @@ public class TeamController {
         return ResponseEntity.ok(Map.of(
                 "message", "getTeamMembersSuccess",
                 "data", members
-        ));
-    }
-
-    @GetMapping("/members/badges")
-    public ResponseEntity<?> getBadgesPage(
-            @RequestHeader("Authorization") String authorizationHeader,
-            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
-            @RequestParam(name = "cursor-count", required = false) @PositiveOrZero Integer cursorCount,
-            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
-    ) {
-        Long memberId = memberService.get(authorizationHeader).getId();
-        ContextCountCursorPageRequestDTO dto = ContextCountCursorPageRequestDTO.builder()
-                .contextId(memberId)
-                .cursorId(cursorId)
-                .pageSize(pageSize)
-                .build();
-        dto.setCursorCount(Objects.requireNonNullElse(cursorCount, Integer.MAX_VALUE));
-
-        CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> page = teamService.getReceivedBadgesPage(dto);
-        return ResponseEntity.ok(Map.of(
-                "message", "getBadgesSuccess",
-                "data", page.getData(),
-                "meta", page.getMeta()
         ));
     }
 
