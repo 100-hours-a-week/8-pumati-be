@@ -78,12 +78,6 @@ public class TeamController {
         return ResponseEntity.ok(Map.of("message", "updateBadgeImageSuccess"));
     }
 
-    @PatchMapping("/{teamId}/members/{memberId}/badge")
-    public ResponseEntity<?> acquireTeamBadge(@PathVariable Long teamId, @PathVariable Long memberId) {
-        teamService.increaseOrCreateBadge(memberId, teamId);
-        return ResponseEntity.ok(Map.of("message", "grantTeamBadgeSuccess"));
-    }
-
     @PatchMapping("/{teamId}/gived-pumati")
     public ResponseEntity<?> increaseGivedPumati(@PathVariable Long teamId) {
         Long result = teamService.incrementGivedPumati(teamId);

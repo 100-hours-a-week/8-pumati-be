@@ -53,6 +53,16 @@ public class MemberController {
         return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
     }
 
+    @PatchMapping("/teams/{teamId}/badge")
+    public ResponseEntity<?> acquireTeamBadge(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @PathVariable Long teamId
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        teamService.increaseOrCreateBadge(memberId, teamId);
+        return ResponseEntity.ok(Map.of("message", "grantTeamBadgeSuccess"));
+    }
+
     @GetMapping("/badges")
     public ResponseEntity<?> getBadgesPage(
             @RequestHeader("Authorization") String authorizationHeader,
