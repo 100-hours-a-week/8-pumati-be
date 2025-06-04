@@ -13,6 +13,8 @@ public class MemberTeamBadgePageResponseDTO {
 
     private Long id;
 
+    private Long projectId;
+
     private Long teamId;
 
     private Integer term;
