@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.security.handler;
 
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
-import com.tebutebu.apiserver.service.RefreshTokenService;
+import com.tebutebu.apiserver.service.token.RefreshTokenService;
 import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +30,9 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
+    @Value("${jwt.refresh.cookie.max-age}")
+    private int refreshCookieMaxAge;
+
     private final CookieUtil cookieUtil;
 
     @Override
@@ -49,12 +52,11 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         responseData.put("accessToken", accessToken);
 
-        int maxAge = 60 * 60 * 24;
         cookieUtil.addRefreshTokenCookie(
                 response,
                 refreshCookieName,
                 refreshToken,
-                maxAge,
+                refreshCookieMaxAge,
                 request.isSecure()
         );
 

@@ -1,8 +1,8 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
-import com.tebutebu.apiserver.service.CommentService;
-import com.tebutebu.apiserver.service.MemberService;
+import com.tebutebu.apiserver.service.comment.CommentService;
+import com.tebutebu.apiserver.service.member.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;

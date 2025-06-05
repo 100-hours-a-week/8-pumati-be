@@ -13,7 +13,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = "project")
+@ToString(exclude = {"project"})
 public class ProjectImage extends TimeStampedEntity {
 
     @Id

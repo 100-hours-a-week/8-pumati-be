@@ -3,7 +3,6 @@ package com.tebutebu.apiserver.domain;
 import com.tebutebu.apiserver.domain.common.TimeStampedEntity;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -33,19 +32,15 @@ public class Project extends TimeStampedEntity {
     @JoinColumn(name = "team_id")
     private Team team;
 
-    @NotBlank(message = "제목은 필수 입력 값입니다.")
     @Column(nullable = false, length = 64)
     private String title;
 
-    @NotBlank(message = "소개는 필수 입력 값입니다.")
     @Column(length = 150)
     private String introduction;
 
-    @NotBlank(message = "상세 설명은 필수 입력 값입니다.")
     @Column(name = "detailed_description", length = 1000)
     private String detailedDescription;
 
-    @NotBlank(message = "대표 이미지 URL은 필수 입력 값입니다.")
     @Column(name = "representative_image_url", length = 512)
     private String representativeImageUrl;
 
@@ -53,11 +48,9 @@ public class Project extends TimeStampedEntity {
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProjectImage> images = new ArrayList<>();
 
-    @NotBlank(message = "배포 URL은 필수 입력 값입니다.")
     @Column(name = "deployment_url", length = 512)
     private String deploymentUrl;
 
-    @NotBlank(message = "깃허브 URL은 필수 입력 값입니다.")
     @Column(name = "github_url", length = 512)
     private String githubUrl;
 

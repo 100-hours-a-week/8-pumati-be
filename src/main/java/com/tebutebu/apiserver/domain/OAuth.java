@@ -10,7 +10,6 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.FetchType;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -41,11 +40,9 @@ public class OAuth {
     @JoinColumn(name = "member_id")
     private Member member;
 
-    @NotBlank(message = "제공자는 필수 입력 값입니다.")
     @Column(nullable = false, length = 20)
     private String provider;
 
-    @NotBlank(message = "제공자 ID는 필수 입력 값입니다.")
     @Column(name = "provider_id", nullable = false, length = 50)
     private String providerId;
 

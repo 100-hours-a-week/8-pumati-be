@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.token.TokensDTO;
-import com.tebutebu.apiserver.service.AuthService;
+import com.tebutebu.apiserver.service.auth.AuthService;
 import com.tebutebu.apiserver.util.CookieUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,6 +22,9 @@ public class AuthController {
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
+    @Value("${jwt.refresh.cookie.max-age}")
+    private int refreshCookieMaxAge;
+
     private final AuthService authService;
 
     private final CookieUtil cookieUtil;
@@ -36,12 +39,11 @@ public class AuthController {
         try {
             TokensDTO tokens = authService.refreshTokens(authorizationHeader, refreshTokenCookie);
 
-            int maxAge = 60 * 60 * 24;
             cookieUtil.addRefreshTokenCookie(
                     response,
                     refreshCookieName,
                     tokens.getRefreshToken(),
-                    maxAge,
+                    refreshCookieMaxAge,
                     request.isSecure()
             );
 

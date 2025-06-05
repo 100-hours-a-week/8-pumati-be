@@ -1,6 +1,6 @@
 package com.tebutebu.apiserver.controller;
 
-import com.tebutebu.apiserver.dto.comment.ai.request.AiCommentCreateRequestDTO;
+import com.tebutebu.apiserver.dto.ai.comment.request.AiCommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
@@ -12,10 +12,10 @@ import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.CursorMetaDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
-import com.tebutebu.apiserver.service.CommentService;
-import com.tebutebu.apiserver.service.MemberService;
-import com.tebutebu.apiserver.service.ProjectRankingSnapshotService;
-import com.tebutebu.apiserver.service.ProjectService;
+import com.tebutebu.apiserver.service.comment.CommentService;
+import com.tebutebu.apiserver.service.member.MemberService;
+import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
+import com.tebutebu.apiserver.service.project.ProjectService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

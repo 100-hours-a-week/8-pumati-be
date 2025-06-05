@@ -2,8 +2,6 @@ package com.tebutebu.apiserver.domain;
 
 import com.tebutebu.apiserver.domain.common.TimeStampedEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -26,8 +24,6 @@ public class Tag extends TimeStampedEntity {
     @Column(columnDefinition = "INT UNSIGNED")
     private Long id;
 
-    @NotBlank(message = "태그는 필수 입력 값입니다.")
-    @Pattern(regexp = "^\\S{2,20}$", message = "태그 내용은 공백을 포함할 수 없으며 2자 이상 20자 이하여야 합니다.")
     @Column(nullable = false, unique = true, length = 20)
     private String content;
 

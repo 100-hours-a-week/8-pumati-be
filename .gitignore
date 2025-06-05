@@ -40,7 +40,7 @@ out/
 .java-version
 
 ### Environment variables ###
-.env.local
+.env.*
 
 ### Local build ###
 build-local.sh

@@ -2,7 +2,6 @@ package com.tebutebu.apiserver.domain;
 
 import com.tebutebu.apiserver.domain.common.TimeStampedEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -32,7 +31,6 @@ public class Comment extends TimeStampedEntity {
 
     private CommentType type;
 
-    @NotBlank(message = "댓글 내용은 필수 입력 값입니다.")
     @Column(nullable = false, length = 300)
     private String content;
 
