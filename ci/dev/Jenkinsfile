@@ -10,9 +10,10 @@ pipeline {
         // 이미지 태그 설정 (브랜치명과 빌드 번호 조합)
         IMAGE_TAG = "${BRANCH_NAME}-${BUILD_NUMBER}"
         
-        // Java 버전 설정
-        JAVA_HOME = tool name: 'jdk-21', type: 'jdk'
-        PATH = "${JAVA_HOME}/bin:${PATH}"
+        // Java 버전 설정 (시스템 기본 Java 사용)
+        // Jenkins 서버에 Java 21이 설치되어 있어야 함
+        // JAVA_HOME = tool name: 'jdk-21', type: 'jdk'
+        // PATH = "${JAVA_HOME}/bin:${PATH}"
     }
     
     stages {
@@ -62,10 +63,17 @@ pipeline {
             steps {
                 echo 'Gradle 빌드 준비 중...'
                 
+                // Java 버전 확인
+                sh '''
+                    echo "현재 Java 버전 확인:"
+                    java -version
+                    echo "JAVA_HOME: $JAVA_HOME"
+                '''
+                
                 // Gradle wrapper 실행 권한 부여
                 sh 'chmod +x gradlew'
                 
-                // Gradle 의존성 다운로드
+                // Gradle 의존성 다운로드 및 버전 확인
                 sh './gradlew --version'
             }
         }
