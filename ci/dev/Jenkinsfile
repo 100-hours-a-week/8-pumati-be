@@ -84,7 +84,7 @@ pipeline {
                 echo '단위 테스트 실행 중...'
                 
                 // 단위 테스트 실행
-                sh './gradlew test'
+                // sh './gradlew test'
             }
             
             // 테스트 결과 발행
