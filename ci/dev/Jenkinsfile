@@ -1,0 +1,236 @@
+pipeline {
+    agent any
+    
+    // 환경 변수 설정
+    environment {
+        // AWS 공개 정보 (깃에 올려도 안전)
+        AWS_REGION = 'ap-northeast-2'        // 서울 리전
+        ECR_REPOSITORY = 'pumati-dev-backend-ecr'  // ECR 리포지토리 이름
+        
+        // 이미지 태그 설정 (브랜치명과 빌드 번호 조합)
+        IMAGE_TAG = "${BRANCH_NAME}-${BUILD_NUMBER}"
+        
+        // Java 버전 설정
+        JAVA_HOME = tool name: 'jdk-21', type: 'jdk'
+        PATH = "${JAVA_HOME}/bin:${PATH}"
+    }
+    
+    stages {
+        // 1. 소스 코드 체크아웃
+        stage('Checkout') {
+            steps {
+                // 소스 코드 체크아웃 (이미 Jenkins에서 자동으로 처리됨)
+                echo '소스 코드 체크아웃 완료'
+                
+                // 현재 브랜치와 커밋 정보 출력
+                script {
+                    def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                    def gitBranch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                    echo "Git Branch: ${gitBranch}"
+                    echo "Git Commit: ${gitCommit}"
+                }
+            }
+        }
+        
+        // 2. 환경 설정 파일 준비
+        stage('Setup Environment') {
+            steps {
+                echo '환경 설정 파일 및 AWS 정보 준비 중...'
+                
+                script {
+                    // Jenkins 크레덴셜에서 AWS 계정 ID 가져오기
+                    withCredentials([string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID')]) {
+                        // Docker 이미지 이름 설정 (AWS 계정 ID 포함)
+                        env.DOCKER_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                        echo "Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
+                    }
+                }
+                
+                // Jenkins 크레덴셜에서 환경 변수 파일 가져오기
+                withCredentials([file(credentialsId: 'be-env', variable: 'ENV_FILE')]) {
+                    // 환경 변수 파일을 작업 디렉토리에 복사
+                    sh 'cp $ENV_FILE .env'
+                    
+                    // 환경 변수 파일이 제대로 복사되었는지 확인 (보안상 내용은 출력하지 않음)
+                    sh 'ls -la .env'
+                }
+            }
+        }
+        
+        // 3. Gradle 빌드 준비
+        stage('Prepare Build') {
+            steps {
+                echo 'Gradle 빌드 준비 중...'
+                
+                // Gradle wrapper 실행 권한 부여
+                sh 'chmod +x gradlew'
+                
+                // Gradle 의존성 다운로드
+                sh './gradlew --version'
+            }
+        }
+        
+        // 4. 테스트 실행
+        stage('Test') {
+            steps {
+                echo '단위 테스트 실행 중...'
+                
+                // 단위 테스트 실행
+                sh './gradlew test'
+            }
+            
+            // 테스트 결과 발행
+            post {
+                always {
+                    // 테스트 결과 파일 발행
+                    publishTestResults testResultsPattern: 'build/test-results/test/*.xml'
+                    
+                    // 테스트 커버리지 리포트 발행 (JaCoCo 등을 사용할 경우)
+                    // publishHTML([
+                    //     allowMissing: false,
+                    //     alwaysLinkToLastBuild: true,
+                    //     keepAll: true,
+                    //     reportDir: 'build/reports/jacoco/test/html',
+                    //     reportFiles: 'index.html',
+                    //     reportName: 'JaCoCo Coverage Report'
+                    // ])
+                }
+            }
+        }
+        
+        // 5. 애플리케이션 빌드
+        stage('Build Application') {
+            steps {
+                echo 'Spring Boot 애플리케이션 빌드 중...'
+                
+                // Spring Boot 애플리케이션 빌드 (jar 파일 생성)
+                sh './gradlew clean build -x test'
+                
+                // 빌드 결과 확인
+                sh 'ls -la build/libs/'
+            }
+        }
+        
+        // 6. Docker 이미지 빌드
+        stage('Build Docker Image') {
+            steps {
+                echo 'Docker 이미지 빌드 중...'
+                
+                script {
+                    // Docker 이미지 빌드
+                    sh """
+                        docker build -f ci/dev/Dockerfile \
+                            -t ${env.DOCKER_IMAGE_NAME} \
+                            -t ${ECR_REPOSITORY}:latest \
+                            .
+                    """
+                    
+                    // 빌드된 이미지 확인
+                    sh "docker images ${ECR_REPOSITORY}"
+                }
+            }
+        }
+        
+        // 7. ECR 로그인 및 이미지 푸시
+        stage('Push to ECR') {
+            steps {
+                echo 'ECR에 Docker 이미지 푸시 중...'
+                
+                script {
+                    // AWS 크레덴셜과 계정 ID를 모두 사용 (보안 강화)
+                    withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        // AWS 환경 변수 설정 확인
+                        sh """
+                            echo "AWS 인증 정보 확인 중..."
+                            aws sts get-caller-identity
+                        """
+                        
+                        // AWS ECR에 로그인
+                        sh """
+                            echo "ECR에 로그인 중..."
+                            aws ecr get-login-password --region ${AWS_REGION} | \
+                            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        """
+                        
+                        // ECR 리포지토리 존재 확인 및 생성
+                        sh """
+                            echo "ECR 리포지토리 확인 및 생성 중..."
+                            aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${AWS_REGION} || \
+                            aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}
+                        """
+                        
+                        // Docker 이미지를 ECR에 푸시
+                        sh """
+                            echo "Docker 이미지 푸시 중: ${env.DOCKER_IMAGE_NAME}"
+                            docker push ${env.DOCKER_IMAGE_NAME}
+                        """
+                        
+                        // latest 태그도 푸시
+                        def latestImageName = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
+                        sh """
+                            echo "Latest 태그 푸시 중: ${latestImageName}"
+                            docker tag ${env.DOCKER_IMAGE_NAME} ${latestImageName}
+                            docker push ${latestImageName}
+                        """
+                    }
+                }
+            }
+        }
+        
+        // 8. 빌드 정리
+        stage('Cleanup') {
+            steps {
+                echo '빌드 정리 중...'
+                
+                script {
+                    // 로컬 Docker 이미지 정리 (디스크 공간 절약)
+                    sh """
+                        docker rmi ${env.DOCKER_IMAGE_NAME} || true
+                        docker rmi ${ECR_REPOSITORY}:latest || true
+                        docker system prune -f
+                    """
+                }
+            }
+        }
+    }
+    
+    // 빌드 후 처리
+    post {
+        always {
+            echo '빌드 파이프라인 완료'
+            
+            // 환경 변수 파일 정리
+            sh 'rm -f .env'
+            
+            // 작업 공간 정리
+            cleanWs()
+        }
+        
+        success {
+            echo '빌드 성공! 🎉'
+            
+            // 성공 시 알림 (Slack, 이메일 등)
+            // slackSend(
+            //     color: 'good',
+            //     message: ":white_check_mark: 빌드 성공: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+            // )
+        }
+        
+        failure {
+            echo '빌드 실패! ❌'
+            
+            // 실패 시 알림
+            // slackSend(
+            //     color: 'danger',
+            //     message: ":x: 빌드 실패: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+            // )
+        }
+        
+        unstable {
+            echo '빌드 불안정 ⚠️'
+        }
+    }
+}
