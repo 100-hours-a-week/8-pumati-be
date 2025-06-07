@@ -88,7 +88,8 @@ pipeline {
                     echo "테스트 환경을 위해 .env 파일의 환경 변수를 로드합니다."
                     if [ -f .env ]; then
                         set -a
-                        source .env
+                        # 'source' 명령어는 bash 전용. POSIX 호환을 위해 '.' 사용
+                        . .env
                         set +a
                         echo "환경 변수 로드 완료. Gradle 테스트를 시작합니다."
                     else
