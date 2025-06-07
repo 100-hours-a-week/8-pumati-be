@@ -8,14 +8,12 @@ kind: Pod
 spec:
   containers:
   - name: openjdk
-    image: cimg/openjdk:21.0-node
-    command:
-    - cat
+    image: cimg/openjdk:21.0
+    command: [cat]
     tty: true
   - name: aws-docker
-    image: cimg/aws:2023.10  # AWS CLI + Docker 포함
-    command:
-    - cat
+    image: cimg/aws:2024.01  # 올바른 태그로 수정
+    command: [cat]
     tty: true
     volumeMounts:
     - name: docker-sock
@@ -96,6 +94,7 @@ spec:
         stage('Test') {
             steps {
                 container('openjdk') {
+                    sh 'chmod +x gradlew' // 실행 권한 부여
                     echo '단위 테스트 실행 중...'
                     sh '''
                         if [ -f .env ]; then
@@ -191,13 +190,15 @@ spec:
     // 빌드 후 처리
     post {
         always {
-            echo '빌드 파이프라인 완료'
-            
-            // 환경 변수 파일 정리
-            sh 'rm -f .env'
-            
-            // 작업 공간 정리
-            cleanWs()
+            container('openjdk') { // 컨테이너 컨텍스트 지정
+                echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
+                
+                // 환경 변수 파일 정리
+                sh 'rm -f .env'
+                
+                // 작업 공간 정리
+                cleanWs()
+            }
         }
         
         success {
