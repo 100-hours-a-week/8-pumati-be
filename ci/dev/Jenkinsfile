@@ -86,10 +86,14 @@ pipeline {
                 // .env 파일의 환경 변수를 로드하여 테스트 환경 구성
                 sh '''
                     echo "테스트 환경을 위해 .env 파일의 환경 변수를 로드합니다."
+                    echo "현재 위치: $(pwd)"
+                    echo "파일 목록:"
+                    ls -la
+
                     if [ -f .env ]; then
                         set -a
-                        # 'source' 명령어는 bash 전용. POSIX 호환을 위해 '.' 사용
-                        . .env
+                        # 셸이 파일을 정확히 찾을 수 있도록 명시적인 경로 './.env' 사용
+                        . ./.env
                         set +a
                         echo "환경 변수 로드 완료. Gradle 테스트를 시작합니다."
                     else
