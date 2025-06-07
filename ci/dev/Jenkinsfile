@@ -2,14 +2,10 @@ pipeline {
     // 파이프라인 전체를 Docker 컨테이너에서 실행
     agent {
         kubernetes {
+            label "pumati-backend-jenkins-slave-${BUILD_NUMBER}"
             yaml '''
 apiVersion: v1
 kind: Pod
-metadata:
-  name: "pumati-backend-jenkins-slave-${BUILD_NUMBER}"
-  labels:
-    app: pumati-backend
-    environment: dev
 spec:
   securityContext:
     runAsUser: 1000
@@ -132,7 +128,7 @@ spec:
                     script {
                         // Gradle 홈 디렉토리 생성
                         sh 'mkdir -p /home/jenkins/agent/.gradle'
-                        sh 'whoami && pwd && ls -la /home/jenkins/agent/'
+                        sh 'id && pwd && ls -la /home/jenkins/agent/'
                         
                         try {
                             sh 'java -version'
