@@ -4,7 +4,7 @@
 # ==============================================================================
 
 # 1단계: 베이스 이미지 (OpenJDK 21 슬림 버전 사용)
-FROM openjdk:21-jre-slim
+FROM openjdk:21-slim
 
 # 메타데이터 설정
 LABEL maintainer="jay,jacky"

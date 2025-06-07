@@ -156,8 +156,15 @@ spec:
             }
         }
         
-        // 4. 테스트 실행
+        // 4. 테스트 실행 (선택적)
         stage('Test') {
+            when {
+                // PR이나 main 브랜치에서만 테스트 실행
+                anyOf {
+                    branch 'dev'
+                    changeRequest()
+                }
+            }
             steps {
                 container('openjdk') {
                     echo '단위 테스트 실행 중...'
