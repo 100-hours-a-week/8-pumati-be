@@ -128,6 +128,13 @@ pipeline {
         
         // 6. Docker 이미지 빌드
         stage('Build Docker Image') {
+            // Docker 명령을 실행하기 위해 Docker Agent 컨테이너를 사용
+            agent {
+                docker { 
+                    image 'docker:20.10.17' // Docker-in-Docker 이미지를 사용
+                    args '-v /var/run/docker.sock:/var/run/docker.sock' // 호스트의 Docker 소켓을 공유하여 실제 Docker 데몬 사용
+                }
+            }
             steps {
                 echo 'Docker 이미지 빌드 중...'
                 
@@ -148,6 +155,13 @@ pipeline {
         
         // 7. ECR 로그인 및 이미지 푸시
         stage('Push to ECR') {
+            // 여기도 마찬가지로 Docker Agent를 사용
+            agent {
+                docker { 
+                    image 'docker:20.10.17'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 echo 'ECR에 Docker 이미지 푸시 중...'
                 
@@ -197,6 +211,13 @@ pipeline {
         
         // 8. 빌드 정리
         stage('Cleanup') {
+            // 여기도 마찬가지로 Docker Agent를 사용
+            agent {
+                docker { 
+                    image 'docker:20.10.17'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 echo '빌드 정리 중...'
                 
