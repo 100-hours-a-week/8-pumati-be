@@ -6,11 +6,10 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: "pumati-backend-jenkins-slave-${BUILD_NUMBER}"  # 커스텀 이름 설정
+  name: "pumati-backend-jenkins-slave-${BUILD_NUMBER}"
   labels:
     app: pumati-backend
-    build: "${BUILD_NUMBER}"
-    branch: "${BRANCH_NAME}"
+    environment: dev
 spec:
   securityContext:
     runAsUser: 1000
@@ -302,20 +301,9 @@ spec:
             script {
                 echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
                 
-                // Jenkins 워크스페이스 정리만 수행 (컨테이너 불필요)
+                // Jenkins 워크스페이스 정리 (기본 방식 사용)
                 try {
-                    cleanWs(
-                        cleanWhenNotBuilt: false,
-                        deleteDirs: true,
-                        disableDeferredWipeout: true,
-                        notFailBuild: true,
-                        patterns: [
-                            [pattern: '.env', type: 'INCLUDE'],
-                            [pattern: 'build/', type: 'INCLUDE'],
-                            [pattern: '.gradle/', type: 'INCLUDE'],
-                            [pattern: 'target/', type: 'INCLUDE']
-                        ]
-                    )
+                    deleteDir()
                     echo '작업 공간 정리 완료'
                 } catch (Exception e) {
                     echo "작업 공간 정리 중 오류 (무시됨): ${e.getMessage()}"
