@@ -231,10 +231,6 @@ spec:
                         } catch (Exception e) {
                             echo "애플리케이션 빌드 실패: ${e.getMessage()}"
                             error("빌드 실패")
-                        } finally {
-                            // 빌드 완료 후 환경 파일 정리
-                            sh 'rm -f .env || true'
-                            echo '.env 파일 정리 완료'
                         }
                     }
                 }
@@ -276,14 +272,13 @@ spec:
                 container('kaniko') {
                     echo 'Kaniko로 Docker 이미지 빌드 및 ECR 푸시 중...'
                     
-                    // 🔥 AWS 크레덴셜을 Kaniko에 전달
                     withCredentials([
                         string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
                         aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
                     ]) {
                         script {
                             sh """
-                                # AWS 환경변수 설정 (Kaniko가 자동으로 인식)
+                                # AWS 환경변수 설정
                                 export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
                                 export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
                                 export AWS_DEFAULT_REGION=${AWS_REGION}
@@ -292,7 +287,12 @@ spec:
                                 echo "Region: ${AWS_REGION}"
                                 echo "Registry: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
                                 
-                                # Kaniko executor로 이미지 빌드 및 푸시 (AWS 환경변수 자동 인식)
+                                # 빌드 전 파일 확인
+                                echo "=== 빌드 전 파일 확인 ==="
+                                ls -la
+                                ls -la build/libs/ || echo "build/libs 없음"
+                                
+                                # Kaniko executor로 이미지 빌드 및 푸시
                                 /kaniko/executor \\
                                     --context=. \\
                                     --dockerfile=ci/dev/Dockerfile \\
@@ -318,7 +318,7 @@ spec:
                 container('openjdk') {
                     echo '빌드 정리 중...'
                     sh '''
-                        # 임시 파일들 정리
+                        # 🔥 이제 여기서 .env 파일 정리
                         rm -f .env || true
                         rm -rf /home/jenkins/agent/.docker || true
                         echo "정리 완료"
