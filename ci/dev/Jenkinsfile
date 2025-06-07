@@ -21,23 +21,24 @@ spec:
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
-  - name: aws-docker
-    image: cimg/aws:2023.05  # 실제 검증된 태그로 수정
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command: [/busybox/cat]
+    tty: true
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+  - name: aws-cli
+    image: cimg/aws:2023.05
     command: [cat]
     tty: true
     securityContext:
-      privileged: true
-      runAsUser: 0  # root 권한으로 실행
-      runAsGroup: 0
+      runAsUser: 1000
+      runAsGroup: 1000
     volumeMounts:
-    - name: docker-sock
-      mountPath: /var/run/docker.sock
     - name: workspace-volume
       mountPath: /home/jenkins/agent
   volumes:
-  - name: docker-sock
-    hostPath:
-      path: /var/run/docker.sock
   - name: workspace-volume
     emptyDir: {}
             '''
@@ -108,7 +109,9 @@ spec:
                     script {
                         withCredentials([string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID')]) {
                             env.DOCKER_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                            env.LATEST_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
                             echo "Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
+                            echo "Latest 이미지: ${env.LATEST_IMAGE_NAME}"
                         }
                     }
                     
@@ -191,7 +194,6 @@ spec:
                     container('openjdk') {
                         script {
                             try {
-                                // ✅ 올바른 파라미터: testResults
                                 junit testResults: 'build/test-results/test/*.xml', allowEmptyResults: true
                                 echo '테스트 결과 발행 완료'
                             } catch (Exception e) {
@@ -229,49 +231,56 @@ spec:
             }
         }
         
-        // 6. Docker 이미지 빌드
-        stage('Build Docker Image') {
+        // 6. ECR 로그인 및 설정
+        stage('Setup ECR') {
             steps {
-                container('aws-docker') {
-                    echo 'Docker 이미지 빌드 중...'
-                    sh 'docker --version'
-                    sh """
-                        docker build -f ci/dev/Dockerfile \\
-                            -t ${env.DOCKER_IMAGE_NAME} \\
-                            -t ${ECR_REPOSITORY}:latest \\
-                            .
-                    """
-                    sh "docker images ${ECR_REPOSITORY}"
-                }
-            }
-        }
-        
-        // 7. ECR 로그인 및 이미지 푸시
-        stage('Push to ECR') {
-            steps {
-                container('aws-docker') {
-                    echo 'ECR에 Docker 이미지 푸시 중...'
+                container('aws-cli') {
+                    echo 'ECR 로그인 및 리포지토리 설정 중...'
                     withCredentials([
                         string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
                         aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
                     ]) {
                         sh 'aws --version'
                         sh 'aws sts get-caller-identity'
-                        sh """
-                            aws ecr get-login-password --region ${AWS_REGION} | \\
-                            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                        """
+                        
+                        // ECR 리포지토리 존재 확인 및 생성
                         sh """
                             aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${AWS_REGION} || \\
                             aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}
                         """
-                        sh "docker push ${env.DOCKER_IMAGE_NAME}"
                         
-                        script {
-                            def latestImageName = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
-                            sh "docker tag ${env.DOCKER_IMAGE_NAME} ${latestImageName}"
-                            sh "docker push ${latestImageName}"
-                        }
+                        // Kaniko용 ECR 인증 설정 파일 생성
+                        sh """
+                            mkdir -p /home/jenkins/agent/.docker
+                            aws ecr get-login-password --region ${AWS_REGION} | \\
+                            echo "{\\"auths\\": {\\"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com\\": {\\"auth\\": \\"\$(cat - | base64 -w0)\\"}}}" > /home/jenkins/agent/.docker/config.json
+                        """
+                    }
+                }
+            }
+        }
+        
+        // 7. Kaniko로 Docker 이미지 빌드 및 푸시
+        stage('Build and Push Docker Image') {
+            steps {
+                container('kaniko') {
+                    echo 'Kaniko로 Docker 이미지 빌드 및 ECR 푸시 중...'
+                    script {
+                        sh """
+                            # Kaniko executor로 이미지 빌드 및 푸시
+                            /kaniko/executor \\
+                                --context=. \\
+                                --dockerfile=ci/dev/Dockerfile \\
+                                --destination=${env.DOCKER_IMAGE_NAME} \\
+                                --destination=${env.LATEST_IMAGE_NAME} \\
+                                --cache=true \\
+                                --compressed-caching=false \\
+                                --cleanup
+                        """
+                        
+                        echo "✅ 이미지 빌드 및 푸시 완료!"
+                        echo "📦 이미지: ${env.DOCKER_IMAGE_NAME}"
+                        echo "📦 Latest: ${env.LATEST_IMAGE_NAME}"
                     }
                 }
             }
@@ -280,25 +289,26 @@ spec:
         // 8. 빌드 정리
         stage('Cleanup') {
             steps {
-                container('aws-docker') {
+                container('openjdk') {
                     echo '빌드 정리 중...'
-                    sh """
-                        docker rmi ${env.DOCKER_IMAGE_NAME} || true
-                        docker rmi ${ECR_REPOSITORY}:latest || true
-                        docker system prune -f
-                    """
+                    sh '''
+                        # 임시 파일들 정리
+                        rm -f .env || true
+                        rm -rf /home/jenkins/agent/.docker || true
+                        echo "정리 완료"
+                    '''
                 }
             }
         }
     }
     
-    // 빌드 후 처리 - 컨테이너 없이 Jenkins 레벨에서만 실행
+    // 빌드 후 처리
     post {
         always {
             script {
                 echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
                 
-                // Jenkins 워크스페이스 정리 (기본 방식 사용)
+                // Jenkins 워크스페이스 정리
                 try {
                     deleteDir()
                     echo '작업 공간 정리 완료'
@@ -316,12 +326,6 @@ spec:
                 echo "📍 ECR 리포지토리: ${ECR_REPOSITORY}"
                 echo "🌍 AWS 리전: ${AWS_REGION}"
             }
-            
-            // 성공 시 알림 (Slack, 이메일 등)
-            // slackSend(
-            //     color: 'good',
-            //     message: ":white_check_mark: 빌드 성공: ${env.JOB_NAME} - ${env.BUILD_NUMBER}\n이미지: ${env.DOCKER_IMAGE_NAME}"
-            // )
         }
         
         failure {
@@ -330,12 +334,6 @@ spec:
                 echo "🔍 로그를 확인하여 실패 원인을 파악하세요."
                 echo "🌐 빌드 URL: ${env.BUILD_URL}"
             }
-            
-            // 실패 시 알림
-            // slackSend(
-            //     color: 'danger',
-            //     message: ":x: 빌드 실패: ${env.JOB_NAME} - ${env.BUILD_NUMBER}\n로그: ${env.BUILD_URL}console"
-            // )
         }
         
         unstable {
