@@ -167,6 +167,10 @@ spec:
                         try {
                             // 환경 변수 로드 및 테스트 실행
                             sh '''
+                                # Gradle 홈 디렉토리 확인
+                                export GRADLE_USER_HOME=/home/jenkins/agent/.gradle
+                                mkdir -p $GRADLE_USER_HOME
+                                
                                 if [ -f .env ]; then
                                     echo "환경 파일 발견, 로드 중..."
                                     set -a && . ./.env && set +a
@@ -175,7 +179,8 @@ spec:
                                 fi
                                 
                                 echo "테스트 실행 시작..."
-                                ./gradlew test --no-daemon --stacktrace
+                                echo "GRADLE_USER_HOME: $GRADLE_USER_HOME"
+                                ./gradlew test --no-daemon --stacktrace --gradle-user-home=$GRADLE_USER_HOME
                             '''
                         } catch (Exception e) {
                             echo "테스트 실행 중 오류: ${e.getMessage()}"
@@ -209,12 +214,19 @@ spec:
                     echo 'Spring Boot 애플리케이션 빌드 중...'
                     script {
                         try {
-                            sh './gradlew clean build -x test --no-daemon --stacktrace'
+                            sh '''
+                                export GRADLE_USER_HOME=/home/jenkins/agent/.gradle
+                                ./gradlew clean build -x test --no-daemon --stacktrace --gradle-user-home=$GRADLE_USER_HOME
+                            '''
                             sh 'ls -la build/libs/'
                             echo '애플리케이션 빌드 완료'
                         } catch (Exception e) {
                             echo "애플리케이션 빌드 실패: ${e.getMessage()}"
                             error("빌드 실패")
+                        } finally {
+                            // 빌드 완료 후 환경 파일 정리
+                            sh 'rm -f .env || true'
+                            echo '.env 파일 정리 완료'
                         }
                     }
                 }
@@ -284,23 +296,13 @@ spec:
         }
     }
     
-    // 빌드 후 처리 - 컨테이너 컨텍스트 문제 해결
+    // 빌드 후 처리 - 컨테이너 없이 Jenkins 레벨에서만 실행
     post {
         always {
             script {
                 echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
                 
-                // 환경 변수 파일 정리 (컨테이너 내부에서 실행)
-                try {
-                    container('openjdk') {
-                        sh 'rm -f .env || true'
-                        echo '환경 파일 정리 완료'
-                    }
-                } catch (Exception e) {
-                    echo "환경 파일 정리 중 오류 (무시됨): ${e.getMessage()}"
-                }
-                
-                // 작업 공간 정리 (Jenkins 컨텍스트에서 실행)
+                // Jenkins 워크스페이스 정리만 수행 (컨테이너 불필요)
                 try {
                     cleanWs(
                         cleanWhenNotBuilt: false,
@@ -310,7 +312,8 @@ spec:
                         patterns: [
                             [pattern: '.env', type: 'INCLUDE'],
                             [pattern: 'build/', type: 'INCLUDE'],
-                            [pattern: '.gradle/', type: 'INCLUDE']
+                            [pattern: '.gradle/', type: 'INCLUDE'],
+                            [pattern: 'target/', type: 'INCLUDE']
                         ]
                     )
                     echo '작업 공간 정리 완료'
@@ -321,27 +324,40 @@ spec:
         }
         
         success {
-            echo '빌드 성공! 🎉'
+            script {
+                echo '✅ 빌드 성공! 🎉'
+                echo "📦 Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
+                echo "🏷️  이미지 태그: ${env.IMAGE_TAG}"
+                echo "📍 ECR 리포지토리: ${ECR_REPOSITORY}"
+                echo "🌍 AWS 리전: ${AWS_REGION}"
+            }
             
             // 성공 시 알림 (Slack, 이메일 등)
             // slackSend(
             //     color: 'good',
-            //     message: ":white_check_mark: 빌드 성공: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+            //     message: ":white_check_mark: 빌드 성공: ${env.JOB_NAME} - ${env.BUILD_NUMBER}\n이미지: ${env.DOCKER_IMAGE_NAME}"
             // )
         }
         
         failure {
-            echo '빌드 실패! ❌'
+            script {
+                echo '❌ 빌드 실패!'
+                echo "🔍 로그를 확인하여 실패 원인을 파악하세요."
+                echo "🌐 빌드 URL: ${env.BUILD_URL}"
+            }
             
             // 실패 시 알림
             // slackSend(
             //     color: 'danger',
-            //     message: ":x: 빌드 실패: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+            //     message: ":x: 빌드 실패: ${env.JOB_NAME} - ${env.BUILD_NUMBER}\n로그: ${env.BUILD_URL}console"
             // )
         }
         
         unstable {
-            echo '빌드 불안정 ⚠️'
+            script {
+                echo '⚠️ 빌드 불안정'
+                echo "📊 테스트에서 일부 실패가 발생했습니다."
+            }
         }
     }
 }
