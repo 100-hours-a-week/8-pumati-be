@@ -1,9 +1,30 @@
 pipeline {
     // 파이프라인 전체를 Docker 컨테이너에서 실행
     agent {
-        docker {
-            image 'cimg/openjdk:21.0-node'  // Java 21 + Docker + AWS CLI가 포함된 이미지
-            args '-v /var/run/docker.sock:/var/run/docker.sock'  // Docker 소켓 마운트
+        kubernetes {
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: openjdk
+    image: cimg/openjdk:21.0-node
+    command:
+    - cat
+    tty: true
+  - name: aws-docker
+    image: cimg/aws:2023.10  # AWS CLI + Docker 포함
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+    - name: docker-sock
+      mountPath: /var/run/docker.sock
+  volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+            '''
         }
     }
     
@@ -26,15 +47,14 @@ pipeline {
         // 1. 소스 코드 체크아웃
         stage('Checkout') {
             steps {
-                // 소스 코드 체크아웃 (이미 Jenkins에서 자동으로 처리됨)
-                echo '소스 코드 체크아웃 완료'
-                
-                // 현재 브랜치와 커밋 정보 출력
-                script {
-                    def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
-                    def gitBranch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-                    echo "Git Branch: ${gitBranch}"
-                    echo "Git Commit: ${gitCommit}"
+                container('openjdk') {
+                    echo '소스 코드 체크아웃 완료'
+                    script {
+                        def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                        def gitBranch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                        echo "Git Branch: ${gitBranch}"
+                        echo "Git Commit: ${gitCommit}"
+                    }
                 }
             }
         }
@@ -42,16 +62,20 @@ pipeline {
         // 2. 환경 설정 파일 준비
         stage('Setup Environment') {
             steps {
-                echo '환경 설정 파일 및 AWS 정보 준비 중...'
-                
-                script {
-                    withCredentials([string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID')]) {
-                        env.DOCKER_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                container('openjdk') {
+                    echo '환경 설정 파일 및 AWS 정보 준비 중...'
+                    
+                    script {
+                        withCredentials([string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID')]) {
+                            env.DOCKER_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                            echo "Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
+                        }
                     }
-                }
-                
-                withCredentials([file(credentialsId: 'be-env', variable: 'ENV_FILE')]) {
-                    sh 'cp $ENV_FILE .env'
+                    
+                    withCredentials([file(credentialsId: 'be-env', variable: 'ENV_FILE')]) {
+                        sh 'cp $ENV_FILE .env'
+                        sh 'ls -la .env'
+                    }
                 }
             }
         }
@@ -59,41 +83,32 @@ pipeline {
         // 3. Gradle 빌드 준비
         stage('Prepare Build') {
             steps {
-                echo 'Gradle 빌드 준비 중...'
-                
-                // Java 버전 확인
-                sh '''
-                    echo "현재 Java 버전 확인:"
-                    java -version
-                    echo "JAVA_HOME: $JAVA_HOME"
-                '''
-                
-                // Gradle wrapper 실행 권한 부여
-                sh 'chmod +x gradlew'
-                
-                // Gradle 의존성 다운로드 및 버전 확인
-                sh './gradlew --version'
+                container('openjdk') {
+                    echo 'Gradle 빌드 준비 중...'
+                    sh 'java -version'
+                    sh 'chmod +x gradlew'
+                    sh './gradlew --version'
+                }
             }
         }
         
         // 4. 테스트 실행
         stage('Test') {
             steps {
-                echo '단위 테스트 실행 중...'
-                
-                sh '''
-                    if [ -f .env ]; then
-                        set -a && . ./.env && set +a
-                    fi
-                    chmod +x gradlew
-                    ./gradlew test
-                '''
+                container('openjdk') {
+                    echo '단위 테스트 실행 중...'
+                    sh '''
+                        if [ -f .env ]; then
+                            set -a && . ./.env && set +a
+                        fi
+                        ./gradlew test
+                    '''
+                }
             }
             
             // 테스트 결과 발행
             post {
                 always {
-                    // 테스트 결과 파일 발행 (항상 실행)
                     junit 'build/test-results/test/*.xml'
                 }
             }
@@ -102,40 +117,58 @@ pipeline {
         // 5. 애플리케이션 빌드
         stage('Build Application') {
             steps {
-                echo 'Spring Boot 애플리케이션 빌드 중...'
-                
-                sh './gradlew clean build -x test'
+                container('openjdk') {
+                    echo 'Spring Boot 애플리케이션 빌드 중...'
+                    sh './gradlew clean build -x test'
+                    sh 'ls -la build/libs/'
+                }
             }
         }
         
         // 6. Docker 이미지 빌드
         stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -f ci/dev/Dockerfile \\
-                        -t ${env.DOCKER_IMAGE_NAME} \\
-                        -t ${ECR_REPOSITORY}:latest \\
-                        .
-                """
+                container('aws-docker') {
+                    echo 'Docker 이미지 빌드 중...'
+                    sh 'docker --version'
+                    sh """
+                        docker build -f ci/dev/Dockerfile \\
+                            -t ${env.DOCKER_IMAGE_NAME} \\
+                            -t ${ECR_REPOSITORY}:latest \\
+                            .
+                    """
+                    sh "docker images ${ECR_REPOSITORY}"
+                }
             }
         }
         
         // 7. ECR 로그인 및 이미지 푸시
         stage('Push to ECR') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
-                    aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
-                    sh """
-                        aws ecr get-login-password --region ${AWS_REGION} | \\
-                        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                container('aws-docker') {
+                    echo 'ECR에 Docker 이미지 푸시 중...'
+                    withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh 'aws --version'
+                        sh 'aws sts get-caller-identity'
+                        sh """
+                            aws ecr get-login-password --region ${AWS_REGION} | \\
+                            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                        """
+                        sh """
+                            aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${AWS_REGION} || \\
+                            aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}
+                        """
+                        sh "docker push ${env.DOCKER_IMAGE_NAME}"
                         
-                        aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${AWS_REGION} || \\
-                        aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}
-                        
-                        docker push ${env.DOCKER_IMAGE_NAME}
-                    """
+                        script {
+                            def latestImageName = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
+                            sh "docker tag ${env.DOCKER_IMAGE_NAME} ${latestImageName}"
+                            sh "docker push ${latestImageName}"
+                        }
+                    }
                 }
             }
         }
@@ -143,10 +176,8 @@ pipeline {
         // 8. 빌드 정리
         stage('Cleanup') {
             steps {
-                echo '빌드 정리 중...'
-                
-                script {
-                    // 로컬 Docker 이미지 정리 (디스크 공간 절약)
+                container('aws-docker') {
+                    echo '빌드 정리 중...'
                     sh """
                         docker rmi ${env.DOCKER_IMAGE_NAME} || true
                         docker rmi ${ECR_REPOSITORY}:latest || true
