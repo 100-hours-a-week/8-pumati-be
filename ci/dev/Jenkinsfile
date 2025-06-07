@@ -5,6 +5,12 @@ pipeline {
             yaml '''
 apiVersion: v1
 kind: Pod
+metadata:
+  name: "pumati-backend-jenkins-slave-${BUILD_NUMBER}"  # 커스텀 이름 설정
+  labels:
+    app: pumati-backend
+    build: "${BUILD_NUMBER}"
+    branch: "${BRANCH_NAME}"
 spec:
   securityContext:
     runAsUser: 1000
@@ -51,6 +57,10 @@ spec:
         
         // 이미지 태그 설정 (브랜치명과 빌드 번호 조합)
         IMAGE_TAG = "${BRANCH_NAME}-${BUILD_NUMBER}"
+        
+        // Gradle 홈 디렉토리 설정 (권한 문제 해결)
+        GRADLE_USER_HOME = '/home/jenkins/agent/.gradle'
+        GRADLE_OPTS = '-Dorg.gradle.daemon=false -Dorg.gradle.caching=false'
         
         // Java 버전 설정 (시스템 기본 Java 사용)
         // Jenkins 서버에 Java 21이 설치되어 있어야 함
@@ -121,6 +131,10 @@ spec:
                 container('openjdk') {
                     echo 'Gradle 빌드 준비 중...'
                     script {
+                        // Gradle 홈 디렉토리 생성
+                        sh 'mkdir -p /home/jenkins/agent/.gradle'
+                        sh 'whoami && pwd && ls -la /home/jenkins/agent/'
+                        
                         try {
                             sh 'java -version'
                         } catch (Exception e) {
@@ -135,7 +149,7 @@ spec:
                         }
                         
                         try {
-                            sh './gradlew --version'
+                            sh 'GRADLE_USER_HOME=/home/jenkins/agent/.gradle ./gradlew --version'
                         } catch (Exception e) {
                             echo "Gradle 버전 확인 실패: ${e.getMessage()}"
                         }
