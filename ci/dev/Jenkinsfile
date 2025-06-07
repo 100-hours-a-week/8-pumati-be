@@ -190,7 +190,9 @@ spec:
                     container('openjdk') {
                         script {
                             try {
-                                publishTestResults testResultsPattern: 'build/test-results/test/*.xml'
+                                // ❌ 삭제: publishTestResults testResultsPattern: 'build/test-results/test/*.xml'
+                                // ✅ 추가: JUnit 결과 발행
+                                junit testResultsPattern: 'build/test-results/test/*.xml', allowEmptyResults: true
                                 echo '테스트 결과 발행 완료'
                             } catch (Exception e) {
                                 echo "테스트 결과 발행 실패: ${e.getMessage()}"
