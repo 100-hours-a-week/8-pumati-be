@@ -12,7 +12,7 @@ spec:
     command: [cat]
     tty: true
   - name: aws-docker
-    image: cimg/aws:2024.01  # 올바른 태그로 수정
+    image: cimg/aws:2023.05  # 실제 검증된 태그로 수정
     command: [cat]
     tty: true
     volumeMounts:
@@ -108,7 +108,9 @@ spec:
             // 테스트 결과 발행
             post {
                 always {
-                    junit 'build/test-results/test/*.xml'
+                    container('openjdk') {
+                        publishTestResults testResultsPattern: 'build/test-results/test/*.xml'
+                    }
                 }
             }
         }
@@ -187,17 +189,39 @@ spec:
         }
     }
     
-    // 빌드 후 처리
+    // 빌드 후 처리 - 컨테이너 컨텍스트 문제 해결
     post {
         always {
-            container('openjdk') { // 컨테이너 컨텍스트 지정
+            script {
                 echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
                 
-                // 환경 변수 파일 정리
-                sh 'rm -f .env'
+                // 환경 변수 파일 정리 (컨테이너 내부에서 실행)
+                try {
+                    container('openjdk') {
+                        sh 'rm -f .env || true'
+                        echo '환경 파일 정리 완료'
+                    }
+                } catch (Exception e) {
+                    echo "환경 파일 정리 중 오류 (무시됨): ${e.getMessage()}"
+                }
                 
-                // 작업 공간 정리
-                cleanWs()
+                // 작업 공간 정리 (Jenkins 컨텍스트에서 실행)
+                try {
+                    cleanWs(
+                        cleanWhenNotBuilt: false,
+                        deleteDirs: true,
+                        disableDeferredWipeout: true,
+                        notFailBuild: true,
+                        patterns: [
+                            [pattern: '.env', type: 'INCLUDE'],
+                            [pattern: 'build/', type: 'INCLUDE'],
+                            [pattern: '.gradle/', type: 'INCLUDE']
+                        ]
+                    )
+                    echo '작업 공간 정리 완료'
+                } catch (Exception e) {
+                    echo "작업 공간 정리 중 오류 (무시됨): ${e.getMessage()}"
+                }
             }
         }
         
