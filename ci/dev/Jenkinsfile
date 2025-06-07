@@ -26,8 +26,9 @@ spec:
     command: [cat]
     tty: true
     securityContext:
-      runAsUser: 1000
-      runAsGroup: 1000
+      privileged: true
+      runAsUser: 0  # root 권한으로 실행
+      runAsGroup: 0
     volumeMounts:
     - name: docker-sock
       mountPath: /var/run/docker.sock
@@ -190,9 +191,8 @@ spec:
                     container('openjdk') {
                         script {
                             try {
-                                // ❌ 삭제: publishTestResults testResultsPattern: 'build/test-results/test/*.xml'
-                                // ✅ 추가: JUnit 결과 발행
-                                junit testResultsPattern: 'build/test-results/test/*.xml', allowEmptyResults: true
+                                // ✅ 올바른 파라미터: testResults
+                                junit testResults: 'build/test-results/test/*.xml', allowEmptyResults: true
                                 echo '테스트 결과 발행 완료'
                             } catch (Exception e) {
                                 echo "테스트 결과 발행 실패: ${e.getMessage()}"
