@@ -2,7 +2,6 @@ pipeline {
     // 파이프라인 전체를 Docker 컨테이너에서 실행
     agent {
         kubernetes {
-            label "pumati-backend-jenkins-slave-${BUILD_NUMBER}"
             yaml '''
 apiVersion: v1
 kind: Pod
