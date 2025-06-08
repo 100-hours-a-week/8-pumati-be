@@ -312,7 +312,138 @@ spec:
             }
         }
         
-        // 8. 빌드 정리
+        // 8. GitOps - 헬름 차트 업데이트 및 푸시
+        stage('Update GitOps Repository') {
+            steps {
+                container('openjdk') {
+                    echo 'GitOps 리포지토리 업데이트 중...'
+                    
+                    withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')
+                    ]) {
+                        script {
+                            try {
+                                sh '''
+                                    # Git 설정
+                                    git config --global user.name "Jenkins CI"
+                                    git config --global user.email "jenkins@pumati.com"
+                                    git config --global init.defaultBranch main
+                                    
+                                    # 작업 디렉토리 생성
+                                    mkdir -p /tmp/gitops
+                                    cd /tmp/gitops
+                                    
+                                    echo "🔄 GitOps 리포지토리 클론 중..."
+                                    # GitHub 토큰을 사용하여 클론
+                                    git clone https://${GITHUB_TOKEN}@github.com/100-hours-a-week/8-pumati-cloud.git .
+                                    
+                                    # 현재 브랜치 확인
+                                    git branch -a
+                                    git status
+                                    
+                                    # values.yaml 파일 경로 확인
+                                    echo "📁 헬름 차트 구조 확인..."
+                                    find . -name "values.yaml" -type f
+                                    ls -la aws/dev/gitops/helm/ || echo "헬름 디렉토리 없음"
+                                '''
+                                
+                                // 이미지 태그 정보 설정
+                                def newImageTag = "${env.IMAGE_TAG}"
+                                def fullImageName = "${env.DOCKER_IMAGE_NAME}"
+                                
+                                sh """
+                                    cd /tmp/gitops
+                                    
+                                    # values.yaml 파일 경로 설정
+                                    VALUES_FILE="aws/dev/gitops/helm/values.yaml"
+                                    
+                                    if [ -f "\$VALUES_FILE" ]; then
+                                        echo "📝 values.yaml 파일 발견: \$VALUES_FILE"
+                                        echo "현재 내용:"
+                                        cat "\$VALUES_FILE"
+                                        
+                                        echo ""
+                                        echo "🔄 이미지 태그 업데이트 중..."
+                                        echo "새 이미지: ${fullImageName}"
+                                        echo "새 태그: ${newImageTag}"
+                                        
+                                        # 백업 생성
+                                        cp "\$VALUES_FILE" "\$VALUES_FILE.backup"
+                                        
+                                        # yq가 없으므로 sed를 사용하여 이미지 태그 업데이트
+                                        # image.tag 또는 tag 필드 업데이트
+                                        if grep -q "tag:" "\$VALUES_FILE"; then
+                                            # tag: 형태로 되어 있는 경우
+                                            sed -i "s|tag:.*|tag: \"${newImageTag}\"|g" "\$VALUES_FILE"
+                                        elif grep -q "image:" "\$VALUES_FILE"; then
+                                            # image: 형태로 되어 있는 경우 (전체 이미지 경로)
+                                            sed -i "s|image:.*|image: \"${fullImageName}\"|g" "\$VALUES_FILE"
+                                        else
+                                            echo "⚠️ 이미지 태그 필드를 찾을 수 없습니다. 파일에 추가합니다."
+                                            echo "" >> "\$VALUES_FILE"
+                                            echo "# Updated by Jenkins CI/CD" >> "\$VALUES_FILE"
+                                            echo "image:" >> "\$VALUES_FILE"
+                                            echo "  tag: \"${newImageTag}\"" >> "\$VALUES_FILE"
+                                        fi
+                                        
+                                        echo ""
+                                        echo "📝 업데이트된 내용:"
+                                        cat "\$VALUES_FILE"
+                                        
+                                        # Git 변경사항 확인
+                                        echo ""
+                                        echo "📊 Git 변경사항:"
+                                        git diff "\$VALUES_FILE" || true
+                                        
+                                        # 변경사항이 있는지 확인
+                                        if git diff --quiet "\$VALUES_FILE"; then
+                                            echo "ℹ️ 변경사항이 없습니다."
+                                        else
+                                            echo "✅ 변경사항 발견, 커밋 및 푸시 진행..."
+                                            
+                                            # Git add, commit, push
+                                            git add "\$VALUES_FILE"
+                                            git commit -m "🚀 Update backend image tag to ${newImageTag}
+                                            
+                                            - Image: ${fullImageName}
+                                            - Build: ${BUILD_NUMBER}
+                                            - Branch: ${BRANCH_NAME}
+                                            - Commit: \$(git -C /home/jenkins/agent rev-parse --short HEAD 2>/dev/null || echo 'unknown')
+                                            - Updated by Jenkins CI/CD"
+                                            
+                                            # 원격 리포지토리에 푸시
+                                            git push origin main
+                                            
+                                            echo "🎉 GitOps 리포지토리 업데이트 완료!"
+                                        fi
+                                    else
+                                        echo "❌ values.yaml 파일을 찾을 수 없습니다: \$VALUES_FILE"
+                                        echo "📁 사용 가능한 파일들:"
+                                        find . -name "*.yaml" -o -name "*.yml" | head -20
+                                        exit 1
+                                    fi
+                                """
+                                
+                            } catch (Exception e) {
+                                echo "❌ GitOps 업데이트 실패: ${e.getMessage()}"
+                                echo "🔍 디버그 정보:"
+                                sh '''
+                                    cd /tmp/gitops 2>/dev/null || echo "gitops 디렉토리 없음"
+                                    pwd
+                                    ls -la
+                                    git status 2>/dev/null || echo "Git 상태 확인 불가"
+                                '''
+                                // GitOps 실패는 전체 빌드를 실패시키지 않음
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 9. 빌드 정리
         stage('Cleanup') {
             steps {
                 container('openjdk') {
@@ -346,11 +477,13 @@ spec:
         
         success {
             script {
-                echo '✅ 빌드 성공! 🎉'
+                echo '✅ 빌드 및 GitOps 업데이트 성공! 🎉'
                 echo "📦 Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
                 echo "🏷️  이미지 태그: ${env.IMAGE_TAG}"
                 echo "📍 ECR 리포지토리: ${ECR_REPOSITORY}"
                 echo "🌍 AWS 리전: ${AWS_REGION}"
+                echo "🔄 GitOps: ArgoCD가 자동으로 배포를 시작합니다"
+                echo "📋 헬름 차트: aws/dev/gitops/helm/values.yaml 업데이트됨"
             }
         }
         
