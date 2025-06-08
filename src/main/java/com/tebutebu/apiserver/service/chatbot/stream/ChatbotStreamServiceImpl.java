@@ -43,13 +43,6 @@ public class ChatbotStreamServiceImpl implements ChatbotStreamService {
 
     @Override
     public void disconnect(Long projectId, String sessionId) {
-        StackTraceElement caller =
-                Thread.currentThread()
-                        .getStackTrace()[2]; // [0] getStackTrace, [1] disconnect, [2] caller
-        log.info("disconnect() invoked by {}.{}():{}",
-                caller.getClassName(),
-                caller.getMethodName(),
-                caller.getLineNumber());
         String key = buildKey(projectId, sessionId);
 
         sendStreamEnd(projectId, sessionId);
