@@ -71,6 +71,8 @@ dependencies {
 			"jakarta.annotation:jakarta.annotation-api",
 			"com.querydsl:querydsl-apt:${queryDslVersion}:jakarta"
 	)
+
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 }
 
 tasks.named('test') {
