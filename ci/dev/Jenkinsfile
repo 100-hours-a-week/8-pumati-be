@@ -18,25 +18,7 @@ spec:
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
-    # 리소스 스펙 증가 - Gradle 빌드용
-    resources:
-      requests:
-        memory: "1Gi"
-        cpu: "500m"
-      limits:
-        memory: "4Gi"
-        cpu: "2000m"
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug
-    command: [/busybox/cat]
-    tty: true
-    securityContext:
-      runAsUser: 0
-      runAsGroup: 0
-    # 리소스 스펙 증가 - Docker 빌드용
+    # 리소스 스펙 조정 - 현실적인 수준으로
     resources:
       requests:
         memory: "512Mi"
@@ -47,6 +29,24 @@ spec:
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command: [/busybox/cat]
+    tty: true
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+    # 리소스 스펙 조정 - Docker 빌드용
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
   - name: aws-cli
     image: cimg/aws:2023.05
     command: [cat]
@@ -54,14 +54,14 @@ spec:
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
-    # 리소스 스펙 증가 - AWS CLI용
+    # 리소스 스펙 조정 - AWS CLI용
     resources:
       requests:
-        memory: "256Mi"
+        memory: "128Mi"
         cpu: "100m"
       limits:
-        memory: "512Mi"
-        cpu: "500m"
+        memory: "256Mi"
+        cpu: "200m"
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
