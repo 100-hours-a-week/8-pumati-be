@@ -39,18 +39,23 @@ COPY build/libs/*.jar app.jar
 # 환경 변수 파일 복사 (Jenkins에서 생성된 .env 파일)
 COPY .env /app/.env
 
-# JAR 파일 권한 설정
+# 시작 스크립트 복사
+COPY ci/dev/start-app.sh /app/start-app.sh
+
+# 파일 권한 설정
 RUN chown appuser:appuser app.jar && \
     chown appuser:appuser .env && \
+    chown appuser:appuser start-app.sh && \
     chmod 644 app.jar && \
-    chmod 600 .env
+    chmod 600 .env && \
+    chmod 755 start-app.sh
 
 # 애플리케이션 포트 노출 (Spring Boot 기본 포트)
 EXPOSE 8080
 
 # 헬스체크 설정 (애플리케이션 상태 확인)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/actuator/health || exit 1
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+#     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 # 애플리케이션 사용자로 전환
 USER appuser
@@ -105,8 +110,8 @@ ENV SPRING_PROFILES_ACTIVE=dev
 # ==============================================================================
 # 애플리케이션 실행 및 환경 변수 로딩
 # ==============================================================================
-# 복합 명령어를 통한 안전하고 효율적인 애플리케이션 시작
-ENTRYPOINT ["sh", "-c", "set -a && . /app/.env && set +a && exec java $JAVA_OPTS -Dspring.profiles.active=$SPRING_PROFILES_ACTIVE -jar app.jar"]
+# 시작 스크립트를 통한 안전하고 체계적인 애플리케이션 시작
+ENTRYPOINT ["/app/start-app.sh"]
 
 # ENTRYPOINT 명령어 상세 분석:
 #
