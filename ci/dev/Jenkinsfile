@@ -361,6 +361,10 @@ spec:
                                     git config user.name "Jenkins CI"
                                     git config user.email "jenkins@pumati.com"
                                     
+                                    # jacky 브랜치로 체크아웃 (헬름 차트가 있는 브랜치)
+                                    echo "🔄 jacky 브랜치로 체크아웃 중..."
+                                    git checkout jacky
+                                    
                                     # 현재 브랜치 확인
                                     git branch -a
                                     git status
@@ -368,7 +372,7 @@ spec:
                                     # values.yaml 파일 경로 확인
                                     echo "📁 헬름 차트 구조 확인..."
                                     find . -name "values.yaml" -type f
-                                    ls -la aws/dev/gitops/helm/ || echo "헬름 디렉토리 없음"
+                                    ls -la aws/dev/gitops/helm/backend/ || echo "백엔드 헬름 디렉토리 확인 중..."
                                 '''
                                 
                                 // 이미지 태그 정보 설정
@@ -378,8 +382,8 @@ spec:
                                 sh """
                                     cd /tmp/gitops
                                     
-                                    # values.yaml 파일 경로 설정
-                                    VALUES_FILE="aws/dev/gitops/helm/values.yaml"
+                                    # values.yaml 파일 경로 설정 (backend 디렉토리 내)
+                                    VALUES_FILE="aws/dev/gitops/helm/backend/values.yaml"
                                     
                                     if [ -f "\$VALUES_FILE" ]; then
                                         echo "📝 values.yaml 파일 발견: \$VALUES_FILE"
@@ -435,8 +439,8 @@ spec:
                                             - Commit: \$(git -C /home/jenkins/agent rev-parse --short HEAD 2>/dev/null || echo 'unknown')
                                             - Updated by Jenkins CI/CD"
                                             
-                                            # 원격 리포지토리에 푸시
-                                            git push origin main
+                                            # 원격 리포지토리에 푸시 (jacky 브랜치로)
+                                            git push origin jacky
                                             
                                             echo "🎉 GitOps 리포지토리 업데이트 완료!"
                                         fi
@@ -506,7 +510,7 @@ spec:
                 echo "📍 ECR 리포지토리: ${ECR_REPOSITORY}"
                 echo "🌍 AWS 리전: ${AWS_REGION}"
                 echo "🔄 GitOps: ArgoCD가 자동으로 배포를 시작합니다"
-                echo "📋 헬름 차트: aws/dev/gitops/helm/values.yaml 업데이트됨"
+                echo "📋 헬름 차트: aws/dev/gitops/helm/backend/values.yaml 업데이트됨"
             }
         }
         
