@@ -142,7 +142,7 @@ spec:
                         }
                     }
                     
-                    withCredentials([file(credentialsId: 'be-env', variable: 'ENV_FILE')]) {
+                    withCredentials([file(credentialsId: 'be-env-local', variable: 'ENV_FILE')]) {
                         sh 'cp $ENV_FILE .env'
                         sh 'ls -la .env'
                     }
