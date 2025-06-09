@@ -73,4 +73,9 @@ public class Team extends TimeStampedEntity {
         this.badgeImageUrl = badgeImageUrl;
     }
 
+    public void resetPumatiCounts() {
+        this.givedPumatiCount = 0L;
+        this.receivedPumatiCount = 0L;
+    }
+
 }

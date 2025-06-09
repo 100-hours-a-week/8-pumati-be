@@ -234,6 +234,14 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    public void resetAllPumatiCounts() {
+        List<Team> teams = teamRepository.findAll();
+        for (Team team : teams) {
+            team.resetPumatiCounts();
+        }
+    }
+
+    @Override
     public Team dtoToEntity(TeamCreateRequestDTO dto) {
         return Team.builder()
                 .term(dto.getTerm())

@@ -43,6 +43,8 @@ public interface TeamService {
 
     Long incrementReceivedPumati(Long teamId);
 
+    void resetAllPumatiCounts();
+
     Team dtoToEntity(TeamCreateRequestDTO dto);
 
     default TeamResponseDTO entityToDTO(Team team, Long projectId, Integer rank) {
