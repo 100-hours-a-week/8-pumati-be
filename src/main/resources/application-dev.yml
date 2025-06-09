@@ -53,10 +53,7 @@ logging:
   level:
     root: info
     com.zaxxer: debug
-    # Spring Security TRACE 로그 줄이기 (개발 중에는 DEBUG, 운영에서는 WARN 권장)
-    org.springframework.security.web: debug
-    # 정적 리소스 관련 에러 로그 줄이기
-    org.springframework.web.servlet.resource: warn
+    org.springframework.security.web: trace
 
 frontend:
   is-local: false

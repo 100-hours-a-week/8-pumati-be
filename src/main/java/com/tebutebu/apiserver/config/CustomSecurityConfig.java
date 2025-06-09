@@ -75,9 +75,8 @@ public class CustomSecurityConfig {
         });
 
         http.oauth2Login(oauth2 -> oauth2
-                .loginPage("/oauth2/authorization/kakao")
                 .redirectionEndpoint(redir -> redir
-                        .baseUri("/api/oauth/kakao")
+                        .baseUri("/api/oauth/{registrationId}")
                 )
                 .userInfoEndpoint(uie -> uie.userService(customOAuth2UserService))
                 .successHandler(loginSuccessHandler)
@@ -90,8 +89,6 @@ public class CustomSecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/teams").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/comments/ai/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/comments/ai/**").hasRole("ADMIN")
-                .requestMatchers("/api/oauth/**").permitAll()
-                .requestMatchers("/oauth2/**").permitAll()
                 .anyRequest().permitAll()
         );
 
