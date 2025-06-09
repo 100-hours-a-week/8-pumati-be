@@ -349,18 +349,17 @@ spec:
                         script {
                             try {
                                 sh '''
-                                    # Git 설정
-                                    git config --global user.name "Jenkins CI"
-                                    git config --global user.email "jenkins@pumati.com"
-                                    git config --global init.defaultBranch main
-                                    
                                     # 작업 디렉토리 생성
                                     mkdir -p /tmp/gitops
                                     cd /tmp/gitops
                                     
                                     echo "🔄 GitOps 리포지토리 클론 중..."
-                                    # GitHub 토큰을 사용하여 클론
-                                    git clone https://${GITHUB_TOKEN}@github.com/100-hours-a-week/8-pumati-cloud.git .
+                                    # GitHub 토큰을 사용하여 클론 (토큰 마스킹)
+                                    git clone https://x-access-token:${GITHUB_TOKEN}@github.com/100-hours-a-week/8-pumati-cloud.git .
+                                    
+                                    # Git 설정 (로컬 리포지토리에서만)
+                                    git config user.name "Jenkins CI"
+                                    git config user.email "jenkins@pumati.com"
                                     
                                     # 현재 브랜치 확인
                                     git branch -a
