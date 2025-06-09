@@ -18,6 +18,14 @@ spec:
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
+    # 리소스 스펙 증가 - Gradle 빌드용
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
@@ -28,6 +36,14 @@ spec:
     securityContext:
       runAsUser: 0
       runAsGroup: 0
+    # 리소스 스펙 증가 - Docker 빌드용
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
@@ -38,6 +54,14 @@ spec:
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
+    # 리소스 스펙 증가 - AWS CLI용
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
@@ -320,7 +344,7 @@ spec:
                     
                     withCredentials([
                         string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
-                        string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')
+                        string(credentialsId: 'github-pat', variable: 'GITHUB_TOKEN')
                     ]) {
                         script {
                             try {
