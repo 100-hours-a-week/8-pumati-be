@@ -45,7 +45,7 @@ public class Team extends TimeStampedEntity {
     private int number;
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-    List<Member> members;
+    private List<Member> members;
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MemberTeamBadge> memberBadges;
@@ -60,6 +60,10 @@ public class Team extends TimeStampedEntity {
 
     @Column(length = 512)
     private String badgeImageUrl;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean isAiBadgeInProgress = false;
 
     public void increaseGivedPumati() {
         this.givedPumatiCount++;
@@ -76,6 +80,10 @@ public class Team extends TimeStampedEntity {
     public void resetPumatiCounts() {
         this.givedPumatiCount = 0L;
         this.receivedPumatiCount = 0L;
+    }
+
+    public void setAiBadgeInProgress(boolean isAiBadgeInProgress) {
+        this.isAiBadgeInProgress = isAiBadgeInProgress;
     }
 
 }
