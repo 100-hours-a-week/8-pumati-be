@@ -1,0 +1,73 @@
+# ==============================================================================
+# .dockerignore - Docker 빌드에서 제외할 파일/디렉토리 목록
+# ==============================================================================
+
+# Git 관련 파일
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# IDE 및 에디터 설정
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# 빌드 관련 (필요한 것만 포함)
+.gradle/
+gradle/
+gradlew
+gradlew.bat
+!build/libs/*.jar
+
+# 소스 코드 (이미 빌드된 JAR 사용)
+src/
+settings.gradle
+
+# 테스트 결과
+build/test-results/
+build/reports/
+
+# 로그 파일
+*.log
+logs/
+
+# 임시 파일
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# 문서 및 README
+README.md
+*.md
+docs/
+
+# CI/CD 관련 (현재 Dockerfile 제외)
+ci/
+!ci/dev/Dockerfile
+Jenkinsfile
+
+# 환경 설정 (Jenkins에서 생성되는 .env 제외)
+*.properties
+*.yml
+*.yaml
+!.env
+
+# 캐시 및 임시 디렉토리
+.cache/
+tmp/
+
+# 의존성 관리
+node_modules/
+npm-debug.log*
+
+# 기타 불필요한 파일
+*.pid
+*.seed
+*.pid.lock
