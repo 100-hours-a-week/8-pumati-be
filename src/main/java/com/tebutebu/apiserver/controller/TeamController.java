@@ -79,7 +79,16 @@ public class TeamController {
     }
 
     @PatchMapping("/{teamId}/gived-pumati")
-    public ResponseEntity<?> increaseGivedPumati(@PathVariable Long teamId) {
+    public ResponseEntity<?> increaseGivedPumati(
+            @PathVariable Long teamId,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        MemberResponseDTO memberDTO = memberService.get(authorizationHeader);
+        if (memberDTO.getTeamId().equals(teamId)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "invalidRequest"));
+        }
+
         Long result = teamService.incrementGivedPumati(teamId);
         return ResponseEntity.ok(Map.of(
                 "message", "increaseGivedPumatiSuccess",
@@ -88,12 +97,27 @@ public class TeamController {
     }
 
     @PatchMapping("/{teamId}/received-pumati")
-    public ResponseEntity<?> increaseReceivedPumati(@PathVariable Long teamId) {
+    public ResponseEntity<?> increaseReceivedPumati(
+            @PathVariable Long teamId,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        MemberResponseDTO memberDTO = memberService.get(authorizationHeader);
+        if (memberDTO.getTeamId().equals(teamId)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "invalidRequest"));
+        }
+
         Long result = teamService.incrementReceivedPumati(teamId);
         return ResponseEntity.ok(Map.of(
                 "message", "increaseReceivedPumatiSuccess",
                 "data", Map.of("receivedPumatiCount", result)
         ));
+    }
+
+    @PatchMapping("/{teamId}/ai-badge-status")
+    public ResponseEntity<?> resetBadgeProgress(@PathVariable Long teamId) {
+        teamService.resetAiBadgeProgress(teamId);
+        return ResponseEntity.ok(Map.of("message", "updateAiBadgeStatusSuccess"));
     }
 
 }

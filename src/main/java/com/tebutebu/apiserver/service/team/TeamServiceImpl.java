@@ -141,6 +141,7 @@ public class TeamServiceImpl implements TeamService {
                 .build();
     }
 
+
     @Override
     public void increaseOrCreateBadge(Long memberId, Long teamId) {
         MemberTeamBadge badge = memberTeamBadgeRepository.findByMemberIdAndTeamId(memberId, teamId)
@@ -158,6 +159,12 @@ public class TeamServiceImpl implements TeamService {
     public void requestUpdateBadgeImage(Long teamId, BadgeImageModificationRequestDTO badgeImageModificationRequestDTO) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+
+        if (team.isAiBadgeInProgress()) {
+            throw new CustomValidationException("badgeModificationInProgress");
+        }
+
+        team.setAiBadgeInProgress(true);
 
         ProjectResponseDTO project = projectService.getByTeamId(teamId);
         if (project == null) {
@@ -195,6 +202,17 @@ public class TeamServiceImpl implements TeamService {
 
         team.changeBadgeImageUrl(badgeImageUrl);
 
+        team.setAiBadgeInProgress(false);
+
+        teamRepository.save(team);
+    }
+
+    @Override
+    public void resetAiBadgeProgress(Long teamId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+
+        team.setAiBadgeInProgress(false);
         teamRepository.save(team);
     }
 
@@ -231,6 +249,14 @@ public class TeamServiceImpl implements TeamService {
         team.increaseReceivedPumati();
         teamRepository.save(team);
         return team.getReceivedPumatiCount();
+    }
+
+    @Override
+    public void resetAllPumatiCounts() {
+        List<Team> teams = teamRepository.findAll();
+        for (Team team : teams) {
+            team.resetPumatiCounts();
+        }
     }
 
     @Override
