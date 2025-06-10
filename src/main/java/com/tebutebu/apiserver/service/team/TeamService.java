@@ -36,6 +36,8 @@ public interface TeamService {
 
     void updateBadgeImageUrl(Long teamId, String badgeImageUrl);
 
+    void resetAiBadgeProgress(Long teamId);
+
     @Transactional(readOnly = true)
     CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(Long memberId, ContextCountCursorPageRequestDTO req);
 

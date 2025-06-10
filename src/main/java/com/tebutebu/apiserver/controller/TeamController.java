@@ -114,4 +114,10 @@ public class TeamController {
         ));
     }
 
+    @PatchMapping("/{teamId}/ai-badge-status")
+    public ResponseEntity<?> resetBadgeProgress(@PathVariable Long teamId) {
+        teamService.resetAiBadgeProgress(teamId);
+        return ResponseEntity.ok(Map.of("message", "updateAiBadgeStatusSuccess"));
+    }
+
 }
