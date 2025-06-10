@@ -6,6 +6,25 @@ pipeline {
 apiVersion: v1
 kind: Pod
 spec:
+  # system 노드에 우선 배치되도록 노드 셀렉터 설정
+  nodeSelector:
+    node-type: "system"
+  # system 노드가 없을 경우를 대비한 어피니티 설정
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: node-type
+            operator: In
+            values: ["system"]
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: kubernetes.io/instance-type
+            operator: In
+            values: ["t3.medium", "t3a.medium"]
   securityContext:
     runAsUser: 1000
     runAsGroup: 1000
@@ -18,14 +37,14 @@ spec:
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
-    # 리소스 스펙 조정 - 현실적인 수준으로
+    # t3.medium 스펙에 최적화된 리소스 설정 - Java 빌드용
     resources:
       requests:
-        memory: "512Mi"
-        cpu: "250m"
+        memory: "1Gi"      # 1GB 요청 (Gradle 빌드에 충분)
+        cpu: "500m"        # 0.5 CPU 요청
       limits:
-        memory: "2Gi"
-        cpu: "1000m"
+        memory: "2.5Gi"    # 2.5GB 제한 (t3.medium 4GB 중 여유있게)
+        cpu: "1500m"       # 1.5 CPU 제한 (t3.medium 2 vCPU 중 대부분)
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
@@ -36,14 +55,14 @@ spec:
     securityContext:
       runAsUser: 0
       runAsGroup: 0
-    # 리소스 스펙 조정 - Docker 빌드용
+    # t3.medium 스펙에 최적화된 리소스 설정 - Docker 빌드용
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "200m"
+        memory: "512Mi"    # 512MB 요청 (Docker 빌드 기본)
+        cpu: "300m"        # 0.3 CPU 요청
       limits:
-        memory: "1Gi"
-        cpu: "500m"
+        memory: "1.5Gi"    # 1.5GB 제한 (Docker 빌드에 충분)
+        cpu: "800m"        # 0.8 CPU 제한
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
@@ -54,14 +73,14 @@ spec:
     securityContext:
       runAsUser: 1000
       runAsGroup: 1000
-    # 리소스 스펙 조정 - AWS CLI용
+    # t3.medium 스펙에 최적화된 리소스 설정 - AWS CLI용 (가벼운 작업)
     resources:
       requests:
-        memory: "128Mi"
-        cpu: "100m"
+        memory: "256Mi"    # 256MB 요청 (AWS CLI 작업용)
+        cpu: "200m"        # 0.2 CPU 요청
       limits:
-        memory: "256Mi"
-        cpu: "200m"
+        memory: "512Mi"    # 512MB 제한 (AWS CLI에 충분)
+        cpu: "400m"        # 0.4 CPU 제한
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
