@@ -41,7 +41,7 @@ public class ChatbotSseClient {
                                 Runnable onComplete) {
         webClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/projects/{projectId}/chatbot/sessions/{sessionId}/stream")
+                        .path("/api/projects/{projectId}/chatbot/sessions/{sessionId}/stream")
                         .build(projectId, sessionId))
                 .retrieve()
                 .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
@@ -59,7 +59,7 @@ public class ChatbotSseClient {
                             Runnable onComplete) {
         webClient.post()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/projects/{projectId}/chatbot/sessions/{sessionId}/message")
+                        .path("/api/projects/{projectId}/chatbot/sessions/{sessionId}/message")
                         .build(projectId, sessionId))
                 .bodyValue(body)
                 .retrieve()
@@ -73,7 +73,7 @@ public class ChatbotSseClient {
     public void stopChatStream(Long projectId, String sessionId) {
         webClient.delete()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/projects/{projectId}/chatbot/sessions/{sessionId}/stream")
+                        .path("/api/projects/{projectId}/chatbot/sessions/{sessionId}/stream")
                         .build(projectId, sessionId))
                 .retrieve()
                 .toBodilessEntity()
