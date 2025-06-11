@@ -102,7 +102,7 @@ public class TeamController {
             @RequestHeader("Authorization") String authorizationHeader
     ) {
         MemberResponseDTO memberDTO = memberService.get(authorizationHeader);
-        if (memberDTO.getTeamId().equals(teamId)) {
+        if (!memberDTO.getTeamId().equals(teamId)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", "invalidRequest"));
         }
