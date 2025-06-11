@@ -35,6 +35,11 @@ spring:
             token-uri: ${kakao.token.uri}
             user-info-uri: ${kakao.user.info.uri}
 
+  task:
+    scheduling:
+      pool:
+        size: ${task.scheduling.pool.size}
+
   jwt:
     secret: ${jwt.secret}
     access-token:
@@ -74,6 +79,10 @@ ai:
     default:
       type: ${ai.comment.default.type}
 
+chatbot:
+  service:
+    base-url: ${chatbot.service.base-url}
+
 ranking:
   snapshot:
     duration:
@@ -102,3 +111,8 @@ aws:
       put:
         minutes: ${aws.s3.expiration.put.minutes}
     max-request-count: ${aws.s3.max-request-count}
+
+scheduler:
+  pumati-count:
+    reset-cron: ${scheduler.pumati-count.reset-cron}
+    reset-zone: ${scheduler.pumati-count.reset-zone}

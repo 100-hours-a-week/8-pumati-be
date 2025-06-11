@@ -23,6 +23,11 @@ import java.util.Map;
 public class JWTCheckFilter extends OncePerRequestFilter {
 
     @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
+    @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
 
         if (request.getMethod().equals("OPTIONS")) {
@@ -35,7 +40,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         }
 
         if (request.getMethod().equals("GET")) {
-            if (path.equals("/") || path.equals("/docs") || path.startsWith("/api/oauth/")
+            if (path.equals("/api/actuator/health") || path.startsWith("/api/oauth/")
                     || path.startsWith("/api/teams") || path.startsWith("/api/projects") || path.startsWith("/api/comments")) {
                 return true;
             }
@@ -56,7 +61,8 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         }
 
         if (request.getMethod().equals("PATCH")) {
-            if (path.matches("^/api/teams/\\d+/badge-image-url$")) {
+            if (path.matches("^/api/teams/\\d+/badge-image-url$") ||
+                    path.matches("^/api/teams/\\d+/ai-badge-status$")) {
                 return true;
             }
         }
