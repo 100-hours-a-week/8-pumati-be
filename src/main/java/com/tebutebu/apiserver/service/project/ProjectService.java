@@ -5,6 +5,7 @@ import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.project.response.ProjectGithubUrlDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
@@ -34,6 +35,9 @@ public interface ProjectService {
 
     @Transactional(readOnly = true)
     CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> getLatestPage(CursorTimePageRequestDTO dto);
+
+    @Transactional(readOnly = true)
+    List<ProjectGithubUrlDTO> getAllGithubUrls();
 
     Long register(ProjectCreateRequestDTO dto);
 
