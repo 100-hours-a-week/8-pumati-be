@@ -79,6 +79,10 @@ ai:
     default:
       type: ${ai.comment.default.type}
 
+chatbot:
+  service:
+    base-url: ${chatbot.service.base-url}
+
 ranking:
   snapshot:
     duration:

@@ -5,6 +5,7 @@ import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.project.response.ProjectGithubUrlDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
@@ -30,6 +31,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -50,6 +52,15 @@ public class ProjectController {
     public ResponseEntity<?> get(@PathVariable long projectId) {
         ProjectResponseDTO dto = projectService.get(projectId);
         return ResponseEntity.ok(Map.of("message", "getProjectSuccess", "data", dto));
+    }
+
+    @GetMapping("/github-urls")
+    public ResponseEntity<?> getGithubUrls() {
+        List<ProjectGithubUrlDTO> data = projectService.getAllGithubUrls();
+        return ResponseEntity.ok(Map.of(
+                "message", "getProjectsGithubUrlsSuccess",
+                "data", data
+        ));
     }
 
     @PostMapping("/snapshot")

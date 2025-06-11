@@ -23,6 +23,11 @@ import java.util.Map;
 public class JWTCheckFilter extends OncePerRequestFilter {
 
     @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
+    @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
 
         if (request.getMethod().equals("OPTIONS")) {

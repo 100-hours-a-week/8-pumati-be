@@ -10,6 +10,7 @@ import com.tebutebu.apiserver.dto.project.image.request.ProjectImageRequestDTO;
 import com.tebutebu.apiserver.dto.project.image.response.ProjectImageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectCreateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.project.response.ProjectGithubUrlDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
@@ -116,6 +117,16 @@ public class ProjectServiceImpl implements ProjectService {
                 .data(page.items())
                 .meta(meta)
                 .build();
+    }
+
+    @Override
+    public List<ProjectGithubUrlDTO> getAllGithubUrls() {
+        return projectRepository.findAll().stream()
+                .map(p -> ProjectGithubUrlDTO.builder()
+                        .projectId(p.getId())
+                        .githubUrl(p.getGithubUrl())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     @Override
