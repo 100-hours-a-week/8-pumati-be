@@ -87,6 +87,7 @@ class PreSignedUrlServiceTest {
     }
 
     @Nested
+    @DisplayName("단일 Pre-Signed URL 생성 검증")
     class GenerateSingleUrlTests {
 
         @Test
@@ -122,6 +123,7 @@ class PreSignedUrlServiceTest {
     }
 
     @Nested
+    @DisplayName("다중 Pre-Signed URL 생성 검증")
     class GenerateMultipleUrlsTests {
 
         @Test
