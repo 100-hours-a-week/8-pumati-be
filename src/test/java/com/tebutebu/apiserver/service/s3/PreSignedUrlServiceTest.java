@@ -18,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
@@ -202,6 +203,24 @@ class PreSignedUrlServiceTest {
 
             assertThrows(CustomValidationException.class,
                     () -> preSignedUrlService.generatePreSignedUrl(dto));
+        }
+    }
+
+    @Nested
+    @DisplayName("S3PreSigner 예외 상황")
+    class S3PreSignerExceptionTests {
+
+        @Test
+        @DisplayName("S3 PreSigner 내부 예외 발생 시")
+        void testPreSignUrlS3ExceptionThrown() {
+            when(s3Presigner.presignPutObject(any(Consumer.class)))
+                    .thenThrow(S3Exception.builder().message("S3 error").statusCode(500).build());
+
+            SinglePreSignedUrlRequestDTO requestDTO = SinglePreSignedUrlRequestDTO.builder()
+                    .fileName("test.jpg")
+                    .contentType("image/jpeg")
+                    .build();
+            assertThrows(S3Exception.class, () -> preSignedUrlService.generatePreSignedUrl(requestDTO));
         }
     }
 
