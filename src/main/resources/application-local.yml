@@ -105,6 +105,7 @@ aws:
     access-key: ${aws.credentials.access-key}
     secret-key: ${aws.credentials.secret-key}
   s3:
+    allowed-extensions: ${aws.s3.allowed-extensions}
     bucket:
       name: ${aws.s3.bucket.name}
     expiration:
