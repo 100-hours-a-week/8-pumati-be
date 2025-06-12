@@ -13,9 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
@@ -33,7 +32,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("PreSignedUrlServiceImpl Unit Tests")
 class PreSignedUrlServiceTest {
 
@@ -43,30 +41,40 @@ class PreSignedUrlServiceTest {
     @Mock
     private S3Presigner s3Presigner;
 
-    @Mock
-    private PresignedPutObjectRequest presignedPutObjectRequest;
+    private static final String UPLOAD_URL = "https://s3.test/upload-url";
 
-    @Mock
-    private URL mockUrl;
+    private static final String BUCKET_NAME = "test-bucket";
 
-    private final String bucketName = "test-bucket";
+    private static final String REGION = "ap-northeast-2";
 
-    private final String region = "ap-northeast-2";
+    private static final long PUT_EXPIRATION_MINUTES = 15L;
 
-    private final long putExpirationMinutes = 15L;
+    private static final int MAX_COUNT = 10;
 
-    private final int maxCount = 10;
+    private static final String PUBLIC_URL_PREFIX = "https://" + BUCKET_NAME + ".s3." + REGION + ".amazonaws.com/";
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtil.setPrivateField(preSignedUrlService, "bucketName", bucketName);
-        ReflectionTestUtil.setPrivateField(preSignedUrlService, "region", region);
-        ReflectionTestUtil.setPrivateField(preSignedUrlService, "putExpirationMinutes", putExpirationMinutes);
-        ReflectionTestUtil.setPrivateField(preSignedUrlService, "maxCount", maxCount);
+        ReflectionTestUtil.setPrivateField(preSignedUrlService, "bucketName", BUCKET_NAME);
+        ReflectionTestUtil.setPrivateField(preSignedUrlService, "region", REGION);
+        ReflectionTestUtil.setPrivateField(preSignedUrlService, "putExpirationMinutes", PUT_EXPIRATION_MINUTES);
+        ReflectionTestUtil.setPrivateField(preSignedUrlService, "maxCount", MAX_COUNT);
+    }
 
-        when(s3Presigner.presignPutObject(any(Consumer.class))).thenReturn(presignedPutObjectRequest);
-        when(presignedPutObjectRequest.url()).thenReturn(mockUrl);
-        when(mockUrl.toString()).thenReturn("https://s3.test/upload-url");
+    private void setupS3PreSignerMock() {
+        when(s3Presigner.presignPutObject(any(Consumer.class)))
+                .thenAnswer(invocation -> {
+                    PresignedPutObjectRequest presignedPutObjectRequest = Mockito.mock(
+                            PresignedPutObjectRequest.class,
+                            Mockito.withSettings().defaultAnswer(invocationOnMock -> {
+                                if ("url".equals(invocationOnMock.getMethod().getName())) {
+                                    return new URL(UPLOAD_URL);
+                                }
+                                return invocationOnMock.callRealMethod();
+                            })
+                    );
+                    return presignedPutObjectRequest;
+                });
     }
 
     @Nested
@@ -75,6 +83,8 @@ class PreSignedUrlServiceTest {
         @Test
         @DisplayName("단일 Pre-signed URL 생성 성공")
         void testGeneratePreSignedUrlSuccess() {
+            setupS3PreSignerMock();
+
             SinglePreSignedUrlRequestDTO singlePreSignedUrlRequestDTO = SinglePreSignedUrlRequestDTO.builder()
                     .fileName("test.jpg")
                     .contentType("image/jpeg")
@@ -84,8 +94,8 @@ class PreSignedUrlServiceTest {
 
             assertNotNull(singlePreSignedUrlResponseDTO);
             assertTrue(singlePreSignedUrlResponseDTO.getObjectKey().endsWith(".jpg"));
-            assertTrue(singlePreSignedUrlResponseDTO.getUploadUrl().contains("https://s3.test/upload-url"));
-            assertTrue(singlePreSignedUrlResponseDTO.getPublicUrl().contains("https://test-bucket.s3.ap-northeast-2.amazonaws.com/"));
+            assertTrue(singlePreSignedUrlResponseDTO.getUploadUrl().contains(UPLOAD_URL));
+            assertTrue(singlePreSignedUrlResponseDTO.getPublicUrl().contains(PUBLIC_URL_PREFIX));
         }
 
         @Test
@@ -108,18 +118,21 @@ class PreSignedUrlServiceTest {
         @Test
         @DisplayName("다중 Pre-signed URL 생성 성공")
         void testGenerateMultiplePreSignedUrlsSuccess() {
-            List<SinglePreSignedUrlRequestDTO> files = IntStream.rangeClosed(1, maxCount)
+            setupS3PreSignerMock();
+
+            List<SinglePreSignedUrlRequestDTO> files = IntStream.rangeClosed(1, MAX_COUNT)
                     .mapToObj(i -> SinglePreSignedUrlRequestDTO.builder()
                             .fileName("file" + i + ".jpg")
                             .contentType("image/jpeg")
                             .build())
                     .collect(Collectors.toList());
+
             MultiplePreSignedUrlsRequestDTO multiplePreSignedUrlsRequestDTO = MultiplePreSignedUrlsRequestDTO.builder().files(files).build();
 
             MultiplePreSignedUrlsResponseDTO multiplePreSignedUrlsResponseDTO = preSignedUrlService.generatePreSignedUrls(multiplePreSignedUrlsRequestDTO);
 
             assertNotNull(multiplePreSignedUrlsResponseDTO);
-            assertEquals(maxCount, multiplePreSignedUrlsResponseDTO.getUrls().size());
+            assertEquals(MAX_COUNT, multiplePreSignedUrlsResponseDTO.getUrls().size());
             multiplePreSignedUrlsResponseDTO.getUrls().forEach(url -> {
                 assertNotNull(url.getObjectKey());
                 assertNotNull(url.getUploadUrl());
@@ -130,12 +143,13 @@ class PreSignedUrlServiceTest {
         @Test
         @DisplayName("파일 리스트 개수 초과 예외")
         void testGenerateMultiplePreSignedUrlsRequestCountExceeded() {
-            List<SinglePreSignedUrlRequestDTO> files = IntStream.rangeClosed(1, maxCount + 1)
+            List<SinglePreSignedUrlRequestDTO> files = IntStream.rangeClosed(1, MAX_COUNT + 1)
                     .mapToObj(i -> SinglePreSignedUrlRequestDTO.builder()
                             .fileName("file" + i + ".jpg")
                             .contentType("image/jpeg")
                             .build())
                     .collect(Collectors.toList());
+
             MultiplePreSignedUrlsRequestDTO multiplePreSignedUrlsRequestDTO = MultiplePreSignedUrlsRequestDTO.builder().files(files).build();
 
             CustomValidationException e = assertThrows(CustomValidationException.class,
@@ -143,5 +157,4 @@ class PreSignedUrlServiceTest {
             assertEquals("requestCountExceeded", e.getMessage());
         }
     }
-
 }
