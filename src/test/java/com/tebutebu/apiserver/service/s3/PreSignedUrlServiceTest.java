@@ -159,10 +159,22 @@ class PreSignedUrlServiceTest {
             assertDoesNotThrow(() -> preSignedUrlService.generatePreSignedUrl(dto));
         }
 
-        @ParameterizedTest(name = "유효하지 않은 확장자: {0}")
-        @ValueSource(strings = {"file", "image", ".hidden", "invalidate.", "", " "})
-        void testInvalidExtensions(String fileName) {
-            SinglePreSignedUrlRequestDTO dto = PreSignedUrlRequestDTOFixture.createSingleRequestDTO(fileName, "image/jpeg");
+        @ParameterizedTest(name = "유효하지 않은 확장자: {0} ({1})")
+        @CsvSource({
+                "file, image/jpeg",
+                "image, image/png",
+                ".hidden, image/png",
+                "invalidfile., image/png",
+                "'', image/png",
+                "' ', image/png",
+                "file.gif, image/gif",
+                "file.webp, image/webp",
+                "file.bmp, image/bmp",
+                "file.tiff, image/tiff"
+        })
+        void testInvalidExtensions(String fileName, String contentType) {
+            SinglePreSignedUrlRequestDTO dto = PreSignedUrlRequestDTOFixture.createSingleRequestDTO(fileName, contentType);
+
             assertThrows(CustomValidationException.class,
                     () -> preSignedUrlService.generatePreSignedUrl(dto));
         }
