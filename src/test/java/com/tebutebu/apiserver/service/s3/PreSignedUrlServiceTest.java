@@ -4,6 +4,7 @@ import com.tebutebu.apiserver.dto.s3.request.MultiplePreSignedUrlsRequestDTO;
 import com.tebutebu.apiserver.dto.s3.request.SinglePreSignedUrlRequestDTO;
 import com.tebutebu.apiserver.dto.s3.response.MultiplePreSignedUrlsResponseDTO;
 import com.tebutebu.apiserver.dto.s3.response.SinglePreSignedUrlResponseDTO;
+import com.tebutebu.apiserver.fixture.s3.PreSignedUrlRequestDTOFixture;
 import com.tebutebu.apiserver.util.ReflectionTestUtil;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,10 +26,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -64,7 +62,6 @@ class PreSignedUrlServiceTest {
         ReflectionTestUtil.setPrivateField(preSignedUrlService, "region", REGION);
         ReflectionTestUtil.setPrivateField(preSignedUrlService, "putExpirationMinutes", PUT_EXPIRATION_MINUTES);
         ReflectionTestUtil.setPrivateField(preSignedUrlService, "maxCount", MAX_COUNT);
-
         ReflectionTestUtil.setPrivateField(preSignedUrlService, "allowedExtensionsRaw", ALLOWED_EXTENSIONS_RAW);
         Method initMethod = PreSignedUrlServiceImpl.class.getDeclaredMethod("initAllowedExtensions");
         initMethod.setAccessible(true);
@@ -95,12 +92,7 @@ class PreSignedUrlServiceTest {
         @DisplayName("단일 Pre-signed URL 생성 성공")
         void testGeneratePreSignedUrlSuccess() {
             setupS3PreSignerMock();
-
-            SinglePreSignedUrlRequestDTO requestDTO = SinglePreSignedUrlRequestDTO.builder()
-                    .fileName("test.jpg")
-                    .contentType("image/jpeg")
-                    .build();
-
+            SinglePreSignedUrlRequestDTO requestDTO = PreSignedUrlRequestDTOFixture.createSingleRequestDTO("test.jpg", "image/jpeg");
             SinglePreSignedUrlResponseDTO response = preSignedUrlService.generatePreSignedUrl(requestDTO);
 
             assertNotNull(response);
@@ -112,11 +104,7 @@ class PreSignedUrlServiceTest {
         @Test
         @DisplayName("파일명 확장자 누락 예외")
         void testGeneratePreSignedUrlInvalidExtension() {
-            SinglePreSignedUrlRequestDTO requestDTO = SinglePreSignedUrlRequestDTO.builder()
-                    .fileName("invalidFile")
-                    .contentType("image/jpeg")
-                    .build();
-
+            SinglePreSignedUrlRequestDTO requestDTO = PreSignedUrlRequestDTOFixture.createSingleRequestDTO("invalidFile", "image/jpeg");
             CustomValidationException e = assertThrows(CustomValidationException.class,
                     () -> preSignedUrlService.generatePreSignedUrl(requestDTO));
             assertEquals("invalidFileExtension", e.getMessage());
@@ -131,16 +119,7 @@ class PreSignedUrlServiceTest {
         @DisplayName("다중 Pre-signed URL 생성 성공")
         void testGenerateMultiplePreSignedUrlsSuccess() {
             setupS3PreSignerMock();
-
-            List<SinglePreSignedUrlRequestDTO> files = IntStream.rangeClosed(1, MAX_COUNT)
-                    .mapToObj(i -> SinglePreSignedUrlRequestDTO.builder()
-                            .fileName("file" + i + ".jpg")
-                            .contentType("image/jpeg")
-                            .build())
-                    .collect(Collectors.toList());
-
-            MultiplePreSignedUrlsRequestDTO requestDTO = MultiplePreSignedUrlsRequestDTO.builder().files(files).build();
-
+            MultiplePreSignedUrlsRequestDTO requestDTO = PreSignedUrlRequestDTOFixture.createMultipleRequestDTO(MAX_COUNT);
             MultiplePreSignedUrlsResponseDTO response = preSignedUrlService.generatePreSignedUrls(requestDTO);
 
             assertNotNull(response);
@@ -155,15 +134,7 @@ class PreSignedUrlServiceTest {
         @Test
         @DisplayName("파일 리스트 개수 초과 예외")
         void testGenerateMultiplePreSignedUrlsRequestCountExceeded() {
-            List<SinglePreSignedUrlRequestDTO> files = IntStream.rangeClosed(1, MAX_COUNT + 1)
-                    .mapToObj(i -> SinglePreSignedUrlRequestDTO.builder()
-                            .fileName("file" + i + ".jpg")
-                            .contentType("image/jpeg")
-                            .build())
-                    .collect(Collectors.toList());
-
-            MultiplePreSignedUrlsRequestDTO requestDTO = MultiplePreSignedUrlsRequestDTO.builder().files(files).build();
-
+            MultiplePreSignedUrlsRequestDTO requestDTO = PreSignedUrlRequestDTOFixture.createMultipleRequestDTO(MAX_COUNT + 1);
             CustomValidationException e = assertThrows(CustomValidationException.class,
                     () -> preSignedUrlService.generatePreSignedUrls(requestDTO));
             assertEquals("requestCountExceeded", e.getMessage());
@@ -184,23 +155,14 @@ class PreSignedUrlServiceTest {
         })
         void testValidExtensions(String fileName, String contentType) {
             setupS3PreSignerMock();
-
-            SinglePreSignedUrlRequestDTO dto = SinglePreSignedUrlRequestDTO.builder()
-                    .fileName(fileName)
-                    .contentType(contentType)
-                    .build();
-
+            SinglePreSignedUrlRequestDTO dto = PreSignedUrlRequestDTOFixture.createSingleRequestDTO(fileName, contentType);
             assertDoesNotThrow(() -> preSignedUrlService.generatePreSignedUrl(dto));
         }
 
         @ParameterizedTest(name = "유효하지 않은 확장자: {0}")
         @ValueSource(strings = {"file", "image", ".hidden", "invalidate.", "", " "})
         void testInvalidExtensions(String fileName) {
-            SinglePreSignedUrlRequestDTO dto = SinglePreSignedUrlRequestDTO.builder()
-                    .fileName(fileName)
-                    .contentType("image/jpeg")
-                    .build();
-
+            SinglePreSignedUrlRequestDTO dto = PreSignedUrlRequestDTOFixture.createSingleRequestDTO(fileName, "image/jpeg");
             assertThrows(CustomValidationException.class,
                     () -> preSignedUrlService.generatePreSignedUrl(dto));
         }
@@ -216,12 +178,8 @@ class PreSignedUrlServiceTest {
             when(s3Presigner.presignPutObject(any(Consumer.class)))
                     .thenThrow(S3Exception.builder().message("S3 error").statusCode(500).build());
 
-            SinglePreSignedUrlRequestDTO requestDTO = SinglePreSignedUrlRequestDTO.builder()
-                    .fileName("test.jpg")
-                    .contentType("image/jpeg")
-                    .build();
+            SinglePreSignedUrlRequestDTO requestDTO = PreSignedUrlRequestDTOFixture.createSingleRequestDTO("test.jpg", "image/jpeg");
             assertThrows(S3Exception.class, () -> preSignedUrlService.generatePreSignedUrl(requestDTO));
         }
     }
-
 }
