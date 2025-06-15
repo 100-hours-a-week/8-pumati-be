@@ -91,6 +91,7 @@ public class CustomSecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/comments/ai/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/teams/*/gived-pumati").hasRole("TRAINEE")
                 .requestMatchers(HttpMethod.PATCH, "/api/teams/*/received-pumati").hasRole("TRAINEE")
+                .requestMatchers(HttpMethod.PATCH, "/api/teams/*/received-badges").hasRole("TRAINEE")
                 .anyRequest().permitAll()
         );
 
