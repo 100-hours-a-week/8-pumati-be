@@ -123,7 +123,7 @@ public class TeamController {
         ));
     }
 
-    @GetMapping("/{receiverTeamId}/received-badges")
+    @GetMapping("/received-badges")
     public ResponseEntity<?> getReceivedBadgesPage(
             @RequestHeader("Authorization") String authorizationHeader,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
