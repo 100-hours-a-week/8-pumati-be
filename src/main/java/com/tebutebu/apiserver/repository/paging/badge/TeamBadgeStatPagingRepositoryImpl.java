@@ -66,7 +66,7 @@ public class TeamBadgeStatPagingRepositoryImpl implements TeamBadgeStatPagingRep
                         .receiverTeamId(badge.getReceiverTeam().getId())
                         .term(badge.getReceiverTeam().getTerm())
                         .teamNumber(badge.getReceiverTeam().getNumber())
-                        .badgeImageUrl(badge.getReceiverTeam().getBadgeImageUrl())
+                        .badgeImageUrl(badge.getGiverTeam().getBadgeImageUrl())
                         .acquiredCount(badge.getAcquiredCount())
                         .createdAt(badge.getCreatedAt())
                         .modifiedAt(badge.getModifiedAt())
