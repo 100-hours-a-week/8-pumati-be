@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
-        name = "team_badge",
+        name = "team_badge_stat",
         uniqueConstraints = @UniqueConstraint(columnNames = {"giver_team_id", "receiver_team_id"})
 )
 @Getter
@@ -48,4 +48,3 @@ public class TeamBadgeStat extends TimeStampedEntity {
     }
 
 }
-
