@@ -9,13 +9,15 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @AllArgsConstructor
-public class MemberTeamBadgePageResponseDTO {
+public class TeamBadgePageResponseDTO {
 
     private Long id;
 
     private Long projectId;
 
-    private Long teamId;
+    private Long giverTeamId;
+
+    private Long receiverTeamId;
 
     private Integer term;
 
