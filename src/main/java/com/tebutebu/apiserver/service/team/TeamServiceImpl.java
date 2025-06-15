@@ -1,10 +1,10 @@
 package com.tebutebu.apiserver.service.team;
 
 import com.tebutebu.apiserver.domain.Team;
-import com.tebutebu.apiserver.domain.TeamBadge;
+import com.tebutebu.apiserver.domain.TeamBadgeStat;
 import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
-import com.tebutebu.apiserver.dto.ai.badge.request.TeamBadgeUpdateRequestDTO;
-import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgePageResponseDTO;
+import com.tebutebu.apiserver.dto.ai.badge.request.TeamBadgeStatUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgeStatPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
@@ -16,9 +16,9 @@ import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageReque
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.CountCursorMetaDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
-import com.tebutebu.apiserver.repository.TeamBadgeRepository;
+import com.tebutebu.apiserver.repository.TeamBadgeStatRepository;
 import com.tebutebu.apiserver.repository.TeamRepository;
-import com.tebutebu.apiserver.repository.paging.badge.TeamBadgePagingRepository;
+import com.tebutebu.apiserver.repository.paging.badge.TeamBadgeStatPagingRepository;
 import com.tebutebu.apiserver.service.ai.badge.AiBadgeImageRequestService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.project.ProjectService;
@@ -44,9 +44,9 @@ public class TeamServiceImpl implements TeamService {
 
     private final TeamRepository teamRepository;
 
-    private final TeamBadgeRepository teamBadgeRepository;
+    private final TeamBadgeStatRepository teamBadgeStatRepository;
 
-    private final TeamBadgePagingRepository teamBadgePagingRepository;
+    private final TeamBadgeStatPagingRepository teamBadgeStatPagingRepository;
 
     private final ProjectService projectService;
 
@@ -125,8 +125,8 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public CursorPageResponseDTO<TeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(ContextCountCursorPageRequestDTO req) {
-        CursorPage<TeamBadgePageResponseDTO> page = teamBadgePagingRepository.findByAcquiredCountCursor(req);
+    public CursorPageResponseDTO<TeamBadgeStatPageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(ContextCountCursorPageRequestDTO req) {
+        CursorPage<TeamBadgeStatPageResponseDTO> page = teamBadgeStatPagingRepository.findByAcquiredCountCursor(req);
 
         CountCursorMetaDTO meta = CountCursorMetaDTO.builder()
                 .nextCursorId(page.nextCursorId())
@@ -134,7 +134,7 @@ public class TeamServiceImpl implements TeamService {
                 .hasNext(page.hasNext())
                 .build();
 
-        return CursorPageResponseDTO.<TeamBadgePageResponseDTO, CountCursorMetaDTO>builder()
+        return CursorPageResponseDTO.<TeamBadgeStatPageResponseDTO, CountCursorMetaDTO>builder()
                 .data(page.items())
                 .meta(meta)
                 .build();
@@ -143,15 +143,15 @@ public class TeamServiceImpl implements TeamService {
 
     @Override
     public void increaseOrCreateBadge(Long giverTeamId, Long receiverTeamId) {
-        TeamBadge teamBadge = teamBadgeRepository.findByGiverTeamIdAndReceiverTeamId(giverTeamId, receiverTeamId)
-                .orElseGet(() -> TeamBadge.builder()
+        TeamBadgeStat teamBadgeStat = teamBadgeStatRepository.findByGiverTeamIdAndReceiverTeamId(giverTeamId, receiverTeamId)
+                .orElseGet(() -> TeamBadgeStat.builder()
                         .giverTeam(Team.builder().id(giverTeamId).build())
                         .receiverTeam(Team.builder().id(receiverTeamId).build())
                         .acquiredCount(0)
                         .build());
 
-        teamBadge.incrementAcquiredCount();
-        teamBadgeRepository.save(teamBadge);
+        teamBadgeStat.incrementAcquiredCount();
+        teamBadgeStatRepository.save(teamBadgeStat);
     }
 
 
@@ -187,7 +187,7 @@ public class TeamServiceImpl implements TeamService {
                 .teamNumber(team.getNumber())
                 .build();
 
-        TeamBadgeUpdateRequestDTO updateReq = TeamBadgeUpdateRequestDTO.builder()
+        TeamBadgeStatUpdateRequestDTO updateReq = TeamBadgeStatUpdateRequestDTO.builder()
                 .modificationTags(badgeImageModificationRequestDTO)
                 .projectSummary(projectSummaryDTO)
                 .build();

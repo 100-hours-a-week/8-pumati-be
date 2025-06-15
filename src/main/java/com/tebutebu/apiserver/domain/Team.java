@@ -48,10 +48,10 @@ public class Team extends TimeStampedEntity {
     private List<Member> members;
 
     @OneToMany(mappedBy = "giverTeam", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TeamBadge> givenBadges;
+    private List<TeamBadgeStat> givenBadges;
 
     @OneToMany(mappedBy = "receiverTeam", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TeamBadge> receivedBadges;
+    private List<TeamBadgeStat> receivedBadges;
 
     @Builder.Default
     @Column(columnDefinition = "INT UNSIGNED")

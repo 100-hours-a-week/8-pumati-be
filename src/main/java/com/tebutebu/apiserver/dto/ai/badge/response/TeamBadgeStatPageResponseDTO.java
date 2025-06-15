@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @AllArgsConstructor
-public class TeamBadgePageResponseDTO {
+public class TeamBadgeStatPageResponseDTO {
 
     private Long id;
 

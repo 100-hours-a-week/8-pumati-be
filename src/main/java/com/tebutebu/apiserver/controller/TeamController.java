@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.controller;
 
 import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
-import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgePageResponseDTO;
+import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgeStatPageResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.team.request.BadgeImageUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
@@ -139,7 +139,7 @@ public class TeamController {
                 .build();
         dto.setCursorCount(Objects.requireNonNullElse(cursorCount, Integer.MAX_VALUE));
 
-        CursorPageResponseDTO<TeamBadgePageResponseDTO, CountCursorMetaDTO> page = teamService.getReceivedBadgesPage(dto);
+        CursorPageResponseDTO<TeamBadgeStatPageResponseDTO, CountCursorMetaDTO> page = teamService.getReceivedBadgesPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getReceivedBadgesSuccess",
                 "data", page.getData(),
