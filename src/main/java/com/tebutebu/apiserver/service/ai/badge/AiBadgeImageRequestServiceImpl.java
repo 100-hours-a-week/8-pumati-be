@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.service.ai.badge;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tebutebu.apiserver.dto.ai.badge.request.MemberTeamBadgeUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.ai.badge.request.TeamBadgeStatUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -28,7 +28,7 @@ public class AiBadgeImageRequestServiceImpl implements AiBadgeImageRequestServic
     }
 
     @Override
-    public void requestUpdateBadgeImage(MemberTeamBadgeUpdateRequestDTO request) {
+    public void requestUpdateBadgeImage(TeamBadgeStatUpdateRequestDTO request) {
         sendBadgeImage(request);
     }
 
