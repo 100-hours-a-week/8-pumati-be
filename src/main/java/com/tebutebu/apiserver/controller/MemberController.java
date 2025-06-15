@@ -1,23 +1,15 @@
 package com.tebutebu.apiserver.controller;
 
-import com.tebutebu.apiserver.dto.ai.badge.response.MemberTeamBadgePageResponseDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageRequestDTO;
-import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
-import com.tebutebu.apiserver.pagination.dto.response.meta.CountCursorMetaDTO;
 import com.tebutebu.apiserver.service.member.MemberService;
 import com.tebutebu.apiserver.service.project.ProjectService;
 import com.tebutebu.apiserver.service.team.TeamService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -25,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -51,39 +42,6 @@ public class MemberController {
     ) {
         MemberResponseDTO dto = memberService.get(authorizationHeader);
         return ResponseEntity.ok(Map.of("message", "getMemberSuccess", "data", dto));
-    }
-
-    @PatchMapping("/teams/{teamId}/badge")
-    public ResponseEntity<?> acquireTeamBadge(
-            @RequestHeader("Authorization") String authorizationHeader,
-            @PathVariable Long teamId
-    ) {
-        Long memberId = memberService.get(authorizationHeader).getId();
-        teamService.increaseOrCreateBadge(memberId, teamId);
-        return ResponseEntity.ok(Map.of("message", "grantTeamBadgeSuccess"));
-    }
-
-    @GetMapping("/badges")
-    public ResponseEntity<?> getBadgesPage(
-            @RequestHeader("Authorization") String authorizationHeader,
-            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
-            @RequestParam(name = "cursor-count", required = false) @PositiveOrZero Integer cursorCount,
-            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
-    ) {
-        Long memberId = memberService.get(authorizationHeader).getId();
-        ContextCountCursorPageRequestDTO dto = ContextCountCursorPageRequestDTO.builder()
-                .contextId(memberId)
-                .cursorId(cursorId)
-                .pageSize(pageSize)
-                .build();
-        dto.setCursorCount(Objects.requireNonNullElse(cursorCount, Integer.MAX_VALUE));
-
-        CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> page = teamService.getReceivedBadgesPage(dto);
-        return ResponseEntity.ok(Map.of(
-                "message", "getBadgesSuccess",
-                "data", page.getData(),
-                "meta", page.getMeta()
-        ));
     }
 
     @GetMapping("/teams/projects/existence")

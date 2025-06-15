@@ -30,7 +30,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = {"members", "memberBadges"})
+@ToString(exclude = {"members", "givenBadges", "receivedBadges"})
 public class Team extends TimeStampedEntity {
 
     @Id
@@ -47,8 +47,11 @@ public class Team extends TimeStampedEntity {
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Member> members;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MemberTeamBadge> memberBadges;
+    @OneToMany(mappedBy = "giverTeam", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TeamBadgeStat> givenBadges;
+
+    @OneToMany(mappedBy = "receiverTeam", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TeamBadgeStat> receivedBadges;
 
     @Builder.Default
     @Column(columnDefinition = "INT UNSIGNED")

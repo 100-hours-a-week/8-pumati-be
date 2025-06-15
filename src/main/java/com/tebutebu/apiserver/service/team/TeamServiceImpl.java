@@ -1,11 +1,10 @@
 package com.tebutebu.apiserver.service.team;
 
-import com.tebutebu.apiserver.domain.Member;
-import com.tebutebu.apiserver.domain.MemberTeamBadge;
 import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.domain.TeamBadgeStat;
 import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
-import com.tebutebu.apiserver.dto.ai.badge.request.MemberTeamBadgeUpdateRequestDTO;
-import com.tebutebu.apiserver.dto.ai.badge.response.MemberTeamBadgePageResponseDTO;
+import com.tebutebu.apiserver.dto.ai.badge.request.TeamBadgeStatUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgeStatPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
@@ -17,9 +16,9 @@ import com.tebutebu.apiserver.pagination.dto.request.ContextCountCursorPageReque
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.CountCursorMetaDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
-import com.tebutebu.apiserver.repository.MemberTeamBadgeRepository;
+import com.tebutebu.apiserver.repository.TeamBadgeStatRepository;
 import com.tebutebu.apiserver.repository.TeamRepository;
-import com.tebutebu.apiserver.repository.paging.badge.MemberTeamBadgePagingRepository;
+import com.tebutebu.apiserver.repository.paging.badge.TeamBadgeStatPagingRepository;
 import com.tebutebu.apiserver.service.ai.badge.AiBadgeImageRequestService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.project.ProjectService;
@@ -45,9 +44,9 @@ public class TeamServiceImpl implements TeamService {
 
     private final TeamRepository teamRepository;
 
-    private final MemberTeamBadgeRepository memberTeamBadgeRepository;
+    private final TeamBadgeStatRepository teamBadgeStatRepository;
 
-    private final MemberTeamBadgePagingRepository memberTeamBadgePagingRepository;
+    private final TeamBadgeStatPagingRepository teamBadgeStatPagingRepository;
 
     private final ProjectService projectService;
 
@@ -126,8 +125,8 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(ContextCountCursorPageRequestDTO req) {
-        CursorPage<MemberTeamBadgePageResponseDTO> page = memberTeamBadgePagingRepository.findByAcquiredCountCursor(req);
+    public CursorPageResponseDTO<TeamBadgeStatPageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(ContextCountCursorPageRequestDTO req) {
+        CursorPage<TeamBadgeStatPageResponseDTO> page = teamBadgeStatPagingRepository.findByAcquiredCountCursor(req);
 
         CountCursorMetaDTO meta = CountCursorMetaDTO.builder()
                 .nextCursorId(page.nextCursorId())
@@ -135,25 +134,25 @@ public class TeamServiceImpl implements TeamService {
                 .hasNext(page.hasNext())
                 .build();
 
-        return CursorPageResponseDTO.<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO>builder()
+        return CursorPageResponseDTO.<TeamBadgeStatPageResponseDTO, CountCursorMetaDTO>builder()
                 .data(page.items())
                 .meta(meta)
                 .build();
     }
 
-
     @Override
-    public void increaseOrCreateBadge(Long memberId, Long teamId) {
-        MemberTeamBadge badge = memberTeamBadgeRepository.findByMemberIdAndTeamId(memberId, teamId)
-                .orElseGet(() -> MemberTeamBadge.builder()
-                        .member(Member.builder().id(memberId).build())
-                        .team(Team.builder().id(teamId).build())
+    public void increaseOrCreateBadge(Long giverTeamId, Long receiverTeamId) {
+        TeamBadgeStat teamBadgeStat = teamBadgeStatRepository.findByGiverTeamIdAndReceiverTeamId(giverTeamId, receiverTeamId)
+                .orElseGet(() -> TeamBadgeStat.builder()
+                        .giverTeam(Team.builder().id(giverTeamId).build())
+                        .receiverTeam(Team.builder().id(receiverTeamId).build())
                         .acquiredCount(0)
                         .build());
 
-        badge.incrementAcquiredCount();
-        memberTeamBadgeRepository.save(badge);
+        teamBadgeStat.incrementAcquiredCount();
+        teamBadgeStatRepository.save(teamBadgeStat);
     }
+
 
     @Override
     public void requestUpdateBadgeImage(Long teamId, BadgeImageModificationRequestDTO badgeImageModificationRequestDTO) {
@@ -187,7 +186,7 @@ public class TeamServiceImpl implements TeamService {
                 .teamNumber(team.getNumber())
                 .build();
 
-        MemberTeamBadgeUpdateRequestDTO updateReq = MemberTeamBadgeUpdateRequestDTO.builder()
+        TeamBadgeStatUpdateRequestDTO updateReq = TeamBadgeStatUpdateRequestDTO.builder()
                 .modificationTags(badgeImageModificationRequestDTO)
                 .projectSummary(projectSummaryDTO)
                 .build();
@@ -214,23 +213,6 @@ public class TeamServiceImpl implements TeamService {
 
         team.setAiBadgeInProgress(false);
         teamRepository.save(team);
-    }
-
-    @Override
-    public CursorPageResponseDTO<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO> getReceivedBadgesPage(Long memberId, ContextCountCursorPageRequestDTO req) {
-        req.setContextId(memberId);
-        CursorPage<MemberTeamBadgePageResponseDTO> page = memberTeamBadgePagingRepository.findByAcquiredCountCursor(req);
-
-        CountCursorMetaDTO meta = CountCursorMetaDTO.builder()
-                .nextCursorId(page.nextCursorId())
-                .nextCount(page.nextCursorCount())
-                .hasNext(page.hasNext())
-                .build();
-
-        return CursorPageResponseDTO.<MemberTeamBadgePageResponseDTO, CountCursorMetaDTO>builder()
-                .data(page.items())
-                .meta(meta)
-                .build();
     }
 
     @Override

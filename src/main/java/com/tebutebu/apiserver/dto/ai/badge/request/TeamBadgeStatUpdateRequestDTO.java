@@ -12,7 +12,7 @@ import lombok.AllArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MemberTeamBadgeUpdateRequestDTO {
+public class TeamBadgeStatUpdateRequestDTO {
 
     private BadgeImageModificationRequestDTO modificationTags;
 
