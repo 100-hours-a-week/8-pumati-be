@@ -140,7 +140,6 @@ public class TeamServiceImpl implements TeamService {
                 .build();
     }
 
-
     @Override
     public void increaseOrCreateBadge(Long giverTeamId, Long receiverTeamId) {
         TeamBadgeStat teamBadgeStat = teamBadgeStatRepository.findByGiverTeamIdAndReceiverTeamId(giverTeamId, receiverTeamId)

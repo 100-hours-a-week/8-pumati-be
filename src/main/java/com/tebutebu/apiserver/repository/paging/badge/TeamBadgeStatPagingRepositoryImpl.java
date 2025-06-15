@@ -28,7 +28,7 @@ public class TeamBadgeStatPagingRepositoryImpl implements TeamBadgeStatPagingRep
     @Override
     public CursorPage<TeamBadgeStatPageResponseDTO> findByAcquiredCountCursor(ContextCountCursorPageRequestDTO req) {
         BooleanBuilder where = new BooleanBuilder();
-        where.and(qTeamBadgeStat.giverTeam.id.eq(req.getContextId()));
+        where.and(qTeamBadgeStat.receiverTeam.id.eq(req.getContextId()));
 
         Integer cursorCount = req.getCursorCount();
         Long cursorId = req.getCursorId();
@@ -66,7 +66,7 @@ public class TeamBadgeStatPagingRepositoryImpl implements TeamBadgeStatPagingRep
                         .receiverTeamId(badge.getReceiverTeam().getId())
                         .term(badge.getReceiverTeam().getTerm())
                         .teamNumber(badge.getReceiverTeam().getNumber())
-                        .badgeImageUrl(badge.getReceiverTeam().getBadgeImageUrl())
+                        .badgeImageUrl(badge.getGiverTeam().getBadgeImageUrl())
                         .acquiredCount(badge.getAcquiredCount())
                         .createdAt(badge.getCreatedAt())
                         .modifiedAt(badge.getModifiedAt())
