@@ -48,4 +48,3 @@ public class TeamBadgeStat extends TimeStampedEntity {
     }
 
 }
-
