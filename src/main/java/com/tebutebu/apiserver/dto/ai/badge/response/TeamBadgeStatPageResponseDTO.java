@@ -17,11 +17,9 @@ public class TeamBadgeStatPageResponseDTO {
 
     private Long giverTeamId;
 
-    private Long receiverTeamId;
+    private Integer giverTeamTerm;
 
-    private Integer term;
-
-    private Integer teamNumber;
+    private Integer giverTeamNumber;
 
     private String badgeImageUrl;
 
