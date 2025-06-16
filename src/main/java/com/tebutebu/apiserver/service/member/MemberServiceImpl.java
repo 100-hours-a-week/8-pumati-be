@@ -172,10 +172,21 @@ public class MemberServiceImpl implements MemberService {
             member.changeProfileImageUrl(dto.getProfileImageUrl());
         }
 
-        member.changeName(dto.getName());
-        member.changeNickname(dto.getNickname());
-        member.changeCourse(dto.getCourse());
-        member.changeRole(dto.getRole());
+        if (dto.getName() != null && !dto.getName().isEmpty()) {
+            member.changeName(dto.getName());
+        }
+
+        if (dto.getNickname() != null && !dto.getNickname().isEmpty()) {
+            member.changeNickname(dto.getNickname());
+        }
+
+        if (dto.getCourse() != null) {
+            member.changeCourse(dto.getCourse());
+        }
+
+        if (dto.getRole() != null) {
+            member.changeRole(dto.getRole());
+        }
 
         memberRepository.save(member);
     }
