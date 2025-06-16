@@ -3,7 +3,7 @@ package com.tebutebu.apiserver.service.team;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.domain.TeamBadgeStat;
 import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
-import com.tebutebu.apiserver.dto.ai.badge.request.TeamBadgeStatUpdateRequestDTO;
+import com.tebutebu.apiserver.dto.ai.badge.request.TeamBadgeImageUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgeStatPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
@@ -186,8 +186,8 @@ public class TeamServiceImpl implements TeamService {
                 .teamNumber(team.getNumber())
                 .build();
 
-        TeamBadgeStatUpdateRequestDTO updateReq = TeamBadgeStatUpdateRequestDTO.builder()
-                .modificationTags(badgeImageModificationRequestDTO)
+        TeamBadgeImageUpdateRequestDTO updateReq = TeamBadgeImageUpdateRequestDTO.builder()
+                .modificationTags(badgeImageModificationRequestDTO.getModificationTags())
                 .projectSummary(projectSummaryDTO)
                 .build();
 
