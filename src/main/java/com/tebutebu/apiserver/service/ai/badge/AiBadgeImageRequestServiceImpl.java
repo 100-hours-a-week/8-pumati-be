@@ -24,34 +24,33 @@ public class AiBadgeImageRequestServiceImpl implements AiBadgeImageRequestServic
 
     @Override
     public void requestGenerateBadgeImage(ProjectSummaryDTO request) {
-        sendBadgeImage(request);
+        sendBadgeImage(request, HttpMethod.POST);
     }
 
     @Override
     public void requestUpdateBadgeImage(TeamBadgeStatUpdateRequestDTO request) {
-        sendBadgeImage(request);
+        sendBadgeImage(request, HttpMethod.PUT);
     }
 
-    private void sendBadgeImage(Object request) {
+    private void sendBadgeImage(Object request, HttpMethod method) {
         try {
             String jsonBody = mapper.writeValueAsString(request);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-
             HttpEntity<String> httpEntity = new HttpEntity<>(jsonBody, headers);
 
             ResponseEntity<Void> response = restTemplate.exchange(
                     aiBadgeServiceUrl + "/api/badges/image",
-                    HttpMethod.POST,
+                    method,
                     httpEntity,
                     Void.class
             );
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info(response.getBody());
+                log.info("AI Badge image request success: {}", response.getBody());
             } else {
-                log.warn("AI️ Badge image generation failed with non-2xx: {}, body: {}", response.getStatusCode(), response.getBody());
+                log.warn("AI️ Badge image request failed with non-2xx: {}, body: {}", response.getStatusCode(), response.getBody());
             }
 
         } catch (Exception e) {
