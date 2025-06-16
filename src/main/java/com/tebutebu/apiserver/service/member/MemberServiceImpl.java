@@ -165,8 +165,10 @@ public class MemberServiceImpl implements MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomValidationException("memberNotFound"));
 
-        TeamResponseDTO teamResponseDTO = teamService.getByTermAndNumber(dto.getTerm(), dto.getTeamNumber());
-        member.changeTeam(teamResponseDTO == null ? null : Team.builder().id(teamResponseDTO.getId()).build());
+        if (dto.getTerm() != null && dto.getTeamNumber() != null) {
+            TeamResponseDTO teamResponseDTO = teamService.getByTermAndNumber(dto.getTerm(), dto.getTeamNumber());
+            member.changeTeam(teamResponseDTO == null ? null : Team.builder().id(teamResponseDTO.getId()).build());
+        }
 
         if (dto.getProfileImageUrl() != null && !dto.getProfileImageUrl().isEmpty()) {
             member.changeProfileImageUrl(dto.getProfileImageUrl());
