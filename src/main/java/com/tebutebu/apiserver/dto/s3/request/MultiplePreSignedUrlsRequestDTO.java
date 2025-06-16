@@ -19,7 +19,7 @@ import java.util.List;
 public class MultiplePreSignedUrlsRequestDTO {
 
     @NotEmpty(message = "파일 리스트는 필수 입력 값입니다.")
-    @Size(min = 1, max = 10, message = "요청 가능한 파일 개수는 1~10개 입니다.")
+    @Size(min = 1, max = 10, message = "requestCountExceeded")
     private List<@Valid SinglePreSignedUrlRequestDTO> files;
 
 }

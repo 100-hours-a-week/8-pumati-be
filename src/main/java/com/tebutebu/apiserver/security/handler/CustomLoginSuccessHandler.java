@@ -30,7 +30,7 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
     @Value("${spring.jwt.refresh.cookie.name}")
     private String refreshCookieName;
 
-    @Value("${jwt.refresh.cookie.max-age}")
+    @Value("${spring.jwt.refresh.cookie.max-age}")
     private int refreshCookieMaxAge;
 
     private final CookieUtil cookieUtil;

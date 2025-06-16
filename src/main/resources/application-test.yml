@@ -1,0 +1,124 @@
+spring:
+  application:
+    name: apiserver
+
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:tbdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-name: kakao
+            client-id: test-kakao-client-id
+            client-secret: test-kakao-client-secret
+            redirect-uri: test-kakao-redirect-uri
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            scope: account_email
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            user-name-attribute: id
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: test-kakao-user-info-uri
+
+  task:
+    scheduling:
+      pool:
+        size: 1
+
+  jwt:
+    secret: test-jwt-secret
+    access-token:
+      expiration: 10
+    refresh-token:
+      expiration: 60
+    refresh:
+      cookie:
+        name: refreshToken
+        max-age: 86400
+
+server:
+  forward-headers-strategy: framework
+
+logging:
+  level:
+    com.zaxxer: info
+    org.springframework.security.web: trace
+
+frontend:
+  is-local: true
+  redirect-uri: test-frontend-redirect-uri
+
+cookie:
+  dev-domain: test-cookie-dev-domain
+
+fortune:
+  service:
+    uri: test-fortune-service-uri
+    error-message: test-fortune-service-error-message
+
+ai:
+  comment:
+    service:
+      url: test-ai-comment-service-url
+    default:
+      type: test-ai-comment-default-type
+  badge:
+    service:
+      url: test-ai-badge-service-url
+
+chatbot:
+  service:
+    base-url: test-chatbot-service-base-url
+
+ranking:
+  snapshot:
+    duration:
+      minutes: 5
+
+default:
+  profile:
+    image:
+      pu:
+        url: test-default-profile-image-pu-url
+      mati:
+        url: test-default-profile-image-mati-url
+  badge:
+    image:
+      url: test-default-badge-image-url
+
+oauth:
+  allowed-providers: kakao
+
+aws:
+  region: ap-northeast-2
+  credentials:
+    access-key: test-access-key
+    secret-key: test-secret-key
+  s3:
+    allowed-extensions: .jpg,.jpeg,.png
+    bucket:
+      name: s3-pumati-test
+    expiration:
+      put:
+        minutes: 60
+    max-request-count: 10
+
+scheduler:
+  pumati-count:
+    reset-cron: 0 0 9 * * MON
+    reset-zone: Asia/Seoul
