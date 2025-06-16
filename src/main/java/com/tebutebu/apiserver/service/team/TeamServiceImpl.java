@@ -187,7 +187,7 @@ public class TeamServiceImpl implements TeamService {
                 .build();
 
         TeamBadgeImageUpdateRequestDTO updateReq = TeamBadgeImageUpdateRequestDTO.builder()
-                .modificationTags(badgeImageModificationRequestDTO)
+                .modificationTags(badgeImageModificationRequestDTO.getModificationTags())
                 .projectSummary(projectSummaryDTO)
                 .build();
 
