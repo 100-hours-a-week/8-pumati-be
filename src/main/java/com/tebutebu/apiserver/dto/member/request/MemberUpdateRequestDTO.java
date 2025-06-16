@@ -38,7 +38,6 @@ public class MemberUpdateRequestDTO {
 
     private Course course;
 
-    @Builder.Default
-    private MemberRole role = MemberRole.USER;
+    private MemberRole role;
 
 }
