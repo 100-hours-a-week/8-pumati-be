@@ -5,6 +5,7 @@ import com.tebutebu.apiserver.dto.s3.request.SinglePreSignedUrlRequestDTO;
 import com.tebutebu.apiserver.dto.s3.response.MultiplePreSignedUrlsResponseDTO;
 import com.tebutebu.apiserver.dto.s3.response.SinglePreSignedUrlResponseDTO;
 import com.tebutebu.apiserver.util.exception.CustomValidationException;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -14,7 +15,9 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -36,14 +39,25 @@ public class PreSignedUrlServiceImpl implements PreSignedUrlService {
     @Value("${aws.s3.max-request-count:10}")
     private int maxCount;
 
+    @Value("${aws.s3.allowed-extensions}")
+    private String allowedExtensionsRaw;
+
+    private Set<String> allowedExtensions;
+
+    @PostConstruct
+    private void initAllowedExtensions() {
+        this.allowedExtensions = Arrays.stream(allowedExtensionsRaw.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+    }
+
     @Override
     public SinglePreSignedUrlResponseDTO generatePreSignedUrl(SinglePreSignedUrlRequestDTO dto) {
         String fileName = dto.getFileName().trim();
-        int idx = fileName.lastIndexOf('.');
-        if (idx <= 0) {
-            throw new CustomValidationException("invalidFileExtension");
-        }
-        String ext = fileName.substring(idx);
+        String ext = extractExtension(fileName);
+        validateExtension(ext);
+
         String objectKey = "uploads/" + UUID.randomUUID() + ext;
 
         String uploadUrl = generatePutPreSignedUrl(objectKey, dto.getContentType());
@@ -85,6 +99,20 @@ public class PreSignedUrlServiceImpl implements PreSignedUrlService {
                 .putObjectRequest(putReq)
         );
         return preSignedPut.url().toString();
+    }
+
+    private String extractExtension(String fileName) {
+        int idx = fileName.lastIndexOf('.');
+        if (idx <= 0 || idx == fileName.length() - 1) {
+            throw new CustomValidationException("invalidFileExtension");
+        }
+        return fileName.substring(idx).toLowerCase();
+    }
+
+    private void validateExtension(String ext) {
+        if (!allowedExtensions.contains(ext)) {
+            throw new CustomValidationException("unsupportedFileExtension");
+        }
     }
 
 }

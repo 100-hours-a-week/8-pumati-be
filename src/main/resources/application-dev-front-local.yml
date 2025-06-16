@@ -78,6 +78,9 @@ ai:
       url: ${ai.comment.service.url}
     default:
       type: ${ai.comment.default.type}
+  badge:
+    service:
+      url: ${default.badge.image.url}
 
 chatbot:
   service:
@@ -95,6 +98,9 @@ default:
         url: ${default.profile.image.pu.url}
       mati:
         url: ${default.profile.image.mati.url}
+  badge:
+    image:
+      url: ${default.badge.image.url}
 
 oauth:
   allowed-providers: ${oauth.allowed-providers}
@@ -105,6 +111,7 @@ aws:
     access-key: ${aws.credentials.access-key}
     secret-key: ${aws.credentials.secret-key}
   s3:
+    allowed-extensions: ${aws.s3.allowed-extensions}
     bucket:
       name: ${aws.s3.bucket.name}
     expiration:
