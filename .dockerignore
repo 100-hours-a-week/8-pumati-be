@@ -1,0 +1,43 @@
+# Git 관련 파일 제외
+.git
+.gitignore
+
+# IDE 관련 파일 제외
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# 빌드 관련 파일 제외
+.gradle/
+build/
+!build/libs/*.jar
+out/
+bin/
+
+# 로그 파일 제외
+logs/
+*.log
+
+# 환경 설정 파일 제외
+.env
+.env.*
+application-*.yml
+application-*.properties
+!application.yml
+!application.properties
+
+# 테스트 관련 파일 제외
+src/test/
+
+# 문서 파일 제외
+README.md
+docs/
+*.md
+
+# 기타 파일 제외
+.DS_Store
+*.bak
+*.tmp
+*.temp
