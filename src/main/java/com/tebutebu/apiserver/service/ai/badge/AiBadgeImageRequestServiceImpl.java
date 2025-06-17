@@ -23,16 +23,16 @@ public class AiBadgeImageRequestServiceImpl implements AiBadgeImageRequestServic
     private String aiBadgeServiceUrl;
 
     @Override
-    public void requestGenerateBadgeImage(ProjectSummaryDTO request) {
-        sendBadgeImage(request, HttpMethod.POST);
+    public boolean requestGenerateBadgeImage(ProjectSummaryDTO request) {
+        return sendBadgeImage(request, HttpMethod.POST);
     }
 
     @Override
-    public void requestUpdateBadgeImage(TeamBadgeImageUpdateRequestDTO request) {
-        sendBadgeImage(request, HttpMethod.PUT);
+    public boolean requestUpdateBadgeImage(TeamBadgeImageUpdateRequestDTO request) {
+        return sendBadgeImage(request, HttpMethod.PUT);
     }
 
-    private void sendBadgeImage(Object request, HttpMethod method) {
+    private boolean sendBadgeImage(Object request, HttpMethod method) {
         try {
             String jsonBody = mapper.writeValueAsString(request);
 
@@ -49,12 +49,15 @@ public class AiBadgeImageRequestServiceImpl implements AiBadgeImageRequestServic
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("AI Badge image request success: {}", response.getBody());
+                return true;
             } else {
                 log.warn("AI️ Badge image request failed with non-2xx: {}, body: {}", response.getStatusCode(), response.getBody());
+                return false;
             }
 
         } catch (Exception e) {
             log.warn("Error calling AI badge service: {}", e.getMessage());
+            return false;
         }
     }
 

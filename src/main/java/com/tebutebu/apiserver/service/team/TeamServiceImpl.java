@@ -163,8 +163,6 @@ public class TeamServiceImpl implements TeamService {
             throw new CustomValidationException("badgeModificationInProgress");
         }
 
-        team.setAiBadgeInProgress(true);
-
         ProjectResponseDTO project = projectService.getByTeamId(teamId);
         if (project == null) {
             throw new NoSuchElementException("projectNotFound");
@@ -186,12 +184,13 @@ public class TeamServiceImpl implements TeamService {
                 .teamNumber(team.getNumber())
                 .build();
 
-        TeamBadgeImageUpdateRequestDTO updateReq = TeamBadgeImageUpdateRequestDTO.builder()
+        TeamBadgeImageUpdateRequestDTO teamBadgeImageUpdateRequestDTO = TeamBadgeImageUpdateRequestDTO.builder()
                 .modificationTags(badgeImageModificationRequestDTO.getModificationTags())
                 .projectSummary(projectSummaryDTO)
                 .build();
 
-        aiBadgeImageRequestService.requestUpdateBadgeImage(updateReq);
+        boolean isAiBadgeInProgress = aiBadgeImageRequestService.requestUpdateBadgeImage(teamBadgeImageUpdateRequestDTO);
+        team.setAiBadgeInProgress(isAiBadgeInProgress);
     }
 
     @Override
