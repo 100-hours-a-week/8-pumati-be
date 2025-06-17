@@ -10,10 +10,10 @@ public interface AiBadgeImageRequestService {
 
     @Async
     @Transactional(readOnly = true)
-    void requestGenerateBadgeImage(ProjectSummaryDTO request);
+    boolean requestGenerateBadgeImage(ProjectSummaryDTO request);
 
     @Async
     @Transactional(readOnly = true)
-    void requestUpdateBadgeImage(TeamBadgeImageUpdateRequestDTO request);
+    boolean requestUpdateBadgeImage(TeamBadgeImageUpdateRequestDTO request);
 
 }
