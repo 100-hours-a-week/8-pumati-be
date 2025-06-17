@@ -23,8 +23,8 @@ public class AiBadgeImageRequestServiceImpl implements AiBadgeImageRequestServic
     private String aiBadgeServiceUrl;
 
     @Override
-    public boolean requestGenerateBadgeImage(ProjectSummaryDTO request) {
-        return sendBadgeImage(request, HttpMethod.POST);
+    public void requestGenerateBadgeImage(ProjectSummaryDTO request) {
+        sendBadgeImage(request, HttpMethod.POST);
     }
 
     @Override
