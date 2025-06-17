@@ -10,5 +10,6 @@ public record CursorPage<E>(
         List<E> items,
         Long nextCursorId,
         LocalDateTime nextCursorTime,
+        Integer nextCursorCount,
         boolean hasNext
 ) {}

@@ -1,6 +1,6 @@
 package com.tebutebu.apiserver.dto.attendance.daily.response;
 
-import com.tebutebu.apiserver.dto.fortune.response.DevLuckDTO;
+import com.tebutebu.apiserver.dto.ai.fortune.response.DevLuckDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

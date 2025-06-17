@@ -1,0 +1,565 @@
+pipeline {
+    // 파이프라인 전체를 Docker 컨테이너에서 실행
+    agent {
+        kubernetes {
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  # system 노드에 우선 배치되도록 노드 셀렉터 설정
+  nodeSelector:
+    node-type: "system"
+  # system 노드가 없을 경우를 대비한 어피니티 설정
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: node-type
+            operator: In
+            values: ["system"]
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: kubernetes.io/instance-type
+            operator: In
+            values: ["t3.medium", "t3a.medium"]
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  containers:
+  - name: openjdk
+    image: cimg/openjdk:21.0
+    command: [cat]
+    tty: true
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+    # t3.medium 스펙에 최적화된 리소스 설정 - Java 빌드용
+    resources:
+      requests:
+        memory: "1Gi"      # 1GB 요청 (Gradle 빌드에 충분)
+        cpu: "500m"        # 0.5 CPU 요청
+      limits:
+        memory: "2.5Gi"    # 2.5GB 제한 (t3.medium 4GB 중 여유있게)
+        cpu: "1500m"       # 1.5 CPU 제한 (t3.medium 2 vCPU 중 대부분)
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command: [/busybox/cat]
+    tty: true
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+    # t3.medium 스펙에 최적화된 리소스 설정 - Docker 빌드용
+    resources:
+      requests:
+        memory: "512Mi"    # 512MB 요청 (Docker 빌드 기본)
+        cpu: "300m"        # 0.3 CPU 요청
+      limits:
+        memory: "1.5Gi"    # 1.5GB 제한 (Docker 빌드에 충분)
+        cpu: "800m"        # 0.8 CPU 제한
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+  - name: aws-cli
+    image: cimg/aws:2023.05
+    command: [cat]
+    tty: true
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+    # t3.medium 스펙에 최적화된 리소스 설정 - AWS CLI용 (가벼운 작업)
+    resources:
+      requests:
+        memory: "256Mi"    # 256MB 요청 (AWS CLI 작업용)
+        cpu: "200m"        # 0.2 CPU 요청
+      limits:
+        memory: "512Mi"    # 512MB 제한 (AWS CLI에 충분)
+        cpu: "400m"        # 0.4 CPU 제한
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+  volumes:
+  - name: workspace-volume
+    emptyDir: {}
+            '''
+        }
+    }
+    
+    // 환경 변수 설정
+    environment {
+        // AWS 공개 정보 (깃에 올려도 안전)
+        AWS_REGION = 'ap-northeast-2'        // 서울 리전
+        ECR_REPOSITORY = 'pumati-dev-backend-ecr'  // ECR 리포지토리 이름
+        
+        // 이미지 태그 설정 (브랜치명과 빌드 번호 조합)
+        IMAGE_TAG = "${BRANCH_NAME}-${BUILD_NUMBER}"
+        
+        // Gradle 홈 디렉토리 설정 (권한 문제 해결)
+        GRADLE_USER_HOME = '/home/jenkins/agent/.gradle'
+        GRADLE_OPTS = '-Dorg.gradle.daemon=false -Dorg.gradle.caching=false'
+        
+        // Java 버전 설정 (시스템 기본 Java 사용)
+        // Jenkins 서버에 Java 21이 설치되어 있어야 함
+        // JAVA_HOME = tool name: 'jdk-21', type: 'jdk'
+        // PATH = "${JAVA_HOME}/bin:${PATH}"
+    }
+    
+    stages {
+        // 1. 소스 코드 체크아웃
+        stage('Checkout') {
+            steps {
+                container('openjdk') {
+                    echo '소스 코드 체크아웃 완료'
+                    script {
+                        // 더 간단하고 안전한 Git 명령어 사용
+                        try {
+                            def gitCommit = sh(
+                                script: 'git rev-parse HEAD',
+                                returnStdout: true
+                            ).trim()
+                            echo "Git Commit: ${gitCommit}"
+                        } catch (Exception e) {
+                            echo "Git commit 정보를 가져올 수 없습니다: ${e.getMessage()}"
+                        }
+                        
+                        try {
+                            def gitBranch = sh(
+                                script: 'git branch --show-current || echo "detached"',
+                                returnStdout: true
+                            ).trim()
+                            echo "Git Branch: ${gitBranch}"
+                        } catch (Exception e) {
+                            echo "Git branch 정보를 가져올 수 없습니다: ${e.getMessage()}"
+                        }
+                        
+                        // 작업 디렉토리 확인
+                        sh 'pwd'
+                        sh 'ls -la'
+                    }
+                }
+            }
+        }
+        
+        // 2. 환경 설정 파일 준비
+        stage('Setup Environment') {
+            steps {
+                container('openjdk') {
+                    echo '환경 설정 파일 및 AWS 정보 준비 중...'
+                    
+                    script {
+                        withCredentials([string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID')]) {
+                            env.DOCKER_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                            env.LATEST_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
+                            echo "Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
+                            echo "Latest 이미지: ${env.LATEST_IMAGE_NAME}"
+                        }
+                    }
+                    
+                    withCredentials([file(credentialsId: 'be-env-local', variable: 'ENV_FILE')]) {
+                        sh 'cp $ENV_FILE .env'
+                        sh 'ls -la .env'
+                    }
+                }
+            }
+        }
+        
+        // 3. Gradle 빌드 준비
+        stage('Prepare Build') {
+            steps {
+                container('openjdk') {
+                    echo 'Gradle 빌드 준비 중...'
+                    script {
+                        // Gradle 홈 디렉토리 생성
+                        sh 'mkdir -p /home/jenkins/agent/.gradle'
+                        sh 'id && pwd && ls -la /home/jenkins/agent/'
+                        
+                        try {
+                            sh 'java -version'
+                        } catch (Exception e) {
+                            echo "Java 버전 확인 실패: ${e.getMessage()}"
+                        }
+                        
+                        try {
+                            sh 'chmod +x gradlew'
+                            echo '✅ gradlew 실행 권한 부여 완료'
+                        } catch (Exception e) {
+                            echo "❌ gradlew 권한 설정 실패: ${e.getMessage()}"
+                            echo "🛑 Gradle 설정 실패로 인해 파이프라인을 중단합니다."
+                            error("Gradle 권한 설정 실패로 파이프라인 중단")
+                        }
+                        
+                        try {
+                            sh 'GRADLE_USER_HOME=/home/jenkins/agent/.gradle ./gradlew --version'
+                            echo '✅ Gradle 설정이 정상적으로 완료되었습니다.'
+                        } catch (Exception e) {
+                            echo "❌ Gradle 버전 확인 실패: ${e.getMessage()}"
+                            echo "🛑 Gradle 설정 실패로 인해 파이프라인을 중단합니다."
+                            error("Gradle 설정 실패로 파이프라인 중단")
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 4. 테스트 실행 (선택적)
+        stage('Test') {
+            when {
+                // PR이나 main 브랜치에서만 테스트 실행
+                anyOf {
+                    branch 'dev'
+                    changeRequest()
+                }
+            }
+            steps {
+                container('openjdk') {
+                    echo '단위 테스트 실행 중...'
+                    script {
+                        try {
+                            // 환경 변수 로드 및 테스트 실행
+                            sh '''
+                                # Gradle 홈 디렉토리 확인
+                                export GRADLE_USER_HOME=/home/jenkins/agent/.gradle
+                                mkdir -p $GRADLE_USER_HOME
+                                
+                                if [ -f .env ]; then
+                                    echo "환경 파일 발견, 로드 중..."
+                                    set -a && . ./.env && set +a
+                                else
+                                    echo "환경 파일이 없습니다."
+                                fi
+                                
+                                echo "테스트 실행 시작..."
+                                echo "GRADLE_USER_HOME: $GRADLE_USER_HOME"
+                                ./gradlew test --no-daemon --stacktrace --gradle-user-home=$GRADLE_USER_HOME
+                            '''
+                            echo "✅ 모든 테스트가 성공적으로 통과했습니다."
+                        } catch (Exception e) {
+                            echo "❌ 테스트 실행 중 오류 발생: ${e.getMessage()}"
+                            echo "🛑 테스트 실패로 인해 파이프라인을 중단합니다."
+                            error("테스트 실패로 파이프라인 중단")
+                        }
+                    }
+                }
+            }
+            
+            // 테스트 결과 발행
+            post {
+                always {
+                    container('openjdk') {
+                        script {
+                            try {
+                                junit testResults: 'build/test-results/test/*.xml', allowEmptyResults: true
+                                echo '테스트 결과 발행 완료'
+                            } catch (Exception e) {
+                                echo "테스트 결과 발행 실패: ${e.getMessage()}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 5. 애플리케이션 빌드
+        stage('Build Application') {
+            steps {
+                container('openjdk') {
+                    echo 'Spring Boot 애플리케이션 빌드 중...'
+                    script {
+                        try {
+                            sh '''
+                                export GRADLE_USER_HOME=/home/jenkins/agent/.gradle
+                                ./gradlew clean build -x test --no-daemon --stacktrace --gradle-user-home=$GRADLE_USER_HOME
+                            '''
+                            sh 'ls -la build/libs/'
+                            echo '✅ 애플리케이션 빌드가 성공적으로 완료되었습니다.'
+                        } catch (Exception e) {
+                            echo "❌ 애플리케이션 빌드 실패: ${e.getMessage()}"
+                            echo "🛑 빌드 실패로 인해 파이프라인을 중단합니다."
+                            error("애플리케이션 빌드 실패로 파이프라인 중단")
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 6. ECR 로그인 및 설정
+        stage('Setup ECR') {
+            steps {
+                container('aws-cli') {
+                    echo 'ECR 로그인 및 리포지토리 설정 중...'
+                    withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh 'aws --version'
+                        sh 'aws sts get-caller-identity'
+                        
+                        // ECR 리포지토리 존재 확인 및 생성
+                        sh """
+                            aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${AWS_REGION} || \\
+                            aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}
+                        """
+                        
+                        // Kaniko용 ECR 인증 설정 파일 생성
+                        sh """
+                            mkdir -p /home/jenkins/agent/.docker
+                            aws ecr get-login-password --region ${AWS_REGION} | \\
+                            echo "{\\"auths\\": {\\"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com\\": {\\"auth\\": \\"\$(cat - | base64 -w0)\\"}}}" > /home/jenkins/agent/.docker/config.json
+                        """
+                    }
+                }
+            }
+        }
+        
+        // 7. Kaniko로 Docker 이미지 빌드 및 푸시
+        stage('Build and Push Docker Image') {
+            steps {
+                container('kaniko') {
+                    echo 'Kaniko로 Docker 이미지 빌드 및 ECR 푸시 중...'
+                    
+                    withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        script {
+                            try {
+                                sh """
+                                    # AWS 환경변수 설정
+                                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                    export AWS_DEFAULT_REGION=${AWS_REGION}
+                                    
+                                    echo "✅ AWS 환경변수 설정 완료"
+                                    echo "Region: ${AWS_REGION}"
+                                    echo "Registry: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                                    
+                                    # 빌드 전 파일 확인
+                                    echo "=== 빌드 전 파일 확인 ==="
+                                    ls -la
+                                    ls -la build/libs/ || echo "build/libs 없음"
+                                    
+                                    # Kaniko executor로 이미지 빌드 및 푸시
+                                    /kaniko/executor \\
+                                        --context=. \\
+                                        --dockerfile=ci/dev/Dockerfile \\
+                                        --destination=${env.DOCKER_IMAGE_NAME} \\
+                                        --destination=${env.LATEST_IMAGE_NAME} \\
+                                        --cache=false \\
+                                        --verbosity=info \\
+                                        --cleanup
+                                """
+                                
+                                echo "✅ 이미지 빌드 및 푸시 완료!"
+                                echo "📦 이미지: ${env.DOCKER_IMAGE_NAME}"
+                                echo "📦 Latest: ${env.LATEST_IMAGE_NAME}"
+                            } catch (Exception e) {
+                                echo "❌ Docker 이미지 빌드 및 푸시 실패: ${e.getMessage()}"
+                                echo "🛑 Docker 빌드 실패로 인해 파이프라인을 중단합니다."
+                                error("Docker 이미지 빌드 실패로 파이프라인 중단")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 8. GitOps - 헬름 차트 업데이트 및 푸시
+        stage('Update GitOps Repository') {
+            steps {
+                container('openjdk') {
+                    echo 'GitOps 리포지토리 업데이트 중...'
+                    
+                    withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        string(credentialsId: 'github-pat', variable: 'GITHUB_TOKEN')
+                    ]) {
+                        script {
+                            try {
+                                sh '''
+                                    # 작업 디렉토리 생성
+                                    mkdir -p /tmp/gitops
+                                    cd /tmp/gitops
+                                    
+                                    echo "🔄 GitOps 리포지토리 클론 중..."
+                                    # GitHub 토큰을 사용하여 클론 (토큰 마스킹)
+                                    git clone https://x-access-token:${GITHUB_TOKEN}@github.com/100-hours-a-week/8-pumati-cloud.git .
+                                    
+                                    # Git 설정 (로컬 리포지토리에서만)
+                                    git config user.name "Jenkins CI"
+                                    git config user.email "jenkins@pumati.com"
+                                    
+                                    # jacky 브랜치로 체크아웃 (헬름 차트가 있는 브랜치)
+                                    echo "🔄 jacky 브랜치로 체크아웃 중..."
+                                    git checkout jacky
+                                    
+                                    # 현재 브랜치 확인
+                                    git branch -a
+                                    git status
+                                    
+                                    # values.yaml 파일 경로 확인
+                                    echo "📁 헬름 차트 구조 확인..."
+                                    find . -name "values.yaml" -type f
+                                    ls -la aws/dev/gitops/helm/backend/ || echo "백엔드 헬름 디렉토리 확인 중..."
+                                '''
+                                
+                                // 이미지 태그 정보 설정
+                                def newImageTag = "${env.IMAGE_TAG}"
+                                def fullImageName = "${env.DOCKER_IMAGE_NAME}"
+                                
+                                sh """
+                                    cd /tmp/gitops
+                                    
+                                    # values.yaml 파일 경로 설정 (backend 디렉토리 내)
+                                    VALUES_FILE="aws/dev/gitops/helm/backend/values.yaml"
+                                    
+                                    if [ -f "\$VALUES_FILE" ]; then
+                                        echo "📝 values.yaml 파일 발견: \$VALUES_FILE"
+                                        echo "현재 내용:"
+                                        cat "\$VALUES_FILE"
+                                        
+                                        echo ""
+                                        echo "🔄 이미지 태그 업데이트 중..."
+                                        echo "새 이미지: ${fullImageName}"
+                                        echo "새 태그: ${newImageTag}"
+                                        
+                                        # 백업 생성
+                                        cp "\$VALUES_FILE" "\$VALUES_FILE.backup"
+                                        
+                                        # yq가 없으므로 sed를 사용하여 이미지 태그 업데이트
+                                        # image.tag 또는 tag 필드 업데이트
+                                        if grep -q "tag:" "\$VALUES_FILE"; then
+                                            # tag: 형태로 되어 있는 경우
+                                            sed -i "s|tag:.*|tag: \"${newImageTag}\"|g" "\$VALUES_FILE"
+                                        elif grep -q "image:" "\$VALUES_FILE"; then
+                                            # image: 형태로 되어 있는 경우 (전체 이미지 경로)
+                                            sed -i "s|image:.*|image: \"${fullImageName}\"|g" "\$VALUES_FILE"
+                                        else
+                                            echo "⚠️ 이미지 태그 필드를 찾을 수 없습니다. 파일에 추가합니다."
+                                            echo "" >> "\$VALUES_FILE"
+                                            echo "# Updated by Jenkins CI/CD" >> "\$VALUES_FILE"
+                                            echo "image:" >> "\$VALUES_FILE"
+                                            echo "  tag: \"${newImageTag}\"" >> "\$VALUES_FILE"
+                                        fi
+                                        
+                                        echo ""
+                                        echo "📝 업데이트된 내용:"
+                                        cat "\$VALUES_FILE"
+                                        
+                                        # Git 변경사항 확인
+                                        echo ""
+                                        echo "📊 Git 변경사항:"
+                                        git diff "\$VALUES_FILE" || true
+                                        
+                                        # 변경사항이 있는지 확인
+                                        if git diff --quiet "\$VALUES_FILE"; then
+                                            echo "ℹ️ 변경사항이 없습니다."
+                                        else
+                                            echo "✅ 변경사항 발견, 커밋 및 푸시 진행..."
+                                            
+                                            # Git add, commit, push
+                                            git add "\$VALUES_FILE"
+                                            git commit -m "🚀 Update backend image tag to ${newImageTag}
+                                            
+                                            - Image: ${fullImageName}
+                                            - Build: ${BUILD_NUMBER}
+                                            - Branch: ${BRANCH_NAME}
+                                            - Commit: \$(git -C /home/jenkins/agent rev-parse --short HEAD 2>/dev/null || echo 'unknown')
+                                            - Updated by Jenkins CI/CD"
+                                            
+                                            # 원격 리포지토리에 푸시 (jacky 브랜치로)
+                                            git push origin jacky
+                                            
+                                            echo "🎉 GitOps 리포지토리 업데이트 완료!"
+                                        fi
+                                    else
+                                        echo "❌ values.yaml 파일을 찾을 수 없습니다: \$VALUES_FILE"
+                                        echo "📁 사용 가능한 파일들:"
+                                        find . -name "*.yaml" -o -name "*.yml" | head -20
+                                        exit 1
+                                    fi
+                                """
+                                
+                            } catch (Exception e) {
+                                echo "❌ GitOps 업데이트 실패: ${e.getMessage()}"
+                                echo "🔍 디버그 정보:"
+                                sh '''
+                                    cd /tmp/gitops 2>/dev/null || echo "gitops 디렉토리 없음"
+                                    pwd
+                                    ls -la
+                                    git status 2>/dev/null || echo "Git 상태 확인 불가"
+                                '''
+                                // GitOps 실패는 전체 빌드를 실패시키지 않음
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 9. 빌드 정리
+        stage('Cleanup') {
+            steps {
+                container('openjdk') {
+                    echo '빌드 정리 중...'
+                    sh '''
+                        # 🔥 이제 여기서 .env 파일 정리
+                        rm -f .env || true
+                        rm -rf /home/jenkins/agent/.docker || true
+                        echo "정리 완료"
+                    '''
+                }
+            }
+        }
+    }
+    
+    // 빌드 후 처리
+    post {
+        always {
+            script {
+                echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
+                
+                // Jenkins 워크스페이스 정리
+                try {
+                    deleteDir()
+                    echo '작업 공간 정리 완료'
+                } catch (Exception e) {
+                    echo "작업 공간 정리 중 오류 (무시됨): ${e.getMessage()}"
+                }
+            }
+        }
+        
+        success {
+            script {
+                echo '✅ 빌드 및 GitOps 업데이트 성공! 🎉'
+                echo "📦 Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
+                echo "🏷️  이미지 태그: ${env.IMAGE_TAG}"
+                echo "📍 ECR 리포지토리: ${ECR_REPOSITORY}"
+                echo "🌍 AWS 리전: ${AWS_REGION}"
+                echo "🔄 GitOps: ArgoCD가 자동으로 배포를 시작합니다"
+                echo "📋 헬름 차트: aws/dev/gitops/helm/backend/values.yaml 업데이트됨"
+            }
+        }
+        
+        failure {
+            script {
+                echo '❌ 빌드 실패!'
+                echo "🔍 로그를 확인하여 실패 원인을 파악하세요."
+                echo "🌐 빌드 URL: ${env.BUILD_URL}"
+            }
+        }
+        
+        unstable {
+            script {
+                echo '⚠️ 빌드 불안정'
+                echo "📊 테스트에서 일부 실패가 발생했습니다."
+            }
+        }
+    }
+}

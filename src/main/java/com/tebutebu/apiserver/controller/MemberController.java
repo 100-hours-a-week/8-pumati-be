@@ -4,8 +4,9 @@ import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
-import com.tebutebu.apiserver.service.MemberService;
-import com.tebutebu.apiserver.service.ProjectService;
+import com.tebutebu.apiserver.service.member.MemberService;
+import com.tebutebu.apiserver.service.project.ProjectService;
+import com.tebutebu.apiserver.service.team.TeamService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -26,6 +27,8 @@ public class MemberController {
     private final MemberService memberService;
 
     private final ProjectService projectService;
+
+    private final TeamService teamService;
 
     @GetMapping("/{memberId}")
     public ResponseEntity<?> get(@PathVariable("memberId") Long memberId) {

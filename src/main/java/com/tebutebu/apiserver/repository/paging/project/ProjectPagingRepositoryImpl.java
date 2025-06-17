@@ -8,7 +8,7 @@ import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.domain.QProject;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
-import com.tebutebu.apiserver.dto.snapshot.response.RankingItemDTO;
+import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;

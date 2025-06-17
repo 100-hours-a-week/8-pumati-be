@@ -6,7 +6,9 @@ import com.tebutebu.apiserver.domain.MemberRole;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.util.JWTUtil;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.log4j.Log4j2;
@@ -21,6 +23,11 @@ import java.util.Map;
 public class JWTCheckFilter extends OncePerRequestFilter {
 
     @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
+    @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
 
         if (request.getMethod().equals("OPTIONS")) {
@@ -33,7 +40,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         }
 
         if (request.getMethod().equals("GET")) {
-            if (path.equals("/") || path.equals("/docs") || path.startsWith("/api/oauth/")
+            if (path.equals("/api/actuator/health") || path.startsWith("/api/oauth/")
                     || path.startsWith("/api/teams") || path.startsWith("/api/projects") || path.startsWith("/api/comments")) {
                 return true;
             }
@@ -53,6 +60,13 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             }
         }
 
+        if (request.getMethod().equals("PATCH")) {
+            if (path.matches("^/api/teams/\\d+/badge-image-url$") ||
+                    path.matches("^/api/teams/\\d+/ai-badge-status$")) {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -63,7 +77,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             // Bearer accessToken...
             String accessToken = authHeaderStr.substring(7);
             Map<String, Object> claims = JWTUtil.validateToken(accessToken);
-            log.info("JWT claims: " + claims);
+            log.info("JWT claims: {}", claims);
 
             Long memberId = ((Number) claims.get("id")).longValue();
 
@@ -93,17 +107,17 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                     .profileImageUrl(profileImageUrl)
                     .role(memberRole)
                     .build();
-            log.info("Member: " + member);
+            log.info("Member: {}", member);
 
             CustomOAuth2User customOAuth2User = new CustomOAuth2User(member);
-            log.info("CustomOAuth2User: " + customOAuth2User);
+            log.info("CustomOAuth2User: {}", customOAuth2User);
 
             UsernamePasswordAuthenticationToken authenticationToken
-                    = new UsernamePasswordAuthenticationToken(customOAuth2User, "", customOAuth2User.getAuthorities());
+                    = new UsernamePasswordAuthenticationToken(customOAuth2User, null, customOAuth2User.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
             filterChain.doFilter(request, response);
-        } catch(Exception e) {
+        } catch (JwtException | IllegalArgumentException e) {
             log.warn("Invalid JWT: {}", e.getMessage());
             SecurityContextHolder.clearContext();
 
@@ -111,6 +125,9 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             response.setContentType("application/json; charset=UTF-8");
             String json = new Gson().toJson(Map.of("message", "invalidToken"));
             response.getWriter().write(json);
+        } catch (ServletException e) {
+            throw new RuntimeException(e);
         }
     }
+
 }
