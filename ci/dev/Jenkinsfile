@@ -442,70 +442,31 @@ EOF
                         ]) {
                             sh '''
                                 echo "🔧 Kaniko 환경 확인 중..."
-                                echo "작업 디렉토리: $(pwd)"
-                                echo "Kaniko 버전:"
-                                /kaniko/executor version || echo "버전 정보 없음"
                                 
                                 # 공유 디렉토리 확인
                                 echo "📁 공유 디렉토리 상태:"
                                 ls -la /shared/
-                                ls -la /shared/kaniko-config/ || echo "kaniko-config 디렉토리 없음"
+                                ls -la /shared/project/ || echo "project 디렉토리 없음"
                                 
-                                # 실제 소스 코드가 있는 디렉토리 찾기
-                                echo "📂 Jenkins 작업 디렉토리 구조 확인:"
-                                ls -la /workspace/workspace/
-                                
-                                # 실제 프로젝트 디렉토리로 이동
-                                PROJECT_DIR_BASE="/workspace/workspace"
-                                PROJECT_DIR=$(find "$PROJECT_DIR_BASE" -maxdepth 1 -name "8-pumati-be_*" -type d | head -1)
-                                
-                                if [ -n "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR" ]; then
-                                    cd "$PROJECT_DIR"
-                                    echo "✅ 프로젝트 디렉토리로 이동: $(pwd)"
+                                # 공유 볼륨의 프로젝트로 이동 (중요!)
+                                if [ -d "/shared/project" ]; then
+                                    cd /shared/project
+                                    echo "✅ 공유 볼륨 프로젝트로 이동: $(pwd)"
                                 else
-                                    echo "❌ 프로젝트 디렉토리를 찾을 수 없습니다: $PROJECT_DIR"
-                                    echo "사용 가능한 디렉토리:"
-                                    ls -la /workspace/workspace/
+                                    echo "❌ 공유 볼륨에 프로젝트가 없습니다!"
                                     exit 1
                                 fi
                                 
+                                # 현재 디렉토리 확인
                                 echo "📋 현재 디렉토리 내용:"
                                 ls -la
                                 
-                                # Docker config 복사 및 설정
-                                echo "🔐 ECR 인증 정보 설정 중..."
-                                mkdir -p /kaniko/.docker
-                                
-                                if [ -f "/shared/kaniko-config/config.json" ]; then
-                                    cp /shared/kaniko-config/config.json /kaniko/.docker/config.json
-                                    echo "✅ 인증 파일 복사 완료"
-                                    ls -la /kaniko/.docker/
-                                else
-                                    echo "❌ 인증 파일을 찾을 수 없습니다."
-                                    echo "공유 디렉토리 내용:"
-                                    find /shared -type f -name "*.json" 2>/dev/null || echo "JSON 파일 없음"
-                                    exit 1
-                                fi
-                                
-                                # Dockerfile 존재 확인
-                                DOCKERFILE_PATH="ci/dev/Dockerfile"
-                                if [ ! -f "$DOCKERFILE_PATH" ]; then
-                                    echo "❌ Dockerfile을 찾을 수 없습니다: $DOCKERFILE_PATH"
-                                    echo "📁 현재 디렉토리 구조:"
-                                    find . -name "Dockerfile*" -type f 2>/dev/null || echo "Dockerfile 없음"
-                                    echo "📁 ci 디렉토리 확인:"
-                                    ls -la ci/ 2>/dev/null || echo "ci 디렉토리 없음"
-                                    echo "📁 ci/dev 디렉토리 확인:"
-                                    ls -la ci/dev/ 2>/dev/null || echo "ci/dev 디렉토리 없음"
-                                    exit 1
-                                fi
-                                
-                                echo "✅ Dockerfile 확인 완료: $DOCKERFILE_PATH"
-                                
-                                # 추가 필수 파일 확인
+                                # 필수 파일들 확인
                                 echo "📋 빌드에 필요한 파일들 확인:"
                                 echo "- build.gradle:"
                                 ls -la build.gradle && echo "  ✅ 존재" || echo "  ❌ 없음"
+                                echo "- Dockerfile:"
+                                ls -la ci/dev/Dockerfile && echo "  ✅ 존재" || echo "  ❌ 없음"
                                 echo "- .env 파일:"
                                 ls -la .env && echo "  ✅ 존재" || echo "  ⚠️ 없음 (선택적)"
                                 echo "- JAR 파일:"
@@ -521,21 +482,38 @@ EOF
                                     echo "✅ .env 파일 복사 완료"
                                 fi
                                 
+                                # Docker config 설정
+                                echo "🔐 ECR 인증 정보 설정 중..."
+                                mkdir -p /kaniko/.docker
+                                
+                                if [ -f "/shared/kaniko-config/config.json" ]; then
+                                    cp /shared/kaniko-config/config.json /kaniko/.docker/config.json
+                                    echo "✅ 인증 파일 복사 완료"
+                                else
+                                    echo "❌ 인증 파일을 찾을 수 없습니다."
+                                    exit 1
+                                fi
+                                
+                                # Dockerfile 경로 확인
+                                DOCKERFILE_PATH="ci/dev/Dockerfile"
+                                if [ ! -f "$DOCKERFILE_PATH" ]; then
+                                    echo "❌ Dockerfile을 찾을 수 없습니다: $DOCKERFILE_PATH"
+                                    exit 1
+                                fi
+                                
                                 # Kaniko를 사용한 이미지 빌드 및 푸시
                                 echo "🔨 Kaniko 이미지 빌드 시작..."
                                 echo "빌드 컨텍스트: $(pwd)"
                                 echo "Dockerfile: $DOCKERFILE_PATH"
-                                echo "이미지 태그: $DOCKER_IMAGE_NAME"
-                                echo "Latest 태그: $LATEST_IMAGE_NAME"
                                 
-                                /kaniko/executor \\
-                                    --dockerfile="$DOCKERFILE_PATH" \\
-                                    --context=dir://$(pwd) \\
-                                    --destination="$DOCKER_IMAGE_NAME" \\
-                                    --destination="$LATEST_IMAGE_NAME" \\
-                                    --cache=true \\
-                                    --cache-ttl=24h \\
-                                    --verbosity=info \\
+                                /kaniko/executor \
+                                    --dockerfile="$DOCKERFILE_PATH" \
+                                    --context=dir:///shared/project \
+                                    --destination="$DOCKER_IMAGE_NAME" \
+                                    --destination="$LATEST_IMAGE_NAME" \
+                                    --cache=true \
+                                    --cache-ttl=24h \
+                                    --verbosity=info \
                                     --log-format=text
                                 
                                 echo "✅ Kaniko 이미지 빌드 및 푸시 완료"
