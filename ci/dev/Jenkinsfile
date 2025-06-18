@@ -1,47 +1,30 @@
 pipeline {
-    // 파이프라인 전체를 Kubernetes Pod에서 실행
+    // 파이프라인 전체를 Docker 컨테이너에서 실행
     agent {
         kubernetes {
             yaml '''
 apiVersion: v1
 kind: Pod
 spec:
-  # 노드 셀렉터 제거 - 어피니티로만 노드 선택 (유연한 스케줄링)
-  # nodeSelector:
-  #   node-type: "application"
-  
-  # 노드 선택 우선순위 설정
+  # system 노드에 우선 배치되도록 노드 셀렉터 설정
+  nodeSelector:
+    node-type: "system"
+  # system 노드가 없을 경우를 대비한 어피니티 설정
   affinity:
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
-      # 1순위: application 타입 노드 (카펜터 노드풀)
       - weight: 100
         preference:
           matchExpressions:
           - key: node-type
             operator: In
-            values: ["application"]
-      # 2순위: system 타입 노드 (기존 노드)
-      - weight: 80
-        preference:
-          matchExpressions:
-          - key: node-type
-            operator: In
             values: ["system"]
-      # 3순위: t3.medium/t3a.medium 인스턴스
       - weight: 50
         preference:
           matchExpressions:
           - key: kubernetes.io/instance-type
             operator: In
             values: ["t3.medium", "t3a.medium"]
-      # 4순위: 기타 적절한 크기의 인스턴스 (fallback)
-      - weight: 30
-        preference:
-          matchExpressions:
-          - key: kubernetes.io/instance-type
-            operator: In
-            values: ["t3.large", "t3a.large"]
   securityContext:
     runAsUser: 1000
     runAsGroup: 1000
@@ -57,19 +40,17 @@ spec:
     # t3.medium 스펙에 최적화된 리소스 설정 - Java 빌드용
     resources:
       requests:
-        memory: "2Gi"
-        cpu: "1000m"
+        memory: "1Gi"      # 1GB 요청 (Gradle 빌드에 충분)
+        cpu: "500m"        # 0.5 CPU 요청
       limits:
-        memory: "3Gi"
-        cpu: "1500m"
+        memory: "2.5Gi"    # 2.5GB 제한 (t3.medium 4GB 중 여유있게)
+        cpu: "1500m"       # 1.5 CPU 제한 (t3.medium 2 vCPU 중 대부분)
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
-    - name: shared-data
-      mountPath: /shared
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:v1.9.0-debug
-    command: [cat]
+    image: gcr.io/kaniko-project/executor:debug
+    command: [/busybox/cat]
     tty: true
     securityContext:
       runAsUser: 0
@@ -77,16 +58,14 @@ spec:
     # t3.medium 스펙에 최적화된 리소스 설정 - Docker 빌드용
     resources:
       requests:
-        memory: "1Gi"      # 1GB 요청 (이미지 빌드용)
-        cpu: "500m"        # 0.5 CPU 요청
+        memory: "512Mi"    # 512MB 요청 (Docker 빌드 기본)
+        cpu: "300m"        # 0.3 CPU 요청
       limits:
-        memory: "3Gi"      # 3GB 제한 (이미지 빌드에 충분)
-        cpu: "1500m"       # 1.5 CPU 제한
+        memory: "1.5Gi"    # 1.5GB 제한 (Docker 빌드에 충분)
+        cpu: "800m"        # 0.8 CPU 제한
     volumeMounts:
     - name: workspace-volume
-      mountPath: /workspace
-    - name: shared-data
-      mountPath: /shared
+      mountPath: /home/jenkins/agent
   - name: aws-cli
     image: cimg/aws:2023.05
     command: [cat]
@@ -105,12 +84,8 @@ spec:
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
-    - name: shared-data
-      mountPath: /shared
   volumes:
   - name: workspace-volume
-    emptyDir: {}
-  - name: shared-data
     emptyDir: {}
             '''
         }
@@ -128,8 +103,13 @@ spec:
         // Gradle 홈 디렉토리 설정 (권한 문제 해결)
         GRADLE_USER_HOME = '/home/jenkins/agent/.gradle'
         GRADLE_OPTS = '-Dorg.gradle.daemon=false -Dorg.gradle.caching=false'
+        
+        // Java 버전 설정 (시스템 기본 Java 사용)
+        // Jenkins 서버에 Java 21이 설치되어 있어야 함
+        // JAVA_HOME = tool name: 'jdk-21', type: 'jdk'
+        // PATH = "${JAVA_HOME}/bin:${PATH}"
     }
-
+    
     stages {
         // 1. 소스 코드 체크아웃
         stage('Checkout') {
@@ -137,7 +117,7 @@ spec:
                 container('openjdk') {
                     echo '소스 코드 체크아웃 완료'
                     script {
-                        // Git 정보 확인
+                        // 더 간단하고 안전한 Git 명령어 사용
                         try {
                             def gitCommit = sh(
                                 script: 'git rev-parse HEAD',
@@ -173,7 +153,6 @@ spec:
                     echo '환경 설정 파일 및 AWS 정보 준비 중...'
                     
                     script {
-                        // AWS 계정 ID로 Docker 이미지 이름 설정
                         withCredentials([string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID')]) {
                             env.DOCKER_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}"
                             env.LATEST_IMAGE_NAME = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
@@ -182,34 +161,9 @@ spec:
                         }
                     }
                     
-                    // Jenkins Credentials에서 .env 파일 가져와서 ci/dev/ 디렉토리에 복사
                     withCredentials([file(credentialsId: 'be-env-local', variable: 'ENV_FILE')]) {
-                        sh '''
-                            # ci/dev/ 디렉토리 생성 (혹시 없을 경우를 대비)
-                            mkdir -p ci/dev/
-                            
-                            # Jenkins credentials에서 가져온 .env 파일을 적절한 위치에 복사
-                            cp $ENV_FILE ci/dev/.env
-                            
-                            # .env 파일이 제대로 복사되었는지 확인
-                            if [ -f "ci/dev/.env" ]; then
-                                FILE_SIZE=$(wc -l < ci/dev/.env)
-                                echo "✅ .env 파일 준비 완료"
-                                echo "파일 크기: $FILE_SIZE 줄"
-                                
-                                # .env 파일이 비어있는지 확인
-                                if [ "$FILE_SIZE" -eq 0 ]; then
-                                    echo "⚠️ .env 파일이 비어있습니다!"
-                                    echo "Jenkins Credentials 'be-env-local'을 확인해주세요."
-                                    echo "빌드는 계속 진행하지만 환경 변수가 없을 수 있습니다."
-                                else
-                                    echo "✅ .env 파일에 $FILE_SIZE 개의 환경 변수가 있습니다."
-                                fi
-                            else
-                                echo "❌ .env 파일 준비 실패"
-                                exit 1
-                            fi
-                        '''
+                        sh 'cp $ENV_FILE .env'
+                        sh 'ls -la .env'
                     }
                 }
             }
@@ -236,6 +190,7 @@ spec:
                             echo '✅ gradlew 실행 권한 부여 완료'
                         } catch (Exception e) {
                             echo "❌ gradlew 권한 설정 실패: ${e.getMessage()}"
+                            echo "🛑 Gradle 설정 실패로 인해 파이프라인을 중단합니다."
                             error("Gradle 권한 설정 실패로 파이프라인 중단")
                         }
                         
@@ -244,6 +199,7 @@ spec:
                             echo '✅ Gradle 설정이 정상적으로 완료되었습니다.'
                         } catch (Exception e) {
                             echo "❌ Gradle 버전 확인 실패: ${e.getMessage()}"
+                            echo "🛑 Gradle 설정 실패로 인해 파이프라인을 중단합니다."
                             error("Gradle 설정 실패로 파이프라인 중단")
                         }
                     }
@@ -251,7 +207,65 @@ spec:
             }
         }
         
-        // 4. 애플리케이션 빌드 (수정)
+        // 4. 테스트 실행 (선택적)
+        stage('Test') {
+            when {
+                // PR이나 main 브랜치에서만 테스트 실행
+                anyOf {
+                    branch 'dev'
+                    changeRequest()
+                }
+            }
+            steps {
+                container('openjdk') {
+                    echo '단위 테스트 실행 중...'
+                    script {
+                        try {
+                            // 환경 변수 로드 및 테스트 실행
+                            sh '''
+                                # Gradle 홈 디렉토리 확인
+                                export GRADLE_USER_HOME=/home/jenkins/agent/.gradle
+                                mkdir -p $GRADLE_USER_HOME
+                                
+                                if [ -f .env ]; then
+                                    echo "환경 파일 발견, 로드 중..."
+                                    set -a && . ./.env && set +a
+                                else
+                                    echo "환경 파일이 없습니다."
+                                fi
+                                
+                                echo "테스트 실행 시작..."
+                                echo "GRADLE_USER_HOME: $GRADLE_USER_HOME"
+                                ./gradlew test --no-daemon --stacktrace --gradle-user-home=$GRADLE_USER_HOME
+                            '''
+                            echo "✅ 모든 테스트가 성공적으로 통과했습니다."
+                        } catch (Exception e) {
+                            echo "❌ 테스트 실행 중 오류 발생: ${e.getMessage()}"
+                            echo "🛑 테스트 실패로 인해 파이프라인을 중단합니다."
+                            error("테스트 실패로 파이프라인 중단")
+                        }
+                    }
+                }
+            }
+            
+            // 테스트 결과 발행
+            post {
+                always {
+                    container('openjdk') {
+                        script {
+                            try {
+                                junit testResults: 'build/test-results/test/*.xml', allowEmptyResults: true
+                                echo '테스트 결과 발행 완료'
+                            } catch (Exception e) {
+                                echo "테스트 결과 발행 실패: ${e.getMessage()}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 5. 애플리케이션 빌드
         stage('Build Application') {
             steps {
                 container('openjdk') {
@@ -262,99 +276,13 @@ spec:
                                 export GRADLE_USER_HOME=/home/jenkins/agent/.gradle
                                 ./gradlew clean build -x test --no-daemon --stacktrace --gradle-user-home=$GRADLE_USER_HOME
                             '''
-                            
-                            // 빌드 결과물을 공유 볼륨으로 복사
-                            sh '''
-                                echo "=== 빌드 결과물 공유 볼륨으로 복사 ==="
-                                
-                                # 공유 디렉토리 생성
-                                mkdir -p /shared/build-artifacts
-                                
-                                # JAR 파일 복사
-                                if ls build/libs/*.jar 1> /dev/null 2>&1; then
-                                    cp build/libs/*.jar /shared/build-artifacts/
-                                    echo "✅ JAR 파일 복사 완료:"
-                                    ls -la /shared/build-artifacts/
-                                else
-                                    echo "❌ JAR 파일을 찾을 수 없습니다!"
-                                    exit 1
-                                fi
-                                
-                                # 전체 프로젝트를 공유 볼륨으로 복사 (Dockerfile 접근을 위해)
-                                echo "=== 프로젝트 파일 공유 볼륨으로 복사 ==="
-                                mkdir -p /shared/project
-                                
-                                # 필수 파일들만 선택적으로 복사
-                                cp -r src/ /shared/project/ || true
-                                cp -r ci/ /shared/project/ || true
-                                cp build.gradle /shared/project/ || true
-                                cp settings.gradle /shared/project/ || true
-                                cp gradlew /shared/project/ || true
-                                cp gradlew.bat /shared/project/ || true
-                                cp -r gradle/ /shared/project/ || true
-                                cp .dockerignore /shared/project/ || true
-                                
-                                # 빌드 결과물 복사
-                                mkdir -p /shared/project/build/libs/
-                                cp build/libs/*.jar /shared/project/build/libs/
-                                
-                                echo "✅ 프로젝트 파일 복사 완료"
-                                ls -la /shared/project/
-                            '''
-                            
+                            sh 'ls -la build/libs/'
                             echo '✅ 애플리케이션 빌드가 성공적으로 완료되었습니다.'
                         } catch (Exception e) {
                             echo "❌ 애플리케이션 빌드 실패: ${e.getMessage()}"
+                            echo "🛑 빌드 실패로 인해 파이프라인을 중단합니다."
                             error("애플리케이션 빌드 실패로 파이프라인 중단")
                         }
-                    }
-                }
-            }
-        }
-        
-        // 5. Docker 빌드 준비 (파일 확인)
-        stage('Prepare for Docker Build') {
-            steps {
-                container('openjdk') {
-                    echo 'Docker 빌드를 위한 파일 준비 및 확인 중...'
-                    script {
-                        sh '''
-                            echo "=== Docker 빌드 준비 ==="
-                            echo "현재 디렉토리: $(pwd)"
-                            
-                            # 필요한 파일들 확인
-                            echo "📋 필수 파일 확인:"
-                            echo "- build.gradle:"
-                            ls -la build.gradle && echo "  ✅ 존재" || echo "  ❌ 없음"
-                            
-                            echo "- Dockerfile:"
-                            ls -la ci/dev/Dockerfile && echo "  ✅ 존재" || echo "  ❌ 없음"
-                            
-                            echo "- .env 파일:"
-                            ls -la ci/dev/.env && echo "  ✅ 존재" || echo "  ❌ 없음"
-                            
-                            echo "- JAR 파일:"
-                            ls -la build/libs/*.jar && echo "  ✅ 존재" || echo "  ❌ 없음"
-                            
-                            echo "- src 디렉토리:"
-                            ls -la src/ && echo "  ✅ 존재" || echo "  ❌ 없음"
-                            
-                            # .env 파일을 루트 디렉토리에 복사 (Dockerfile에서 사용하기 위해)
-                            if [ -f "ci/dev/.env" ]; then
-                                echo "📁 .env 파일을 루트 디렉토리에 복사 중..."
-                                cp ci/dev/.env .env
-                                echo "✅ .env 파일 복사 완료"
-                                echo "=== 환경 변수 확인 ==="
-                                echo "Spring Profile: $(grep SPRING_PROFILES_ACTIVE .env || echo '설정되지 않음')"
-                                echo "DB URL: $(grep -E '^(DB_|DATABASE_)' .env | head -1 || echo '설정되지 않음')"
-                                echo "========================"
-                            else
-                                echo "⚠️ .env 파일이 없습니다. 빌드는 계속 진행됩니다."
-                            fi
-                            
-                            echo "✅ Docker 빌드 준비 완료"
-                            echo "🐳 Kaniko를 사용하여 이미지 빌드를 수행합니다"
-                        '''
                     }
                 }
             }
@@ -378,151 +306,64 @@ spec:
                             aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}
                         """
                         
-                        echo '✅ ECR 설정 완료'
+                        // Kaniko용 ECR 인증 설정 파일 생성
+                        sh """
+                            mkdir -p /home/jenkins/agent/.docker
+                            aws ecr get-login-password --region ${AWS_REGION} | \\
+                            echo "{\\"auths\\": {\\"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com\\": {\\"auth\\": \\"\$(cat - | base64 -w0)\\"}}}" > /home/jenkins/agent/.docker/config.json
+                        """
                     }
                 }
             }
         }
         
-        // 7. Kaniko를 사용한 Docker 이미지 빌드 및 푸시
+        // 7. Kaniko로 Docker 이미지 빌드 및 푸시
         stage('Build and Push Docker Image') {
             steps {
-                script {
-                    // ECR 인증 정보 준비
-                    container('aws-cli') {
-                        echo 'ECR 인증 정보 준비 중...'
-                        withCredentials([
-                            string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
-                            aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
-                        ]) {
-                            // ECR 로그인 토큰 생성 및 공유 볼륨에 Docker config 생성
-                            sh '''
-                                # ECR 로그인 토큰 생성
-                                echo "🔐 ECR 로그인 토큰 생성 중..."
-                                ECR_TOKEN=$(aws ecr get-login-password --region $AWS_REGION)
-                                ECR_REGISTRY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
-                                
-                                echo "Registry: $ECR_REGISTRY"
-                                echo "토큰 길이: ${#ECR_TOKEN} 문자"
-                                
-                                # 공유 볼륨에 Kaniko용 Docker config 생성
-                                echo "📁 Kaniko 인증 설정 파일 생성 중..."
-                                mkdir -p /shared/kaniko-config
-                                
-                                cat > /shared/kaniko-config/config.json << EOF
-{
-    "auths": {
-        "$ECR_REGISTRY": {
-            "username": "AWS",
-            "password": "$ECR_TOKEN"
-        }
-    }
-}
-EOF
-                                
-                                # 생성된 파일 확인
-                                echo "✅ 인증 파일 생성 완료"
-                                ls -la /shared/kaniko-config/
-                                echo "config.json 파일 크기: $(wc -c < /shared/kaniko-config/config.json) bytes"
-                                
-                                # 파일 내용 확인 (보안상 일부만)
-                                echo "config.json 구조 확인:"
-                                head -3 /shared/kaniko-config/config.json
-                            '''
-                        }
-                    }
+                container('kaniko') {
+                    echo 'Kaniko로 Docker 이미지 빌드 및 ECR 푸시 중...'
                     
-                    // Kaniko 컨테이너에서 빌드 및 푸시 수행
-                    container('kaniko') {
-                        echo 'Kaniko를 사용한 Docker 이미지 빌드 및 ECR 푸시 중...'
-                        
-                        withCredentials([
-                            string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
-                            file(credentialsId: 'be-env-local', variable: 'ENV_FILE')
-                        ]) {
-                            sh '''
-                                echo "🔧 Kaniko 환경 확인 중..."
+                    withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        script {
+                            try {
+                                sh """
+                                    # AWS 환경변수 설정
+                                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                                    export AWS_DEFAULT_REGION=${AWS_REGION}
+                                    
+                                    echo "✅ AWS 환경변수 설정 완료"
+                                    echo "Region: ${AWS_REGION}"
+                                    echo "Registry: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                                    
+                                    # 빌드 전 파일 확인
+                                    echo "=== 빌드 전 파일 확인 ==="
+                                    ls -la
+                                    ls -la build/libs/ || echo "build/libs 없음"
+                                    
+                                    # Kaniko executor로 이미지 빌드 및 푸시
+                                    /kaniko/executor \\
+                                        --context=. \\
+                                        --dockerfile=ci/dev/Dockerfile \\
+                                        --destination=${env.DOCKER_IMAGE_NAME} \\
+                                        --destination=${env.LATEST_IMAGE_NAME} \\
+                                        --cache=false \\
+                                        --verbosity=info \\
+                                        --cleanup
+                                """
                                 
-                                # 공유 디렉토리 확인
-                                echo "📁 공유 디렉토리 상태:"
-                                ls -la /shared/
-                                ls -la /shared/project/ || echo "project 디렉토리 없음"
-                                
-                                # 공유 볼륨의 프로젝트로 이동 (중요!)
-                                if [ -d "/shared/project" ]; then
-                                    cd /shared/project
-                                    echo "✅ 공유 볼륨 프로젝트로 이동: $(pwd)"
-                                else
-                                    echo "❌ 공유 볼륨에 프로젝트가 없습니다!"
-                                    exit 1
-                                fi
-                                
-                                # 현재 디렉토리 확인
-                                echo "📋 현재 디렉토리 내용:"
-                                ls -la
-                                
-                                # 필수 파일들 확인
-                                echo "📋 빌드에 필요한 파일들 확인:"
-                                echo "- build.gradle:"
-                                ls -la build.gradle && echo "  ✅ 존재" || echo "  ❌ 없음"
-                                echo "- Dockerfile:"
-                                ls -la ci/dev/Dockerfile && echo "  ✅ 존재" || echo "  ❌ 없음"
-                                echo "- .env 파일:"
-                                ls -la .env && echo "  ✅ 존재" || echo "  ⚠️ 없음 (선택적)"
-                                echo "- JAR 파일:"
-                                ls -la build/libs/*.jar && echo "  ✅ 존재" || echo "  ❌ 없음"
-                                echo "- src 디렉토리:"
-                                ls -la src/ && echo "  ✅ 존재" || echo "  ❌ 없음"
-                                
-                                # .env 파일 복사 (필요한 경우)
-                                if [ ! -f ".env" ] && [ -f "$ENV_FILE" ]; then
-                                    echo "📁 .env 파일 복사 중..."
-                                    cp $ENV_FILE .env
-                                    chmod 600 .env
-                                    echo "✅ .env 파일 복사 완료"
-                                fi
-                                
-                                # Docker config 설정
-                                echo "🔐 ECR 인증 정보 설정 중..."
-                                mkdir -p /kaniko/.docker
-                                
-                                if [ -f "/shared/kaniko-config/config.json" ]; then
-                                    cp /shared/kaniko-config/config.json /kaniko/.docker/config.json
-                                    echo "✅ 인증 파일 복사 완료"
-                                else
-                                    echo "❌ 인증 파일을 찾을 수 없습니다."
-                                    exit 1
-                                fi
-                                
-                                # Dockerfile 경로 확인
-                                DOCKERFILE_PATH="ci/dev/Dockerfile"
-                                if [ ! -f "$DOCKERFILE_PATH" ]; then
-                                    echo "❌ Dockerfile을 찾을 수 없습니다: $DOCKERFILE_PATH"
-                                    exit 1
-                                fi
-                                
-                                # Kaniko를 사용한 이미지 빌드 및 푸시
-                                echo "🔨 Kaniko 이미지 빌드 시작..."
-                                echo "빌드 컨텍스트: $(pwd)"
-                                echo "Dockerfile: $DOCKERFILE_PATH"
-                                
-                                /kaniko/executor \
-                                    --dockerfile="$DOCKERFILE_PATH" \
-                                    --context=dir:///shared/project \
-                                    --destination="$DOCKER_IMAGE_NAME" \
-                                    --destination="$LATEST_IMAGE_NAME" \
-                                    --cache=true \
-                                    --cache-ttl=24h \
-                                    --verbosity=info \
-                                    --log-format=text
-                                
-                                echo "✅ Kaniko 이미지 빌드 및 푸시 완료"
-                            '''
+                                echo "✅ 이미지 빌드 및 푸시 완료!"
+                                echo "📦 이미지: ${env.DOCKER_IMAGE_NAME}"
+                                echo "📦 Latest: ${env.LATEST_IMAGE_NAME}"
+                            } catch (Exception e) {
+                                echo "❌ Docker 이미지 빌드 및 푸시 실패: ${e.getMessage()}"
+                                echo "🛑 Docker 빌드 실패로 인해 파이프라인을 중단합니다."
+                                error("Docker 이미지 빌드 실패로 파이프라인 중단")
+                            }
                         }
-                        
-                        echo '🎉 이미지 빌드 및 푸시 완료!'
-                        echo "📦 이미지: ${env.DOCKER_IMAGE_NAME}"
-                        echo "📦 Latest: ${env.LATEST_IMAGE_NAME}"
                     }
                 }
             }
@@ -590,20 +431,20 @@ EOF
                                         # 백업 생성
                                         cp "\$VALUES_FILE" "\$VALUES_FILE.backup"
                                         
-                                        # sed를 사용하여 이미지 태그 업데이트
+                                        # yq가 없으므로 sed를 사용하여 이미지 태그 업데이트
                                         # image.tag 또는 tag 필드 업데이트
                                         if grep -q "tag:" "\$VALUES_FILE"; then
                                             # tag: 형태로 되어 있는 경우
-                                            sed -i "s|tag:.*|tag: \\"${newImageTag}\\"|g" "\$VALUES_FILE"
+                                            sed -i "s|tag:.*|tag: \"${newImageTag}\"|g" "\$VALUES_FILE"
                                         elif grep -q "image:" "\$VALUES_FILE"; then
                                             # image: 형태로 되어 있는 경우 (전체 이미지 경로)
-                                            sed -i "s|image:.*|image: \\"${fullImageName}\\"|g" "\$VALUES_FILE"
+                                            sed -i "s|image:.*|image: \"${fullImageName}\"|g" "\$VALUES_FILE"
                                         else
                                             echo "⚠️ 이미지 태그 필드를 찾을 수 없습니다. 파일에 추가합니다."
                                             echo "" >> "\$VALUES_FILE"
                                             echo "# Updated by Jenkins CI/CD" >> "\$VALUES_FILE"
                                             echo "image:" >> "\$VALUES_FILE"
-                                            echo "  tag: \\"${newImageTag}\\"" >> "\$VALUES_FILE"
+                                            echo "  tag: \"${newImageTag}\"" >> "\$VALUES_FILE"
                                         fi
                                         
                                         echo ""
@@ -668,10 +509,9 @@ EOF
                 container('openjdk') {
                     echo '빌드 정리 중...'
                     sh '''
-                        # 환경 파일 정리 (보안)
-                        rm -f ci/dev/.env || true
+                        # 🔥 이제 여기서 .env 파일 정리
                         rm -f .env || true
-                        rm -rf /home/jenkins/agent/.gradle || true
+                        rm -rf /home/jenkins/agent/.docker || true
                         echo "정리 완료"
                     '''
                 }
@@ -682,35 +522,22 @@ EOF
     // 빌드 후 처리
     post {
         always {
-            container('openjdk') {
-                script {
-                    echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
-                    
-                    // Kubernetes Pod 환경에서는 수동으로 정리
-                    try {
-                        sh '''
-                            echo "작업 공간 정리 시작..."
-                            # 민감한 파일들 정리
-                            rm -f ci/dev/.env || true
-                            rm -f .env || true
-                            rm -rf /home/jenkins/agent/.gradle || true
-                            rm -rf /tmp/gitops || true
-                            
-                            # 빌드 결과물 정리 (선택적)
-                            rm -rf build || true
-                            
-                            echo "✅ 작업 공간 정리 완료"
-                        '''
-                    } catch (Exception e) {
-                        echo "작업 공간 정리 중 오류 (무시됨): ${e.getMessage()}"
-                    }
+            script {
+                echo '빌드 파이프라인 완료. 작업 공간을 정리합니다.'
+                
+                // Jenkins 워크스페이스 정리
+                try {
+                    deleteDir()
+                    echo '작업 공간 정리 완료'
+                } catch (Exception e) {
+                    echo "작업 공간 정리 중 오류 (무시됨): ${e.getMessage()}"
                 }
             }
         }
         
         success {
             script {
-                echo '✅ 백엔드 빌드 및 GitOps 업데이트 성공! 🎉'
+                echo '✅ 빌드 및 GitOps 업데이트 성공! 🎉'
                 echo "📦 Docker 이미지: ${env.DOCKER_IMAGE_NAME}"
                 echo "🏷️  이미지 태그: ${env.IMAGE_TAG}"
                 echo "📍 ECR 리포지토리: ${ECR_REPOSITORY}"
@@ -722,7 +549,7 @@ EOF
         
         failure {
             script {
-                echo '❌ 백엔드 빌드 실패!'
+                echo '❌ 빌드 실패!'
                 echo "🔍 로그를 확인하여 실패 원인을 파악하세요."
                 echo "🌐 빌드 URL: ${env.BUILD_URL}"
             }
