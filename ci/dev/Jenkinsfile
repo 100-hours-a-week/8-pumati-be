@@ -251,7 +251,7 @@ spec:
             }
         }
         
-        // 4. 애플리케이션 빌드
+        // 4. 애플리케이션 빌드 (수정)
         stage('Build Application') {
             steps {
                 container('openjdk') {
@@ -262,7 +262,46 @@ spec:
                                 export GRADLE_USER_HOME=/home/jenkins/agent/.gradle
                                 ./gradlew clean build -x test --no-daemon --stacktrace --gradle-user-home=$GRADLE_USER_HOME
                             '''
-                            sh 'ls -la build/libs/'
+                            
+                            // 빌드 결과물을 공유 볼륨으로 복사
+                            sh '''
+                                echo "=== 빌드 결과물 공유 볼륨으로 복사 ==="
+                                
+                                # 공유 디렉토리 생성
+                                mkdir -p /shared/build-artifacts
+                                
+                                # JAR 파일 복사
+                                if ls build/libs/*.jar 1> /dev/null 2>&1; then
+                                    cp build/libs/*.jar /shared/build-artifacts/
+                                    echo "✅ JAR 파일 복사 완료:"
+                                    ls -la /shared/build-artifacts/
+                                else
+                                    echo "❌ JAR 파일을 찾을 수 없습니다!"
+                                    exit 1
+                                fi
+                                
+                                # 전체 프로젝트를 공유 볼륨으로 복사 (Dockerfile 접근을 위해)
+                                echo "=== 프로젝트 파일 공유 볼륨으로 복사 ==="
+                                mkdir -p /shared/project
+                                
+                                # 필수 파일들만 선택적으로 복사
+                                cp -r src/ /shared/project/ || true
+                                cp -r ci/ /shared/project/ || true
+                                cp build.gradle /shared/project/ || true
+                                cp settings.gradle /shared/project/ || true
+                                cp gradlew /shared/project/ || true
+                                cp gradlew.bat /shared/project/ || true
+                                cp -r gradle/ /shared/project/ || true
+                                cp .dockerignore /shared/project/ || true
+                                
+                                # 빌드 결과물 복사
+                                mkdir -p /shared/project/build/libs/
+                                cp build/libs/*.jar /shared/project/build/libs/
+                                
+                                echo "✅ 프로젝트 파일 복사 완료"
+                                ls -la /shared/project/
+                            '''
+                            
                             echo '✅ 애플리케이션 빌드가 성공적으로 완료되었습니다.'
                         } catch (Exception e) {
                             echo "❌ 애플리케이션 빌드 실패: ${e.getMessage()}"
