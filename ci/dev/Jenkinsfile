@@ -8,7 +8,7 @@ kind: Pod
 spec:
   # system 노드에 우선 배치되도록 노드 셀렉터 설정
   nodeSelector:
-    node-type: "system"
+    node-type: "application"
   # system 노드가 없을 경우를 대비한 어피니티 설정
   affinity:
     nodeAffinity:
@@ -40,11 +40,11 @@ spec:
     # t3.medium 스펙에 최적화된 리소스 설정 - Java 빌드용
     resources:
       requests:
-        memory: "1Gi"      # 1GB 요청 (Gradle 빌드에 충분)
-        cpu: "500m"        # 0.5 CPU 요청
+        memory: "2Gi"
+        cpu: "1000m"
       limits:
-        memory: "2.5Gi"    # 2.5GB 제한 (t3.medium 4GB 중 여유있게)
-        cpu: "1500m"       # 1.5 CPU 제한 (t3.medium 2 vCPU 중 대부분)
+        memory: "3Gi"
+        cpu: "1500m"
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
