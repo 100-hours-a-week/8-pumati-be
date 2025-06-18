@@ -339,26 +339,35 @@ spec:
             steps {
                 container('kaniko') {
                     withCredentials([
+                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
+                        aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'),
                         file(credentialsId: 'be-env-local', variable: 'ENV_FILE')
                     ]) {
                         sh '''
-                            # .env 파일을 현재 디렉토리로 복사
-                            cp $ENV_FILE .env
+                            # AWS 환경변수 설정
+                            export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                            export AWS_DEFAULT_REGION=${AWS_REGION}
                             
-                            # 파일 권한 설정
+                            # .env 파일 복사
+                            cp $ENV_FILE .env
                             chmod 600 .env
                             
-                            # 내용 확인 (보안상 일부만)
                             echo "환경 파일 라인 수: $(wc -l < .env)"
                             
+                            # ECR 로그인 (Kaniko용)
+                            mkdir -p /kaniko/.docker
+                            aws ecr get-login-password --region ${AWS_REGION} | \\
+                            echo "{\\"auths\\": {\\"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com\\": {\\"auth\\": \\"\$(cat - | base64 -w0)\\"}}}" > /kaniko/.docker/config.json
+                            
                             # Kaniko 빌드 실행
-                            /kaniko/executor \
-                                --context=. \
-                                --dockerfile=ci/dev/Dockerfile \
-                                --destination=${DOCKER_IMAGE_NAME} \
-                                --destination=${LATEST_IMAGE_NAME} \
-                                --cache=false \
-                                --verbosity=info \
+                            /kaniko/executor \\
+                                --context=. \\
+                                --dockerfile=ci/dev/Dockerfile \\
+                                --destination=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/pumati-dev-backend-ecr:jacky-${BUILD_NUMBER} \\
+                                --destination=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/pumati-dev-backend-ecr:latest \\
+                                --cache=false \\
+                                --verbosity=info \\
                                 --cleanup
                         '''
                     }
