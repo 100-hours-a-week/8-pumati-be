@@ -338,49 +338,29 @@ spec:
         stage('Build and Push Docker Image') {
             steps {
                 container('kaniko') {
-                    echo 'Kaniko로 Docker 이미지 빌드 및 ECR 푸시 중...'
-                    
                     withCredentials([
-                        string(credentialsId: 'aws-account-id', variable: 'AWS_ACCOUNT_ID'),
-                        aws(credentialsId: 'aws-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')
+                        file(credentialsId: 'be-env-local', variable: 'ENV_FILE')
                     ]) {
-                        script {
-                            try {
-                                sh """
-                                    # AWS 환경변수 설정
-                                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-                                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-                                    export AWS_DEFAULT_REGION=${AWS_REGION}
-                                    
-                                    echo "✅ AWS 환경변수 설정 완료"
-                                    echo "Region: ${AWS_REGION}"
-                                    echo "Registry: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-                                    
-                                    # 빌드 전 파일 확인
-                                    echo "=== 빌드 전 파일 확인 ==="
-                                    ls -la
-                                    ls -la build/libs/ || echo "build/libs 없음"
-                                    
-                                    # Kaniko executor로 이미지 빌드 및 푸시
-                                    /kaniko/executor \\
-                                        --context=. \\
-                                        --dockerfile=ci/dev/Dockerfile \\
-                                        --destination=${env.DOCKER_IMAGE_NAME} \\
-                                        --destination=${env.LATEST_IMAGE_NAME} \\
-                                        --cache=false \\
-                                        --verbosity=info \\
-                                        --cleanup
-                                """
-                                
-                                echo "✅ 이미지 빌드 및 푸시 완료!"
-                                echo "📦 이미지: ${env.DOCKER_IMAGE_NAME}"
-                                echo "📦 Latest: ${env.LATEST_IMAGE_NAME}"
-                            } catch (Exception e) {
-                                echo "❌ Docker 이미지 빌드 및 푸시 실패: ${e.getMessage()}"
-                                echo "🛑 Docker 빌드 실패로 인해 파이프라인을 중단합니다."
-                                error("Docker 이미지 빌드 실패로 파이프라인 중단")
-                            }
-                        }
+                        sh '''
+                            # .env 파일을 현재 디렉토리로 복사
+                            cp $ENV_FILE .env
+                            
+                            # 파일 권한 설정
+                            chmod 600 .env
+                            
+                            # 내용 확인 (보안상 일부만)
+                            echo "환경 파일 라인 수: $(wc -l < .env)"
+                            
+                            # Kaniko 빌드 실행
+                            /kaniko/executor \
+                                --context=. \
+                                --dockerfile=ci/dev/Dockerfile \
+                                --destination=${DOCKER_IMAGE_NAME} \
+                                --destination=${LATEST_IMAGE_NAME} \
+                                --cache=false \
+                                --verbosity=info \
+                                --cleanup
+                        '''
                     }
                 }
             }
