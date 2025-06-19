@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.pagination.dto.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,7 +15,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class ContextCursorPageRequestDTO extends CursorPageRequestDTO {
 
-    @Positive(message = "컨텍스트 ID는 유효한 컨텍스트 식별자여야 합니다.")
+    @Positive(message = ValidationMessages.CONTEXT_ID_MUST_BE_POSITIVE)
     private Long contextId;
 
 }

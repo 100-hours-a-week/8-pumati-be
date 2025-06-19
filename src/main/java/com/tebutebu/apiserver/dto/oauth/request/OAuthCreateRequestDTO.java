@@ -1,6 +1,8 @@
 package com.tebutebu.apiserver.dto.oauth.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -16,16 +18,16 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 public class OAuthCreateRequestDTO {
 
-    @NotBlank(message = "회원 ID는 필수 입력 값입니다.")
-    @Positive(message = "회원 ID는 양수여야 합니다.")
+    @NotNull(message = ValidationMessages.MEMBER_ID_REQUIRED)
+    @Positive(message = ValidationMessages.MEMBER_ID_MUST_BE_POSITIVE)
     private Long memberId;
 
-    @NotBlank(message = "제공자는 필수 입력 값입니다.")
-    @Size(max = 20, message = "제공자는 최대 20자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.PROVIDER_REQUIRED)
+    @Size(max = 20, message = ValidationMessages.PROVIDER_MAX_LENGTH_EXCEEDED)
     private String provider;
 
-    @NotBlank(message = "제공자 ID는 필수 입력 값입니다.")
-    @Size(max = 50, message = "제공자 ID는 최대 50자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.PROVIDER_ID_REQUIRED)
+    @Size(max = 50, message = ValidationMessages.PROVIDER_ID_MAX_LENGTH_EXCEEDED)
     private String providerId;
 
 }
