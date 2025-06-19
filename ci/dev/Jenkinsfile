@@ -8,7 +8,7 @@ kind: Pod
 spec:
   # system 노드에 우선 배치되도록 노드 셀렉터 설정
   nodeSelector:
-    node-type: "system"
+    node-type: "application"
   # system 노드가 없을 경우를 대비한 어피니티 설정
   affinity:
     nodeAffinity:

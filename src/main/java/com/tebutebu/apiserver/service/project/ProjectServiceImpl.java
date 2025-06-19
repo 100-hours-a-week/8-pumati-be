@@ -175,10 +175,7 @@ public class ProjectServiceImpl implements ProjectService {
         Long projectId = project.getId();
         aiCommentRequestService.requestAiComment(projectId, aiDto);
 
-        boolean isAiBadgeImageRequested = aiBadgeImageRequestService.requestGenerateBadgeImage(projectSummaryDTO);
-        if (!isAiBadgeImageRequested) {
-            log.warn("AI badge generation request failed for projectId={}", projectId);
-        }
+        aiBadgeImageRequestService.requestGenerateBadgeImage(projectSummaryDTO);
 
         return projectId;
     }
