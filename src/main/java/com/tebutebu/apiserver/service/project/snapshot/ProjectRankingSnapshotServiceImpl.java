@@ -10,8 +10,10 @@ import com.tebutebu.apiserver.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,11 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     @Value("${ranking.snapshot.duration.minutes:5}")
     private long snapshotDurationMinutes;
+
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    @Value("${ranking.snapshot.cache.key-prefix}")
+    private String snapshotCacheKeyPrefix;
 
     @Override
     public Long register() {
@@ -52,7 +59,18 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         ProjectRankingSnapshot snapshot = projectRankingSnapshotRepository
                 .findTopByOrderByRequestedAtDesc()
                 .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
-        return entityToDTO(snapshot);
+
+        String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
+
+        ProjectRankingSnapshotResponseDTO cachedRankingSnapshotResponseDTO = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
+
+        if (cachedRankingSnapshotResponseDTO != null) {
+            return cachedRankingSnapshotResponseDTO;
+        }
+
+        ProjectRankingSnapshotResponseDTO projectRankingSnapshotResponseDTO = entityToDTO(snapshot);
+        redisTemplate.opsForValue().set(cacheKey, projectRankingSnapshotResponseDTO, Duration.ofMinutes(snapshotDurationMinutes));
+        return projectRankingSnapshotResponseDTO;
     }
 
     private Long createAndSaveSnapshot() {
@@ -83,7 +101,13 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .requestedAt(LocalDateTime.now())
                 .build();
 
-        return projectRankingSnapshotRepository.save(newSnap).getId();
+        ProjectRankingSnapshot saved = projectRankingSnapshotRepository.save(newSnap);
+
+        String cacheKey = snapshotCacheKeyPrefix + saved.getId();
+        ProjectRankingSnapshotResponseDTO dto = entityToDTO(saved);
+        redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+
+        return saved.getId();
     }
 
 }

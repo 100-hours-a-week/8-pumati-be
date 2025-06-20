@@ -51,6 +51,13 @@ spring:
         name: ${jwt.refresh.cookie.name}
         max-age: ${jwt.refresh.cookie.max-age}
 
+  data:
+    redis:
+      host: ${redis.host}
+      port: ${redis.port}
+      password: ${redis.password}
+      timeout: ${redis.timeout}
+
 server:
   forward-headers-strategy: framework
 
@@ -90,6 +97,8 @@ ranking:
   snapshot:
     duration:
       minutes: ${ranking.snapshot.duration.minutes}
+    cache:
+      key-prefix: ${ranking.snapshot.cache.key-prefix}
 
 default:
   profile:
