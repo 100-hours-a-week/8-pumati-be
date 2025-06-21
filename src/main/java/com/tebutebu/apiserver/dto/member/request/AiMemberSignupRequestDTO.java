@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.dto.member.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -15,12 +16,12 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class AiMemberSignupRequestDTO {
 
-    @NotBlank(message = "이름은 필수 입력 값입니다.")
-    @Size(max = 10, message = "이름은 최대 10자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.MEMBER_NAME_REQUIRED)
+    @Size(max = 10, message = ValidationMessages.MEMBER_NAME_MAX_LENGTH_EXCEEDED)
     private String name;
 
-    @NotBlank(message = "닉네임은 필수 입력 값입니다.")
-    @Size(max = 50, message = "닉네임은 최대 50자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.MEMBER_NICKNAME_REQUIRED)
+    @Size(max = 50, message = ValidationMessages.MEMBER_NICKNAME_MAX_LENGTH_EXCEEDED)
     private String nickname;
 
 }

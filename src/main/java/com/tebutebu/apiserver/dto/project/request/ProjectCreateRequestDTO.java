@@ -2,6 +2,7 @@ package com.tebutebu.apiserver.dto.project.request;
 
 import com.tebutebu.apiserver.dto.project.image.request.ProjectImageRequestDTO;
 import com.tebutebu.apiserver.dto.tag.request.TagCreateRequestDTO;
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,31 +22,31 @@ import java.util.List;
 @NoArgsConstructor
 public class ProjectCreateRequestDTO {
 
-    @NotNull(message = "팀 ID는 필수 입력 값입니다.")
+    @NotNull(message = ValidationMessages.TEAM_ID_REQUIRED)
     private Long teamId;
 
-    @NotBlank(message = "제목은 필수 입력 값입니다.")
-    @Size(max = 64, message = "제목은 최대 64자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.PROJECT_TITLE_REQUIRED)
+    @Size(max = 64, message = ValidationMessages.PROJECT_TITLE_MAX_LENGTH_EXCEEDED)
     private String title;
 
-    @Size(max = 150, message = "소개는 최대 150자까지 가능합니다.")
+    @Size(max = 150, message = ValidationMessages.PROJECT_INTRODUCTION_MAX_LENGTH_EXCEEDED)
     private String introduction;
 
-    @Size(max = 1000, message = "상세 설명은 최대 1000자까지 가능합니다.")
+    @Size(max = 1000, message = ValidationMessages.PROJECT_DETAILED_DESCRIPTION_MAX_LENGTH_EXCEEDED)
     private String detailedDescription;
 
-    @Size(max = 512, message = "배포 URL은 최대 512자까지 가능합니다.")
+    @Size(max = 512, message = ValidationMessages.PROJECT_DEPLOYMENT_URL_MAX_LENGTH_EXCEEDED)
     private String deploymentUrl;
 
-    @Size(max = 512, message = "깃허브 URL은 최대 512자까지 가능합니다.")
+    @Size(max = 512, message = ValidationMessages.PROJECT_GITHUB_URL_MAX_LENGTH_EXCEEDED)
     private String githubUrl;
 
-    @NotNull(message = "태그는 최소 1개 이상 입력해야 합니다.")
-    @Size(min = 1, max = 5, message = "태그는 최소 1개 이상, 최대 5개까지 가능합니다.")
+    @NotNull(message = ValidationMessages.PROJECT_TAGS_REQUIRED)
+    @Size(min = 1, max = 5, message = ValidationMessages.PROJECT_TAGS_SIZE_OUT_OF_BOUNDS)
     private List<@Valid TagCreateRequestDTO> tags;
 
-    @NotNull(message = "프로젝트 이미지는 필수 입력 값입니다.")
-    @Size(min = 1, message = "최소 하나 이상의 이미지를 입력해야 합니다.")
+    @NotNull(message = ValidationMessages.PROJECT_IMAGES_REQUIRED)
+    @Size(min = 1, message = ValidationMessages.PROJECT_IMAGES_MIN_SIZE_REQUIRED)
     private List<ProjectImageRequestDTO> images;
 
 }

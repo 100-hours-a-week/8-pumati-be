@@ -3,8 +3,9 @@ package com.tebutebu.apiserver.service.oauth;
 import com.tebutebu.apiserver.domain.OAuth;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.dto.oauth.request.OAuthCreateRequestDTO;
+import com.tebutebu.apiserver.global.errorcode.AuthErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.repository.OAuthRepository;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,7 +32,7 @@ public class OAuthServiceImpl implements OAuthService {
         }
 
         if (oAuthRepository.existsByProviderAndProviderId(dto.getProvider(), dto.getProviderId())) {
-            throw new CustomValidationException("oauthAlreadyExists");
+            throw new BusinessException(AuthErrorCode.OAUTH_ALREADY_EXISTS);
         }
 
         OAuth oAuth = oAuthRepository.save(dtoToEntity(dto));
@@ -42,7 +43,7 @@ public class OAuthServiceImpl implements OAuthService {
     public void validateProvider(String provider) {
         List<String> allowedList = Arrays.asList(allowedProviders.split(","));
         if (!allowedList.contains(provider)) {
-            throw new CustomValidationException("invalidProvider");
+            throw new BusinessException(AuthErrorCode.INVALID_PROVIDER);
         }
     }
 

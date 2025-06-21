@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.dto.s3.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
@@ -18,8 +19,8 @@ import java.util.List;
 @AllArgsConstructor
 public class MultiplePreSignedUrlsRequestDTO {
 
-    @NotEmpty(message = "파일 리스트는 필수 입력 값입니다.")
-    @Size(min = 1, max = 10, message = "requestCountExceeded")
+    @NotEmpty(message = ValidationMessages.FILE_LIST_MUST_NOT_BE_EMPTY)
+    @Size(min = 1, max = 10, message = ValidationMessages.REQUEST_COUNT_EXCEEDED)
     private List<@Valid SinglePreSignedUrlRequestDTO> files;
 
 }
