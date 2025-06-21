@@ -7,11 +7,14 @@ import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
+import com.tebutebu.apiserver.service.project.activity.ProjectRecencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,23 +30,44 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private final ProjectRepository projectRepository;
 
+    private final ProjectRecencyService projectRecencyService;
+
     private final ObjectMapper objectMapper;
+
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Value("${ranking.snapshot.duration.minutes:5}")
     private long snapshotDurationMinutes;
 
+    @Value("${ranking.snapshot.cache.key-prefix}")
+    private String snapshotCacheKeyPrefix;
+
+    @Value("${ranking.snapshot.cache.latest-created-at-key}")
+    private String projectLatestCreatedAtKey;
+
     @Override
     public Long register() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(snapshotDurationMinutes);
+
+        String redisTimeStr = (String) redisTemplate.opsForValue().get(projectLatestCreatedAtKey);
+        LocalDateTime latestProjectCreatedAt;
+        if (redisTimeStr != null) {
+            latestProjectCreatedAt = LocalDateTime.parse(redisTimeStr);
+        } else {
+            latestProjectCreatedAt = LocalDateTime.MIN;
+        }
+
+        boolean hasNewProject = latestProjectCreatedAt.isAfter(threshold) || projectRecencyService.isNewProjectAvailable(threshold);
+        if (hasNewProject) {
+            LocalDateTime actualLatestCreatedAt = projectRepository.findLatestCreatedAt().orElse(LocalDateTime.MIN);
+            redisTemplate.opsForValue().set(projectLatestCreatedAtKey, actualLatestCreatedAt.toString());
+        }
+
         return projectRankingSnapshotRepository
                 .findTopByRequestedAtAfterOrderByRequestedAtDesc(threshold)
-                .map(existingSnapshot -> {
-                    boolean hasNewProject = projectRepository.existsByCreatedAtAfter(existingSnapshot.getRequestedAt());
-                    if (!hasNewProject) {
-                        return existingSnapshot.getId();
-                    }
-                    return createAndSaveSnapshot();
-                })
+                .map(existingSnapshot -> hasNewProject
+                        ? createAndSaveSnapshot()
+                        : existingSnapshot.getId())
                 .orElseGet(this::createAndSaveSnapshot);
     }
 
@@ -52,7 +76,18 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         ProjectRankingSnapshot snapshot = projectRankingSnapshotRepository
                 .findTopByOrderByRequestedAtDesc()
                 .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
-        return entityToDTO(snapshot);
+
+        String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
+
+        ProjectRankingSnapshotResponseDTO cached = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
+
+        if (cached != null) {
+            return cached;
+        }
+
+        ProjectRankingSnapshotResponseDTO dto = entityToDTO(snapshot);
+        redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+        return dto;
     }
 
     private Long createAndSaveSnapshot() {
@@ -66,7 +101,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
             }
             rankingList.add(Map.of(
                     "project_id", p.getId(),
-                    "rank",           rank++,
+                    "rank", rank++,
                     "gived_pumati_count", p.getTeam().getGivedPumatiCount()
             ));
         }
@@ -83,7 +118,13 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .requestedAt(LocalDateTime.now())
                 .build();
 
-        return projectRankingSnapshotRepository.save(newSnap).getId();
+        ProjectRankingSnapshot saved = projectRankingSnapshotRepository.save(newSnap);
+
+        String cacheKey = snapshotCacheKeyPrefix + saved.getId();
+        ProjectRankingSnapshotResponseDTO dto = entityToDTO(saved);
+        redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+
+        return saved.getId();
     }
 
 }
