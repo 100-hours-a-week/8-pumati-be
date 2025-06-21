@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.dto.comment.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -15,8 +16,8 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 public class CommentCreateRequestDTO {
 
-    @NotBlank(message = "댓글 내용은 필수 입력 값입니다.")
-    @Size(max = 300, message = "댓글 내용은 최대 300자까지 가능합니다.")
-    String content;
+    @NotBlank(message = ValidationMessages.COMMENT_CONTENT_REQUIRED)
+    @Size(max = 300, message = ValidationMessages.COMMENT_CONTENT_MAX_LENGTH_EXCEEDED)
+    private String content;
 
 }

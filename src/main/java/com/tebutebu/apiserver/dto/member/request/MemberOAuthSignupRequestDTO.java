@@ -2,6 +2,7 @@ package com.tebutebu.apiserver.dto.member.request;
 
 import com.tebutebu.apiserver.domain.Course;
 import com.tebutebu.apiserver.domain.MemberRole;
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
@@ -19,24 +20,24 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 public class MemberOAuthSignupRequestDTO {
 
-    @NotBlank(message = "회원가입 토큰은 필수 입력 값입니다.")
+    @NotBlank(message = ValidationMessages.SIGNUP_TOKEN_REQUIRED)
     private String signupToken;
 
-    @NotBlank(message = "이름은 필수 입력 값입니다.")
-    @Size(max = 10, message = "이름은 최대 10자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.MEMBER_NAME_REQUIRED)
+    @Size(max = 10, message = ValidationMessages.MEMBER_NAME_MAX_LENGTH_EXCEEDED)
     private String name;
 
-    @NotBlank(message = "닉네임은 필수 입력 값입니다.")
-    @Size(max = 50, message = "닉네임은 최대 50자까지 가능합니다.")
-    @Pattern(regexp = "^\\S+$", message = "닉네임은 공백을 포함할 수 없습니다.")
+    @NotBlank(message = ValidationMessages.MEMBER_NICKNAME_REQUIRED)
+    @Size(max = 50, message = ValidationMessages.MEMBER_NICKNAME_MAX_LENGTH_EXCEEDED)
+    @Pattern(regexp = "^\\S+$", message = ValidationMessages.MEMBER_NICKNAME_VIOLATED)
     private String nickname;
 
     private String profileImageUrl;
 
-    @Positive(message = "기수는 양수여야 합니다.")
+    @Positive(message = ValidationMessages.TERM_MUST_BE_POSITIVE)
     private Integer term;
 
-    @Positive(message = "팀(조) 번호는 양수여야 합니다.")
+    @Positive(message = ValidationMessages.TEAM_NUMBER_MUST_BE_POSITIVE)
     private Integer teamNumber;
 
     private Course course;

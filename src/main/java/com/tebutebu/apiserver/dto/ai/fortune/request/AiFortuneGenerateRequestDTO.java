@@ -2,6 +2,7 @@ package com.tebutebu.apiserver.dto.ai.fortune.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.tebutebu.apiserver.domain.Course;
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -19,13 +20,12 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class AiFortuneGenerateRequestDTO {
 
-    @NotBlank(message = "닉네임은 필수 입력 값입니다.")
-    @Size(max = 50, message = "닉네임은 최대 50자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.AI_COMMENT_NICKNAME_REQUIRED)
+    @Size(max = 50, message = ValidationMessages.AI_COMMENT_NICKNAME_MAX_LENGTH_EXCEEDED)
     private String nickname;
 
     private Course course;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate date;
-
 }

@@ -4,9 +4,9 @@ import com.google.gson.Gson;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.MemberRole;
 import com.tebutebu.apiserver.domain.Team;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.util.JWTUtil;
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,7 +71,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException, ServletException {
         String authHeaderStr = request.getHeader("Authorization");
         try {
             // Bearer accessToken...
@@ -117,8 +117,8 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
             filterChain.doFilter(request, response);
-        } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Invalid JWT: {}", e.getMessage());
+        } catch (BusinessException e) {
+            log.warn("JWT authentication failure: {}", e.getErrorCode().getMessage(), e);
             SecurityContextHolder.clearContext();
 
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

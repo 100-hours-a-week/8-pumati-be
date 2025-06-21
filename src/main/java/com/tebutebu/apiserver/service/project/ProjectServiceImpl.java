@@ -31,14 +31,14 @@ import com.tebutebu.apiserver.service.ai.badge.AiBadgeImageRequestService;
 import com.tebutebu.apiserver.service.ai.comment.AiCommentRequestService;
 import com.tebutebu.apiserver.service.project.image.ProjectImageService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -68,14 +68,14 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ProjectResponseDTO get(Long id) {
         Project project = projectRepository.findProjectWithTeamAndImagesById(id)
-                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
         return buildProjectResponseDTO(project);
     }
 
     @Override
     public ProjectResponseDTO getByTeamId(Long teamId) {
         Project project = projectRepository.findProjectByTeamId(teamId)
-                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
         return buildProjectResponseDTO(project);
     }
 
@@ -87,7 +87,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> getRankingPage(ContextCursorPageRequestDTO dto) {
         if (dto.getContextId() == null) {
-            throw new CustomValidationException("contextIdRequired");
+            throw new BusinessException(BusinessErrorCode.CONTEXT_ID_REQUIRED);
         }
 
         CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByRankingCursor(dto);
@@ -132,7 +132,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public Long register(ProjectCreateRequestDTO dto) {
         if (projectRepository.existsByTeamId(dto.getTeamId())) {
-            throw new CustomValidationException("projectAlreadyExists");
+            throw new BusinessException(BusinessErrorCode.PROJECT_ALREADY_EXISTS);
         }
 
         Project project = projectRepository.save(dtoToEntity(dto));
@@ -183,7 +183,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void modify(Long projectId, ProjectUpdateRequestDTO dto) {
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
 
         project.changeTitle(dto.getTitle());
         project.changeIntroduction(dto.getIntroduction());
@@ -225,7 +225,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void delete(Long projectId) {
         if (!projectRepository.existsById(projectId)) {
-            throw new NoSuchElementException("projectNotFound");
+            throw new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND);
         }
         projectRepository.deleteById(projectId);
     }
