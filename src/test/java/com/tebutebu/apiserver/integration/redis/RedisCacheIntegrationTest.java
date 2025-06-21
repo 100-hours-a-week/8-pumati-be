@@ -43,23 +43,6 @@ class RedisCacheIntegrationTest {
         }
 
         @Test
-        @DisplayName("TTL 만료되면 조회되지 않음")
-        void redisTTLExpires() throws InterruptedException {
-            // given
-            String key = RedisKeyValueFixture.key("ttl");
-            String value = RedisKeyValueFixture.expiringValue();
-
-            redisTemplate.opsForValue().set(key, value, Duration.ofSeconds(1));
-
-            // when
-            Thread.sleep(1500);
-            Object result = redisTemplate.opsForValue().get(key);
-
-            // then
-            assertThat(result).isNull();
-        }
-
-        @Test
         @DisplayName("존재하지 않는 키 조회 시 null 반환")
         void getNonExistentKeyReturnsNull() {
             // given
@@ -70,6 +53,68 @@ class RedisCacheIntegrationTest {
 
             // then
             assertThat(result).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("TTL 관련 동작")
+    class TtlOperation {
+
+        @Test
+        @DisplayName("TTL이 만료되면 조회되지 않음")
+        void redisTTLExpires() throws InterruptedException {
+            // given
+            String key = RedisKeyValueFixture.key("ttl");
+            String value = RedisKeyValueFixture.expiringValue();
+            redisTemplate.opsForValue().set(key, value, Duration.ofMillis(600));
+
+            // when
+            Thread.sleep(700); // TTL보다 살짝 기다림
+            Object result = redisTemplate.opsForValue().get(key);
+
+            // then
+            assertThat(result).isNull();
+        }
+
+        @Test
+        @DisplayName("덮어쓰면서 TTL 갱신")
+        void overwriteValueAlsoUpdatesTTL() throws InterruptedException {
+            // given
+            String key = RedisKeyValueFixture.key("ttlOverwrite");
+            String original = "original";
+            String updated = "updated";
+            redisTemplate.opsForValue().set(key, original, Duration.ofMillis(1000));
+            Thread.sleep(600);
+
+            // when
+            redisTemplate.opsForValue().set(key, updated, Duration.ofMillis(1000));
+            Thread.sleep(600);
+            Object result = redisTemplate.opsForValue().get(key);
+
+            // then
+            assertThat(result).isEqualTo(updated);
+        }
+    }
+
+    @Nested
+    @DisplayName("덮어쓰기 동작")
+    class OverwriteOperation {
+
+        @Test
+        @DisplayName("같은 키로 값을 덮어쓰면 이전 값은 대체됨")
+        void overwriteValueWithSameKey() {
+            // given
+            String key = RedisKeyValueFixture.key("overwrite");
+            String original = "originalValue";
+            String updated = "updatedValue";
+            redisTemplate.opsForValue().set(key, original, Duration.ofSeconds(60));
+
+            // when
+            redisTemplate.opsForValue().set(key, updated, Duration.ofSeconds(60));
+            Object result = redisTemplate.opsForValue().get(key);
+
+            // then
+            assertThat(result).isEqualTo(updated);
         }
     }
 }
