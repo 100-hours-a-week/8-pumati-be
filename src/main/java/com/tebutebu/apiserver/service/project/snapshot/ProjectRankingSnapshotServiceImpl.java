@@ -31,26 +31,37 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private final ObjectMapper objectMapper;
 
+    private final RedisTemplate<String, Object> redisTemplate;
+
     @Value("${ranking.snapshot.duration.minutes:5}")
     private long snapshotDurationMinutes;
-
-    private final RedisTemplate<String, Object> redisTemplate;
 
     @Value("${ranking.snapshot.cache.key-prefix}")
     private String snapshotCacheKeyPrefix;
 
+    @Value("${ranking.snapshot.cache.latest-created-at-key}")
+    private String projectLatestCreatedAtKey;
+
     @Override
     public Long register() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(snapshotDurationMinutes);
+
+        String redisTimeStr = (String) redisTemplate.opsForValue().get(projectLatestCreatedAtKey);
+        LocalDateTime latestProjectCreatedAt;
+        if (redisTimeStr != null) {
+            latestProjectCreatedAt = LocalDateTime.parse(redisTimeStr);
+        } else {
+            latestProjectCreatedAt = projectRepository.findLatestCreatedAt().orElse(LocalDateTime.MIN);
+            redisTemplate.opsForValue().set(projectLatestCreatedAtKey, latestProjectCreatedAt.toString());
+        }
+
+        boolean hasNewProject = latestProjectCreatedAt.isAfter(threshold);
+
         return projectRankingSnapshotRepository
                 .findTopByRequestedAtAfterOrderByRequestedAtDesc(threshold)
-                .map(existingSnapshot -> {
-                    boolean hasNewProject = projectRepository.existsByCreatedAtAfter(existingSnapshot.getRequestedAt());
-                    if (!hasNewProject) {
-                        return existingSnapshot.getId();
-                    }
-                    return createAndSaveSnapshot();
-                })
+                .map(existingSnapshot -> hasNewProject
+                        ? createAndSaveSnapshot()
+                        : existingSnapshot.getId())
                 .orElseGet(this::createAndSaveSnapshot);
     }
 
@@ -62,15 +73,15 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
         String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
 
-        ProjectRankingSnapshotResponseDTO cachedRankingSnapshotResponseDTO = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
+        ProjectRankingSnapshotResponseDTO cached = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
 
-        if (cachedRankingSnapshotResponseDTO != null) {
-            return cachedRankingSnapshotResponseDTO;
+        if (cached != null) {
+            return cached;
         }
 
-        ProjectRankingSnapshotResponseDTO projectRankingSnapshotResponseDTO = entityToDTO(snapshot);
-        redisTemplate.opsForValue().set(cacheKey, projectRankingSnapshotResponseDTO, Duration.ofMinutes(snapshotDurationMinutes));
-        return projectRankingSnapshotResponseDTO;
+        ProjectRankingSnapshotResponseDTO dto = entityToDTO(snapshot);
+        redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+        return dto;
     }
 
     private Long createAndSaveSnapshot() {
@@ -84,7 +95,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
             }
             rankingList.add(Map.of(
                     "project_id", p.getId(),
-                    "rank",           rank++,
+                    "rank", rank++,
                     "gived_pumati_count", p.getTeam().getGivedPumatiCount()
             ));
         }

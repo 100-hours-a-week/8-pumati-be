@@ -99,6 +99,7 @@ ranking:
       minutes: ${ranking.snapshot.duration.minutes}
     cache:
       key-prefix: ${ranking.snapshot.cache.key-prefix}
+      latest-created-at-key: ${ranking.snapshot.cache.latest-created-at-key}
 
 default:
   profile:
