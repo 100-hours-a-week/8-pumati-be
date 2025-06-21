@@ -7,6 +7,7 @@ import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
+import com.tebutebu.apiserver.service.project.activity.ProjectRecencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,8 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
     private final ProjectRankingSnapshotRepository projectRankingSnapshotRepository;
 
     private final ProjectRepository projectRepository;
+
+    private final ProjectRecencyService projectRecencyService;
 
     private final ObjectMapper objectMapper;
 
@@ -51,11 +54,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         if (redisTimeStr != null) {
             latestProjectCreatedAt = LocalDateTime.parse(redisTimeStr);
         } else {
-            latestProjectCreatedAt = projectRepository.findLatestCreatedAt().orElse(LocalDateTime.MIN);
-            redisTemplate.opsForValue().set(projectLatestCreatedAtKey, latestProjectCreatedAt.toString());
+            latestProjectCreatedAt = LocalDateTime.MIN;
         }
 
-        boolean hasNewProject = latestProjectCreatedAt.isAfter(threshold);
+        boolean hasNewProject = latestProjectCreatedAt.isAfter(threshold) || projectRecencyService.isNewProjectAvailable(threshold);
+        if (hasNewProject) {
+            LocalDateTime actualLatestCreatedAt = projectRepository.findLatestCreatedAt().orElse(LocalDateTime.MIN);
+            redisTemplate.opsForValue().set(projectLatestCreatedAtKey, actualLatestCreatedAt.toString());
+        }
 
         return projectRankingSnapshotRepository
                 .findTopByRequestedAtAfterOrderByRequestedAtDesc(threshold)
