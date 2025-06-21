@@ -6,9 +6,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import java.time.Duration;
 
@@ -17,11 +19,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Log4j2
 @SpringBootTest
 @ActiveProfiles("test")
+@TestPropertySource(properties = {
+        "test.redis.ttl.millis=600",
+        "test.redis.sleep.millis=700"
+})
 @DisplayName("Redis 캐시 통합 테스트")
 class RedisCacheIntegrationTest {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Value("${test.redis.ttl.millis}")
+    private long testTtlMillis;
+
+    @Value("${test.redis.sleep.millis}")
+    private long testSleepMillis;
 
     @Nested
     @DisplayName("기본 RedisTemplate 동작 검증")
@@ -35,7 +47,7 @@ class RedisCacheIntegrationTest {
             String value = RedisKeyValueFixture.sampleValue();
 
             // when
-            redisTemplate.opsForValue().set(key, value, Duration.ofSeconds(30));
+            redisTemplate.opsForValue().set(key, value, Duration.ofMillis(30000));
             Object cached = redisTemplate.opsForValue().get(key);
 
             // then
@@ -66,10 +78,10 @@ class RedisCacheIntegrationTest {
             // given
             String key = RedisKeyValueFixture.key("ttl");
             String value = RedisKeyValueFixture.expiringValue();
-            redisTemplate.opsForValue().set(key, value, Duration.ofMillis(600));
+            redisTemplate.opsForValue().set(key, value, Duration.ofMillis(testTtlMillis));
 
             // when
-            Thread.sleep(700); // TTL보다 살짝 기다림
+            Thread.sleep(testSleepMillis);
             Object result = redisTemplate.opsForValue().get(key);
 
             // then
@@ -83,12 +95,12 @@ class RedisCacheIntegrationTest {
             String key = RedisKeyValueFixture.key("ttlOverwrite");
             String original = "original";
             String updated = "updated";
-            redisTemplate.opsForValue().set(key, original, Duration.ofMillis(1000));
-            Thread.sleep(600);
+            redisTemplate.opsForValue().set(key, original, Duration.ofMillis(testTtlMillis));
+            Thread.sleep(testTtlMillis / 2);
 
             // when
-            redisTemplate.opsForValue().set(key, updated, Duration.ofMillis(1000));
-            Thread.sleep(600);
+            redisTemplate.opsForValue().set(key, updated, Duration.ofMillis(testTtlMillis));
+            Thread.sleep(testTtlMillis / 2 + 100);
             Object result = redisTemplate.opsForValue().get(key);
 
             // then
