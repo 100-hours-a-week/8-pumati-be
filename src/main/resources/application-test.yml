@@ -99,6 +99,9 @@ ranking:
     cache:
       key-prefix: "ranking:snapshot:"
       latest-created-at-key: "project:latestCreatedAt"
+      key-latest-suffix: latest:id
+    lock:
+      key-register: lock:project:snapshot:register
 
 default:
   profile:

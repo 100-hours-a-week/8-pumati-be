@@ -15,6 +15,7 @@ public interface ProjectRankingSnapshotService {
 
     Long register();
 
+    @Transactional(readOnly = true)
     ProjectRankingSnapshotResponseDTO getLatestSnapshot();
 
     default ProjectRankingSnapshotResponseDTO entityToDTO(ProjectRankingSnapshot snapshot) {

@@ -100,6 +100,9 @@ ranking:
     cache:
       key-prefix: ${ranking.snapshot.cache.key-prefix}
       latest-created-at-key: ${ranking.snapshot.cache.latest-created-at-key}
+      key-latest-suffix: ${ranking.snapshot.cache.key-latest-suffix}
+    lock:
+      key-register: ${ranking.snapshot.lock.key-register}
 
 default:
   profile:

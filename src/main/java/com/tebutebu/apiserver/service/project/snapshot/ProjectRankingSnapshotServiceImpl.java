@@ -10,6 +10,8 @@ import com.tebutebu.apiserver.repository.ProjectRepository;
 import com.tebutebu.apiserver.service.project.activity.ProjectRecencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Log4j2
@@ -36,39 +39,84 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private final RedisTemplate<String, Object> redisTemplate;
 
+    private final RedissonClient redissonClient;
+
     @Value("${ranking.snapshot.duration.minutes:5}")
     private long snapshotDurationMinutes;
 
     @Value("${ranking.snapshot.cache.key-prefix}")
     private String snapshotCacheKeyPrefix;
 
+    @Value("${ranking.snapshot.cache.key-latest-suffix:latest:id}")
+    private String snapshotCacheKeyLatestSuffix;
+
+    @Value("${ranking.snapshot.lock.key-register}")
+    private String registerLockKey;
+
     @Value("${ranking.snapshot.cache.latest-created-at-key}")
     private String projectLatestCreatedAtKey;
 
     @Override
     public Long register() {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(snapshotDurationMinutes);
+        RLock lock = redissonClient.getLock(registerLockKey);
+        boolean isLocked = false;
 
-        String redisTimeStr = (String) redisTemplate.opsForValue().get(projectLatestCreatedAtKey);
-        LocalDateTime latestProjectCreatedAt;
-        if (redisTimeStr != null) {
-            latestProjectCreatedAt = LocalDateTime.parse(redisTimeStr);
-        } else {
-            latestProjectCreatedAt = LocalDateTime.MIN;
+        try {
+            // 락을 최대 15초까지 대기하며, 60초 동안 점유함
+            isLocked = lock.tryLock(15, 60, TimeUnit.SECONDS);
+            if (!isLocked) {
+                log.warn("Failed to acquire lock for snapshot registration.");
+                throw new IllegalStateException("registerLockUnavailable");
+            }
+
+            log.info("Lock acquired for snapshot registration.");
+
+            // 캐시에 저장된 스냅샷 ID가 있는 경우 재사용
+            String latestCacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
+            String cachedSnapshotId = (String) redisTemplate.opsForValue().get(latestCacheKey);
+            if (cachedSnapshotId != null) {
+                Long snapshotId = Long.parseLong(cachedSnapshotId);
+                log.info("Reusing cached snapshot with ID={}", snapshotId);
+                return snapshotId;
+            }
+
+            LocalDateTime threshold = LocalDateTime.now().minusMinutes(snapshotDurationMinutes);
+
+            String redisTimeStr = (String) redisTemplate.opsForValue().get(projectLatestCreatedAtKey);
+            LocalDateTime latestProjectCreatedAt = redisTimeStr != null ? LocalDateTime.parse(redisTimeStr) : LocalDateTime.MIN;
+
+            boolean hasNewProject = latestProjectCreatedAt.isAfter(threshold) || projectRecencyService.isNewProjectAvailable(threshold);
+            if (hasNewProject) {
+                LocalDateTime actualLatestCreatedAt = projectRepository.findLatestCreatedAt().orElse(LocalDateTime.MIN);
+                redisTemplate.opsForValue().set(projectLatestCreatedAtKey, actualLatestCreatedAt.toString());
+            }
+
+            ProjectRankingSnapshot latestSnapshot = projectRankingSnapshotRepository
+                    .findTopByRequestedAtAfterOrderByRequestedAtDesc(threshold)
+                    .orElse(null);
+
+            if (latestSnapshot != null && !hasNewProject) {
+                long remainingTime = Duration.between(LocalDateTime.now(),
+                        latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
+                if (remainingTime > 0) {
+                    redisTemplate.opsForValue().set(latestCacheKey,
+                            latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
+                }
+                log.info("Reusing existing snapshot with ID={}", latestSnapshot.getId());
+                return latestSnapshot.getId();
+            }
+
+            return createAndSaveSnapshot();
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("lockInterrupted", e);
+        } finally {
+            if (isLocked && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+                log.info("Lock released for snapshot registration.");
+            }
         }
-
-        boolean hasNewProject = latestProjectCreatedAt.isAfter(threshold) || projectRecencyService.isNewProjectAvailable(threshold);
-        if (hasNewProject) {
-            LocalDateTime actualLatestCreatedAt = projectRepository.findLatestCreatedAt().orElse(LocalDateTime.MIN);
-            redisTemplate.opsForValue().set(projectLatestCreatedAtKey, actualLatestCreatedAt.toString());
-        }
-
-        return projectRankingSnapshotRepository
-                .findTopByRequestedAtAfterOrderByRequestedAtDesc(threshold)
-                .map(existingSnapshot -> hasNewProject
-                        ? createAndSaveSnapshot()
-                        : existingSnapshot.getId())
-                .orElseGet(this::createAndSaveSnapshot);
     }
 
     @Override
@@ -78,16 +126,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
 
         String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
-
-        ProjectRankingSnapshotResponseDTO cached = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
-
-        if (cached != null) {
-            return cached;
+        ProjectRankingSnapshotResponseDTO cachedSnapshot = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedSnapshot != null) {
+            return cachedSnapshot;
         }
 
-        ProjectRankingSnapshotResponseDTO dto = entityToDTO(snapshot);
-        redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
-        return dto;
+        ProjectRankingSnapshotResponseDTO projectRankingSnapshotResponseDTO = entityToDTO(snapshot);
+        redisTemplate.opsForValue().set(cacheKey, projectRankingSnapshotResponseDTO, Duration.ofMinutes(snapshotDurationMinutes));
+        return projectRankingSnapshotResponseDTO;
     }
 
     private Long createAndSaveSnapshot() {
@@ -119,11 +165,16 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .build();
 
         ProjectRankingSnapshot saved = projectRankingSnapshotRepository.save(newSnap);
+        projectRankingSnapshotRepository.flush();
 
         String cacheKey = snapshotCacheKeyPrefix + saved.getId();
         ProjectRankingSnapshotResponseDTO dto = entityToDTO(saved);
         redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
 
+        String latestCacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
+        redisTemplate.opsForValue().set(latestCacheKey, saved.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
+
+        log.info("New snapshot created with ID={}", saved.getId());
         return saved.getId();
     }
 
