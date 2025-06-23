@@ -7,7 +7,6 @@ import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
-import com.tebutebu.apiserver.service.project.activity.ProjectRecencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.redisson.api.RLock;
@@ -33,8 +32,6 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private final ProjectRepository projectRepository;
 
-    private final ProjectRecencyService projectRecencyService;
-
     private final ObjectMapper objectMapper;
 
     private final RedisTemplate<String, Object> redisTemplate;
@@ -52,9 +49,6 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     @Value("${ranking.snapshot.lock.key-register}")
     private String registerLockKey;
-
-    @Value("${ranking.snapshot.cache.latest-created-at-key}")
-    private String projectLatestCreatedAtKey;
 
     @Override
     public Long register() {
@@ -80,30 +74,27 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 return snapshotId;
             }
 
+            // 캐시에 없으면 DB에서 최근 스냅샷 가져오기
             LocalDateTime threshold = LocalDateTime.now().minusMinutes(snapshotDurationMinutes);
-
-            String redisTimeStr = (String) redisTemplate.opsForValue().get(projectLatestCreatedAtKey);
-            LocalDateTime latestProjectCreatedAt = redisTimeStr != null ? LocalDateTime.parse(redisTimeStr) : LocalDateTime.MIN;
-
-            boolean hasNewProject = latestProjectCreatedAt.isAfter(threshold) || projectRecencyService.isNewProjectAvailable(threshold);
-            if (hasNewProject) {
-                LocalDateTime actualLatestCreatedAt = projectRepository.findLatestCreatedAt().orElse(LocalDateTime.MIN);
-                redisTemplate.opsForValue().set(projectLatestCreatedAtKey, actualLatestCreatedAt.toString());
-            }
-
             ProjectRankingSnapshot latestSnapshot = projectRankingSnapshotRepository
-                    .findTopByRequestedAtAfterOrderByRequestedAtDesc(threshold)
+                    .findTopByOrderByRequestedAtDesc()
                     .orElse(null);
 
-            if (latestSnapshot != null && !hasNewProject) {
-                long remainingTime = Duration.between(LocalDateTime.now(),
-                        latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
-                if (remainingTime > 0) {
-                    redisTemplate.opsForValue().set(latestCacheKey,
-                            latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
+            if (latestSnapshot != null) {
+                boolean hasNewProject = projectRepository.existsByCreatedAtAfter(latestSnapshot.getRequestedAt());
+
+                if (!hasNewProject && latestSnapshot.getRequestedAt().isAfter(threshold)) {
+                    long remainingTime = Duration.between(LocalDateTime.now(),
+                            latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
+
+                    if (remainingTime > 0) {
+                        redisTemplate.opsForValue().set(latestCacheKey,
+                                latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
+                    }
+
+                    log.info("Reusing DB fallback snapshot with ID={}", latestSnapshot.getId());
+                    return latestSnapshot.getId();
                 }
-                log.info("Reusing existing snapshot with ID={}", latestSnapshot.getId());
-                return latestSnapshot.getId();
             }
 
             return createAndSaveSnapshot();
