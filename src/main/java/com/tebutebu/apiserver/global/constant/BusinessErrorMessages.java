@@ -36,4 +36,10 @@ public class BusinessErrorMessages {
     public static final String INVALID_FILE_EXTENSION = "invalidFileExtension";
     public static final String UNSUPPORTED_FILE_EXTENSION = "unsupportedFileExtension";
 
+    // RefreshToken
+    public static final String INVALID_REFRESH_TOKEN = "invalidRefreshToken";
+    public static final String EXPIRED_REFRESH_TOKEN = "expiredRefreshToken";
+    public static final String REFRESH_TOKEN_NOT_FOUND = "refreshTokenNotFound";
+    public static final String INVALID_OR_EXPIRED_REFRESH_TOKEN = "invalidOrExpiredRefreshToken";
+
 }

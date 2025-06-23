@@ -36,7 +36,13 @@ public enum BusinessErrorCode implements ErrorCode {
     // PreSignedUrl
     REQUEST_COUNT_EXCEEDED(BusinessErrorMessages.REQUEST_COUNT_EXCEEDED, HttpStatus.BAD_REQUEST),
     INVALID_FILE_EXTENSION(BusinessErrorMessages.INVALID_FILE_EXTENSION, HttpStatus.BAD_REQUEST),
-    UNSUPPORTED_FILE_EXTENSION(BusinessErrorMessages.UNSUPPORTED_FILE_EXTENSION, HttpStatus.BAD_REQUEST);
+    UNSUPPORTED_FILE_EXTENSION(BusinessErrorMessages.UNSUPPORTED_FILE_EXTENSION, HttpStatus.BAD_REQUEST),
+
+    // RefreshToken
+    INVALID_REFRESH_TOKEN(BusinessErrorMessages.INVALID_REFRESH_TOKEN, HttpStatus.BAD_REQUEST),
+    EXPIRED_REFRESH_TOKEN(BusinessErrorMessages.EXPIRED_REFRESH_TOKEN, HttpStatus.UNAUTHORIZED),
+    REFRESH_TOKEN_NOT_FOUND(BusinessErrorMessages.REFRESH_TOKEN_NOT_FOUND, HttpStatus.NOT_FOUND),
+    INVALID_OR_EXPIRED_REFRESH_TOKEN(BusinessErrorMessages.INVALID_OR_EXPIRED_REFRESH_TOKEN, HttpStatus.UNAUTHORIZED);
 
     private final String message;
     private final HttpStatus status;

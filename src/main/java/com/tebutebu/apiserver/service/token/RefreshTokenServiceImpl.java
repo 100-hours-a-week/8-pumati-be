@@ -5,6 +5,8 @@ import com.tebutebu.apiserver.domain.RefreshToken;
 import com.tebutebu.apiserver.dto.token.request.RefreshTokenCreateRequestDTO;
 import com.tebutebu.apiserver.dto.token.request.RefreshTokenRotateRequestDTO;
 import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.repository.RefreshTokenRepository;
 import com.tebutebu.apiserver.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.NoSuchElementException;
 
 @Service
 @Log4j2
@@ -52,17 +53,17 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     public RefreshTokenResponseDTO findByToken(String token) {
         RefreshToken entity = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new NoSuchElementException("refreshTokenNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.REFRESH_TOKEN_NOT_FOUND));
         return entityToDTO(entity);
     }
 
     @Override
     public RefreshTokenResponseDTO rotateToken(RefreshTokenRotateRequestDTO dto) {
         RefreshToken old = refreshTokenRepository.findByToken(dto.getOldToken())
-                .orElseThrow(() -> new NoSuchElementException("refreshTokenNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
         if (old.isExpired() || !old.getMember().getId().equals(dto.getMemberId())) {
-            throw new IllegalArgumentException("invalidOrExpiredRefreshToken");
+            throw new BusinessException(BusinessErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         String newToken = JWTUtil.generateRefreshToken(dto.getMemberId());

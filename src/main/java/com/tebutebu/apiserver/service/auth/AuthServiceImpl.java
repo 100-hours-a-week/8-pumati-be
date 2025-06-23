@@ -4,6 +4,8 @@ import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.dto.token.TokensDTO;
 import com.tebutebu.apiserver.dto.token.request.RefreshTokenRotateRequestDTO;
 import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.repository.MemberRepository;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.token.RefreshTokenService;
@@ -13,7 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +32,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public TokensDTO refreshTokens(String authorizationHeader, String refreshTokenCookie) {
         if (refreshTokenCookie == null || refreshTokenCookie.isBlank()) {
-            throw new IllegalArgumentException("nullRefreshToken");
+            throw new BusinessException(BusinessErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         boolean isValidAccessToken = false;
@@ -50,14 +51,14 @@ public class AuthServiceImpl implements AuthService {
 
         RefreshTokenResponseDTO storedDto = refreshTokenService.findByToken(refreshTokenCookie);
         if (storedDto.isExpired()) {
-            throw new IllegalArgumentException("expiredRefreshToken");
+            throw new BusinessException(BusinessErrorCode.EXPIRED_REFRESH_TOKEN);
         }
 
         Map<String, Object> claims = JWTUtil.validateToken(refreshTokenCookie);
         Long memberId = ((Number) claims.get("sub")).longValue();
 
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new NoSuchElementException("memberNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND));
 
         CustomOAuth2User customOAuth2User = new CustomOAuth2User(member);
         Map<String, Object> attributes = customOAuth2User.getAttributes();
