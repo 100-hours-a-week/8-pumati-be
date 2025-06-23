@@ -88,7 +88,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     .setIfAbsent(snapshotGeneratingKey, "true", Duration.ofSeconds(snapshotGeneratingTtlSeconds));
             if (Boolean.FALSE.equals(generating)) {
                 log.warn("Snapshot is already being generated. Skipping duplicate request.");
-                throw new IllegalStateException("snapshotAlreadyInProgress");
+                throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
             }
 
             // DB fallback 확인
