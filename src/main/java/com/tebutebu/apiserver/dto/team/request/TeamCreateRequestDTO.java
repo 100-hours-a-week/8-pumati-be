@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.dto.team.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -15,12 +16,12 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 public class TeamCreateRequestDTO {
 
-    @NotNull(message = "기수는 필수 입력 값입니다.")
-    @Min(value = 1, message = "기수는 1 이상의 숫자여야 합니다.")
+    @NotNull(message = ValidationMessages.TEAM_TERM_REQUIRED)
+    @Min(value = 1, message = ValidationMessages.TERM_MUST_BE_POSITIVE)
     private Integer term;
 
-    @NotNull(message = "팀(조) 번호는 필수 입력 값입니다.")
-    @Min(value = 1, message = "팀 번호는 1 이상의 숫자여야 합니다.")
+    @NotNull(message = ValidationMessages.TEAM_NUMBER_REQUIRED)
+    @Min(value = 1, message = ValidationMessages.TEAM_NUMBER_MUST_BE_POSITIVE)
     private Integer number;
 
 }

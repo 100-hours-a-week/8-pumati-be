@@ -20,18 +20,16 @@ import com.tebutebu.apiserver.repository.TeamBadgeStatRepository;
 import com.tebutebu.apiserver.repository.TeamRepository;
 import com.tebutebu.apiserver.repository.paging.badge.TeamBadgeStatPagingRepository;
 import com.tebutebu.apiserver.service.ai.badge.AiBadgeImageRequestService;
-import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.project.ProjectService;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
+import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -57,7 +55,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public TeamResponseDTO get(Long id) {
         Team team = teamRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
         Long projectId = findTeamProjectId(id);
         if (projectId == null) {
             return entityToDTO(team, null, null);
@@ -73,7 +71,7 @@ public class TeamServiceImpl implements TeamService {
             return null;
         }
         Team team = teamRepository.findByTermAndNumber(term, number)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
         Long teamId = team.getId();
         Long projectId = findTeamProjectId(teamId);
         if (projectId == null) {
@@ -88,7 +86,7 @@ public class TeamServiceImpl implements TeamService {
     public List<TeamListResponseDTO> getAllTeams() {
         List<Team> all = teamRepository.findAll();
         if (all.isEmpty()) {
-            throw new NoSuchElementException("noTeamNumbersAvailable");
+            throw new BusinessException(BusinessErrorCode.NO_TEAM_NUMBERS_AVAILABLE);
         }
 
         Map<Integer, List<Integer>> grouped = all.stream()
@@ -116,7 +114,7 @@ public class TeamServiceImpl implements TeamService {
     public Long register(TeamCreateRequestDTO dto) {
 
         if (teamRepository.existsByTermAndNumber(dto.getTerm(), dto.getNumber())) {
-            throw new CustomValidationException("teamAlreadyExists");
+            throw new BusinessException(BusinessErrorCode.TEAM_ALREADY_EXISTS);
         }
 
         Team team = dtoToEntity(dto);
@@ -153,19 +151,18 @@ public class TeamServiceImpl implements TeamService {
         teamBadgeStatRepository.save(teamBadgeStat);
     }
 
-
     @Override
     public void requestUpdateBadgeImage(Long teamId, BadgeImageModificationRequestDTO badgeImageModificationRequestDTO) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
 
         if (team.isAiBadgeInProgress()) {
-            throw new CustomValidationException("badgeModificationInProgress");
+            throw new BusinessException(BusinessErrorCode.BADGE_MODIFICATION_IN_PROGRESS);
         }
 
         ProjectResponseDTO project = projectService.getByTeamId(teamId);
         if (project == null) {
-            throw new NoSuchElementException("projectNotFound");
+            throw new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND);
         }
 
         List<String> tagContents = project.getTags().stream()
@@ -196,19 +193,17 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public void updateBadgeImageUrl(Long teamId, String badgeImageUrl) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
 
         team.changeBadgeImageUrl(badgeImageUrl);
-
         team.setAiBadgeInProgress(false);
-
         teamRepository.save(team);
     }
 
     @Override
     public void resetAiBadgeProgress(Long teamId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
 
         team.setAiBadgeInProgress(false);
         teamRepository.save(team);
@@ -217,7 +212,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public Long incrementGivedPumati(Long teamId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
         team.increaseGivedPumati();
         teamRepository.save(team);
         return team.getGivedPumatiCount();
@@ -226,7 +221,7 @@ public class TeamServiceImpl implements TeamService {
     @Override
     public Long incrementReceivedPumati(Long teamId) {
         Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new NoSuchElementException("teamNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
         team.increaseReceivedPumati();
         teamRepository.save(team);
         return team.getReceivedPumatiCount();

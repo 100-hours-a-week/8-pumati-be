@@ -5,8 +5,9 @@ import com.tebutebu.apiserver.dto.s3.request.SinglePreSignedUrlRequestDTO;
 import com.tebutebu.apiserver.dto.s3.response.MultiplePreSignedUrlsResponseDTO;
 import com.tebutebu.apiserver.dto.s3.response.SinglePreSignedUrlResponseDTO;
 import com.tebutebu.apiserver.fixture.s3.PreSignedUrlRequestDTOFixture;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.util.ReflectionTestUtil;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -105,9 +106,9 @@ class PreSignedUrlServiceTest {
         @DisplayName("파일명 확장자 누락 예외")
         void testGeneratePreSignedUrlInvalidExtension() {
             SinglePreSignedUrlRequestDTO requestDTO = PreSignedUrlRequestDTOFixture.createSingleRequestDTO("invalidFile", "image/jpeg");
-            CustomValidationException e = assertThrows(CustomValidationException.class,
+            BusinessException e = assertThrows(BusinessException.class,
                     () -> preSignedUrlService.generatePreSignedUrl(requestDTO));
-            assertEquals("invalidFileExtension", e.getMessage());
+            assertEquals(BusinessErrorCode.INVALID_FILE_EXTENSION, e.getErrorCode());
         }
     }
 
@@ -135,9 +136,9 @@ class PreSignedUrlServiceTest {
         @DisplayName("파일 리스트 개수 초과 예외")
         void testGenerateMultiplePreSignedUrlsRequestCountExceeded() {
             MultiplePreSignedUrlsRequestDTO requestDTO = PreSignedUrlRequestDTOFixture.createMultipleRequestDTO(MAX_COUNT + 1);
-            CustomValidationException e = assertThrows(CustomValidationException.class,
+            BusinessException e = assertThrows(BusinessException.class,
                     () -> preSignedUrlService.generatePreSignedUrls(requestDTO));
-            assertEquals("requestCountExceeded", e.getMessage());
+            assertEquals(BusinessErrorCode.REQUEST_COUNT_EXCEEDED, e.getErrorCode());
         }
     }
 
@@ -175,8 +176,12 @@ class PreSignedUrlServiceTest {
         void testInvalidExtensions(String fileName, String contentType) {
             SinglePreSignedUrlRequestDTO dto = PreSignedUrlRequestDTOFixture.createSingleRequestDTO(fileName, contentType);
 
-            assertThrows(CustomValidationException.class,
+            BusinessException e = assertThrows(BusinessException.class,
                     () -> preSignedUrlService.generatePreSignedUrl(dto));
+            assertTrue(Set.of(
+                    BusinessErrorCode.INVALID_FILE_EXTENSION,
+                    BusinessErrorCode.UNSUPPORTED_FILE_EXTENSION
+            ).contains(e.getErrorCode()));
         }
     }
 
