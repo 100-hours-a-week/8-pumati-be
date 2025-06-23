@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
+import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -130,17 +131,17 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
     private Long createAndSaveSnapshot() {
         List<Project> projects = projectRepository.findAllForRanking();
 
-        List<Map<String, Object>> rankingList = new ArrayList<>();
+        List<RankingItemDTO> rankingList = new ArrayList<>();
         int rank = 1;
         for (Project p : projects) {
             if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) {
                 continue;
             }
-            rankingList.add(Map.of(
-                    "project_id", p.getId(),
-                    "rank", rank++,
-                    "gived_pumati_count", p.getTeam().getGivedPumatiCount()
-            ));
+            rankingList.add(RankingItemDTO.builder()
+                    .projectId(p.getId())
+                    .rank(rank++)
+                    .givedPumatiCount(p.getTeam().getGivedPumatiCount())
+                    .build());
         }
 
         String json;
