@@ -100,6 +100,8 @@ ranking:
     cache:
       key-prefix: ${ranking.snapshot.cache.key-prefix}
       key-latest-suffix: ${ranking.snapshot.cache.key-latest-suffix}
+      key-generating-flag: ${ranking.snapshot.cache.key-generating-flag}
+      generating-ttl-seconds: ${ranking.snapshot.cache.generating-ttl-seconds}
     lock:
       key-register: ${ranking.snapshot.lock.key-register}
 

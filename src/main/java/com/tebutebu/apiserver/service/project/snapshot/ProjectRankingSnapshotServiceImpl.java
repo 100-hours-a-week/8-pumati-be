@@ -51,10 +51,17 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
     @Value("${ranking.snapshot.lock.key-register}")
     private String registerLockKey;
 
+    @Value("${ranking.snapshot.cache.key-generating-flag:snapshot:generating}")
+    private String snapshotGeneratingKey;
+
+    @Value("${ranking.snapshot.cache.generating-ttl-seconds:60}")
+    private long snapshotGeneratingTtlSeconds;
+
     @Override
     public Long register() {
         RLock lock = redissonClient.getLock(registerLockKey);
         boolean isLocked = false;
+        LocalDateTime now = LocalDateTime.now();
 
         try {
             // 락을 최대 15초까지 대기하며, 60초 동안 점유함
@@ -75,8 +82,16 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 return snapshotId;
             }
 
-            // 캐시에 없으면 DB에서 최근 스냅샷 가져오기
-            LocalDateTime threshold = LocalDateTime.now().minusMinutes(snapshotDurationMinutes);
+            // 스냅샷 생성 중인 경우 중단
+            Boolean generating = redisTemplate.opsForValue()
+                    .setIfAbsent(snapshotGeneratingKey, "true", Duration.ofSeconds(snapshotGeneratingTtlSeconds));
+            if (Boolean.FALSE.equals(generating)) {
+                log.warn("Snapshot is already being generated. Skipping duplicate request.");
+                throw new IllegalStateException("snapshotAlreadyInProgress");
+            }
+
+            // DB fallback 확인
+            LocalDateTime threshold = now.minusMinutes(snapshotDurationMinutes);
             ProjectRankingSnapshot latestSnapshot = projectRankingSnapshotRepository
                     .findTopByOrderByRequestedAtDesc()
                     .orElse(null);
@@ -85,9 +100,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 boolean hasNewProject = projectRepository.existsByCreatedAtAfter(latestSnapshot.getRequestedAt());
 
                 if (!hasNewProject && latestSnapshot.getRequestedAt().isAfter(threshold)) {
-                    long remainingTime = Duration.between(LocalDateTime.now(),
-                            latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
-
+                    long remainingTime = Duration.between(now, latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
                     if (remainingTime > 0) {
                         redisTemplate.opsForValue().set(latestCacheKey,
                                 latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
@@ -104,6 +117,8 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
             Thread.currentThread().interrupt();
             throw new RuntimeException("lockInterrupted", e);
         } finally {
+            // 생성 중 플래그 제거
+            redisTemplate.delete(snapshotGeneratingKey);
             if (isLocked && lock.isHeldByCurrentThread()) {
                 lock.unlock();
                 log.info("Lock released for snapshot registration.");

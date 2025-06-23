@@ -99,6 +99,8 @@ ranking:
     cache:
       key-prefix: "ranking:snapshot:"
       key-latest-suffix: latest:id
+      key-generating-flag: snapshot:generating
+      generating-ttl-seconds: 60
     lock:
       key-register: lock:project:snapshot:register
 
