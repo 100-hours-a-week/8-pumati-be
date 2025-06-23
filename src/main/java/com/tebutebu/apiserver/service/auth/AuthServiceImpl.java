@@ -39,7 +39,7 @@ public class AuthServiceImpl implements AuthService {
         String currentAccessToken = null;
         if (authorizationHeader != null && authorizationHeader.startsWith(BEARER_PREFIX)) {
             currentAccessToken = authorizationHeader.substring(BEARER_PREFIX.length());
-            isValidAccessToken = !isExpired(currentAccessToken);
+            isValidAccessToken = !JWTUtil.isExpired(currentAccessToken);
         }
 
         if (isValidAccessToken) {
@@ -76,16 +76,6 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(newAccess)
                 .refreshToken(rotated.getToken())
                 .build();
-    }
-
-    private boolean isExpired(String token) {
-        try {
-            JWTUtil.validateToken(token);
-            return false;
-        } catch (RuntimeException e) {
-            String msg = e.getMessage();
-            return msg != null && msg.toLowerCase().contains("expired");
-        }
     }
 
 }

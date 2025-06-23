@@ -97,4 +97,21 @@ public class JWTUtil {
         );
     }
 
+    public static boolean isExpired(String token) {
+        try {
+            SecretKey key = Keys.hmacShaKeyFor(JWTUtil.secretKey.getBytes(StandardCharsets.UTF_8));
+            Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token);
+            return false;
+        } catch (ExpiredJwtException e) {
+            return true;
+        } catch (JwtException e) {
+            throw new BusinessException(AuthErrorCode.INVALID_TOKEN, e);
+        } catch (Exception e) {
+            throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, e);
+        }
+    }
+
 }
