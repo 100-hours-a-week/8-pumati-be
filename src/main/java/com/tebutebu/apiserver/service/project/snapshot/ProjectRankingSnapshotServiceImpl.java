@@ -145,14 +145,21 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
     }
 
     private Long createAndSaveSnapshot() {
+        List<RankingItemDTO> ranking = generateRanking();
+        String json = serializeToJson(ranking);
+        ProjectRankingSnapshot saved = persistSnapshot(json);
+        cacheSnapshot(saved);
+        return saved.getId();
+    }
+
+    private List<RankingItemDTO> generateRanking() {
         List<Project> projects = projectRepository.findAllForRanking();
 
         List<RankingItemDTO> rankingList = new ArrayList<>();
         int rank = 1;
         for (Project p : projects) {
-            if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) {
-                continue;
-            }
+            if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) continue;
+
             rankingList.add(RankingItemDTO.builder()
                     .projectId(p.getId())
                     .rank(rank++)
@@ -160,13 +167,18 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     .build());
         }
 
-        String json;
+        return rankingList;
+    }
+
+    private String serializeToJson(List<RankingItemDTO> ranking) {
         try {
-            json = objectMapper.writeValueAsString(Map.of("projects", rankingList));
+            return objectMapper.writeValueAsString(Map.of("projects", ranking));
         } catch (JsonProcessingException e) {
             throw new BusinessException(BusinessErrorCode.SNAPSHOT_SERIALIZATION_FAILED, e);
         }
+    }
 
+    private ProjectRankingSnapshot persistSnapshot(String json) {
         ProjectRankingSnapshot newSnap = ProjectRankingSnapshot.builder()
                 .rankingData(json)
                 .requestedAt(LocalDateTime.now())
@@ -174,16 +186,18 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
         ProjectRankingSnapshot saved = projectRankingSnapshotRepository.save(newSnap);
         projectRankingSnapshotRepository.flush();
+        return saved;
+    }
 
-        String cacheKey = snapshotCacheKeyPrefix + saved.getId();
-        ProjectRankingSnapshotResponseDTO dto = entityToDTO(saved);
-        redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+    private void cacheSnapshot(ProjectRankingSnapshot snapshot) {
+        ProjectRankingSnapshotResponseDTO dto = entityToDTO(snapshot);
+        String idKey = snapshotCacheKeyPrefix + snapshot.getId();
+        String latestKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
 
-        String latestCacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
-        redisTemplate.opsForValue().set(latestCacheKey, saved.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
+        redisTemplate.opsForValue().set(idKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+        redisTemplate.opsForValue().set(latestKey, snapshot.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
 
-        log.info("New snapshot created with ID={}", saved.getId());
-        return saved.getId();
+        log.info("New snapshot created with ID={}", snapshot.getId());
     }
 
 }
