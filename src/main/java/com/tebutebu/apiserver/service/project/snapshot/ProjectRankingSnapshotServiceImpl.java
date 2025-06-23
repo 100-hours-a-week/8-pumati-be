@@ -6,6 +6,8 @@ import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -68,7 +69,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
             isLocked = lock.tryLock(15, 60, TimeUnit.SECONDS);
             if (!isLocked) {
                 log.warn("Failed to acquire lock for snapshot registration.");
-                throw new IllegalStateException("registerLockUnavailable");
+                throw new BusinessException(BusinessErrorCode.SNAPSHOT_LOCK_UNAVAILABLE);
             }
 
             log.info("Lock acquired for snapshot registration.");
@@ -130,7 +131,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
     public ProjectRankingSnapshotResponseDTO getLatestSnapshot() {
         ProjectRankingSnapshot snapshot = projectRankingSnapshotRepository
                 .findTopByOrderByRequestedAtDesc()
-                .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.SNAPSHOT_NOT_FOUND));
 
         String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
         ProjectRankingSnapshotResponseDTO cachedSnapshot = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
@@ -163,7 +164,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         try {
             json = objectMapper.writeValueAsString(Map.of("projects", rankingList));
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e.getMessage());
+            throw new BusinessException(BusinessErrorCode.SNAPSHOT_SERIALIZATION_FAILED, e);
         }
 
         ProjectRankingSnapshot newSnap = ProjectRankingSnapshot.builder()

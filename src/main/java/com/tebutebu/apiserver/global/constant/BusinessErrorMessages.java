@@ -17,6 +17,10 @@ public class BusinessErrorMessages {
     // Project
     public static final String PROJECT_NOT_FOUND = "projectNotFound";
     public static final String PROJECT_ALREADY_EXISTS = "projectAlreadyExists";
+    public static final String SNAPSHOT_LOCK_UNAVAILABLE = "snapshotLockUnavailable";
+    public static final String SNAPSHOT_SERIALIZATION_FAILED = "snapshotSerializationFailed";
+    public static final String SNAPSHOT_LOCK_INTERRUPTED = "snapshotLockInterrupted";
+    public static final String SNAPSHOT_NOT_FOUND = "snapshotNotFound";
 
     // Paging
     public static final String CONTEXT_ID_REQUIRED = "contextIdRequired";
