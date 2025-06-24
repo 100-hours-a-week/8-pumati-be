@@ -8,6 +8,7 @@ import com.tebutebu.apiserver.dto.token.response.RefreshTokenResponseDTO;
 import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
 import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.repository.RefreshTokenRepository;
+import com.tebutebu.apiserver.service.token.redis.RefreshTokenRedisService;
 import com.tebutebu.apiserver.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -23,6 +24,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
 
+    private final RefreshTokenRedisService refreshTokenRedisService;
+
     @Value("${spring.jwt.refresh-token.expiration}")
     private int refreshTokenExpiration;
 
@@ -37,6 +40,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
                 .orElseGet(() -> dtoToEntity(dto));
 
         refreshTokenRepository.save(token);
+        refreshTokenRedisService.save(dto.getToken(), dto.getMemberId(), refreshTokenExpiration);
     }
 
     @Override
@@ -52,8 +56,19 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     public RefreshTokenResponseDTO findByToken(String token) {
+        Long memberId = refreshTokenRedisService.getMemberId(token);
+        if (memberId != null) {
+            return RefreshTokenResponseDTO.builder()
+                    .token(token)
+                    .memberId(memberId)
+                    .expiresAt(LocalDateTime.now().plusMinutes(refreshTokenExpiration))
+                    .build();
+        }
+
         RefreshToken entity = refreshTokenRepository.findByToken(token)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        refreshTokenRedisService.save(entity.getToken(), entity.getMember().getId(), refreshTokenExpiration);
+
         return entityToDTO(entity);
     }
 
@@ -70,13 +85,21 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
         old.changeToken(newToken);
         old.changeExpiresAt(LocalDateTime.now().plusMinutes(dto.getNewExpiryMinutes()));
-        return entityToDTO(refreshTokenRepository.save(old));
+        RefreshToken savedToken = refreshTokenRepository.save(old);
+
+        refreshTokenRedisService.delete(dto.getOldToken());
+        refreshTokenRedisService.save(newToken, dto.getMemberId(), dto.getNewExpiryMinutes());
+
+        return entityToDTO(savedToken);
     }
 
     @Override
     public void deleteByMemberId(Long memberId) {
         refreshTokenRepository.findByMemberId(memberId)
-                .ifPresent(refreshTokenRepository::delete);
+                .ifPresent(token -> {
+                    refreshTokenRepository.delete(token);
+                    refreshTokenRedisService.delete(token.getToken());
+                });
     }
 
     private RefreshToken dtoToEntity(RefreshTokenCreateRequestDTO dto) {

@@ -57,6 +57,8 @@ spring:
       port: ${redis.port}
       password: ${redis.password}
       timeout: ${redis.timeout}
+      prefix:
+        refresh-token: ${redis.prefix.refresh-token}
 
 server:
   forward-headers-strategy: framework

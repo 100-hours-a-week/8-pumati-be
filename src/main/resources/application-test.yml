@@ -57,6 +57,8 @@ spring:
       port: 6379
       password:
       timeout: 5000
+      prefix:
+        refresh-token: "refreshToken:"
 
 server:
   forward-headers-strategy: framework
