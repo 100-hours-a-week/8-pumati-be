@@ -13,7 +13,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class RefreshTokenRedisServiceImpl implements RefreshTokenRedisService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, Long> redisTemplate;
 
     private final RefreshTokenRedisKeyUtil keyUtil;
 
@@ -27,13 +27,7 @@ public class RefreshTokenRedisServiceImpl implements RefreshTokenRedisService {
     @Override
     public Long getMemberId(String token) {
         String key = keyUtil.toRedisKey(token);
-        Object value = redisTemplate.opsForValue().get(key);
-        if (value instanceof Long) {
-            return (Long) value;
-        } else {
-            log.warn("Failed to cast Redis value to Long for key={}", key);
-            return null;
-        }
+        return redisTemplate.opsForValue().get(key);
     }
 
     @Override
