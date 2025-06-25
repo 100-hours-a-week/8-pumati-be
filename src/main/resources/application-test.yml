@@ -41,7 +41,7 @@ spring:
         size: 1
 
   jwt:
-    secret: test-jwt-secret
+    secret: test-jwt-secret-test-jwt-secret-test-jwt-secret-test-jwt-secret-test-jwt-secret
     access-token:
       expiration: 10
     refresh-token:
