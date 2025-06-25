@@ -37,8 +37,10 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
         RefreshToken token = refreshTokenRepository.findByMemberId(dto.getMemberId())
                 .map(existing -> {
+                    String oldToken = existing.getToken();
                     existing.changeToken(dto.getToken());
                     existing.changeExpiresAt(dto.getExpiresAt());
+                    refreshTokenRedisService.delete(oldToken);
                     return existing;
                 })
                 .orElseGet(() -> dtoToEntity(dto));
