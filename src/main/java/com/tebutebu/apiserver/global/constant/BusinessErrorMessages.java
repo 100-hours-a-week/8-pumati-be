@@ -41,5 +41,6 @@ public class BusinessErrorMessages {
     public static final String EXPIRED_REFRESH_TOKEN = "expiredRefreshToken";
     public static final String REFRESH_TOKEN_NOT_FOUND = "refreshTokenNotFound";
     public static final String INVALID_OR_EXPIRED_REFRESH_TOKEN = "invalidOrExpiredRefreshToken";
+    public static final String INVALID_REFRESH_TOKEN_EXPIRY = "invalidRefreshTokenExpiry";
 
 }

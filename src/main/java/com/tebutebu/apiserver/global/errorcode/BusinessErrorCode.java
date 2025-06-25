@@ -42,7 +42,8 @@ public enum BusinessErrorCode implements ErrorCode {
     INVALID_REFRESH_TOKEN(BusinessErrorMessages.INVALID_REFRESH_TOKEN, HttpStatus.BAD_REQUEST),
     EXPIRED_REFRESH_TOKEN(BusinessErrorMessages.EXPIRED_REFRESH_TOKEN, HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_NOT_FOUND(BusinessErrorMessages.REFRESH_TOKEN_NOT_FOUND, HttpStatus.NOT_FOUND),
-    INVALID_OR_EXPIRED_REFRESH_TOKEN(BusinessErrorMessages.INVALID_OR_EXPIRED_REFRESH_TOKEN, HttpStatus.UNAUTHORIZED);
+    INVALID_OR_EXPIRED_REFRESH_TOKEN(BusinessErrorMessages.INVALID_OR_EXPIRED_REFRESH_TOKEN, HttpStatus.UNAUTHORIZED),
+    INVALID_REFRESH_TOKEN_EXPIRY(BusinessErrorMessages.INVALID_REFRESH_TOKEN_EXPIRY, HttpStatus.BAD_REQUEST); // ← 추가
 
     private final String message;
     private final HttpStatus status;
