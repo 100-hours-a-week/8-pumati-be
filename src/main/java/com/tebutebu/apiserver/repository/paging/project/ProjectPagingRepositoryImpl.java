@@ -43,7 +43,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final ObjectMapper objectMapper;
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate;
 
     private final QProject qProject = QProject.project;
 
@@ -55,7 +55,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
         Long snapshotId = req.getContextId();
         String cacheKey = snapshotCacheKeyPrefix + snapshotId;
 
-        ProjectRankingSnapshotResponseDTO cachedSnapshot = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
+        ProjectRankingSnapshotResponseDTO cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
 
         List<RankingItemDTO> dtoList;
         if (cachedSnapshot != null) {

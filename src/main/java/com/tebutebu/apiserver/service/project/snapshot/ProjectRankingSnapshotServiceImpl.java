@@ -36,9 +36,11 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private final ObjectMapper objectMapper;
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate;
 
     private final RedisTemplate<String, String> stringRedisTemplate;
+
+    private final RedisTemplate<String, Boolean> booleanRedisTemplate;
 
     private final RedissonClient redissonClient;
 
@@ -85,9 +87,10 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 return snapshotId;
             }
 
-            Boolean generating = redisTemplate.opsForValue()
-                    .setIfAbsent(snapshotGeneratingKey, "true", Duration.ofSeconds(snapshotGeneratingTtlSeconds));
-            if (Boolean.FALSE.equals(generating)) {
+            Boolean isGenerating = booleanRedisTemplate.opsForValue()
+                    .setIfAbsent(snapshotGeneratingKey, true, Duration.ofSeconds(snapshotGeneratingTtlSeconds));
+
+            if (Boolean.FALSE.equals(isGenerating)) {
                 log.warn("Snapshot is already being generated. Skipping duplicate request.");
                 throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
             }
@@ -123,7 +126,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         } finally {
             // 스냅샷 생성이 성공한 경우에만 키 삭제
             if (success) {
-                redisTemplate.delete(snapshotGeneratingKey);
+                snapshotRedisTemplate.delete(snapshotGeneratingKey);
             }
             if (isLocked && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -139,13 +142,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.SNAPSHOT_NOT_FOUND));
 
         String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
-        ProjectRankingSnapshotResponseDTO cachedSnapshot = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
+        ProjectRankingSnapshotResponseDTO cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
+
         if (cachedSnapshot != null) {
             return cachedSnapshot;
         }
 
         ProjectRankingSnapshotResponseDTO projectRankingSnapshotResponseDTO = entityToDTO(snapshot);
-        redisTemplate.opsForValue().set(cacheKey, projectRankingSnapshotResponseDTO, Duration.ofMinutes(snapshotDurationMinutes));
+        snapshotRedisTemplate.opsForValue().set(cacheKey, projectRankingSnapshotResponseDTO, Duration.ofMinutes(snapshotDurationMinutes));
         return projectRankingSnapshotResponseDTO;
     }
 
@@ -199,7 +203,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         String idKey = snapshotCacheKeyPrefix + snapshot.getId();
         String latestKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
 
-        redisTemplate.opsForValue().set(idKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+        snapshotRedisTemplate.opsForValue().set(idKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
         stringRedisTemplate.opsForValue().set(latestKey, snapshot.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
 
         log.info("New snapshot created with ID={}", snapshot.getId());
