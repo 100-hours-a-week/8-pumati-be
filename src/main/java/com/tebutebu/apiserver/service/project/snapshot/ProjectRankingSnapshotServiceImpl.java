@@ -126,7 +126,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         } finally {
             // 스냅샷 생성이 성공한 경우에만 키 삭제
             if (success) {
-                snapshotRedisTemplate.delete(snapshotGeneratingKey);
+                booleanRedisTemplate.delete(snapshotGeneratingKey);
             }
             if (isLocked && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -157,7 +157,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         List<RankingItemDTO> ranking = generateRanking();
         String json = serializeToJson(ranking);
         ProjectRankingSnapshot saved = persistSnapshot(json);
-        cacheSnapshot(saved);
+        cacheSnapshot(saved, ranking);
         return saved.getId();
     }
 
@@ -198,8 +198,12 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         return saved;
     }
 
-    private void cacheSnapshot(ProjectRankingSnapshot snapshot) {
-        ProjectRankingSnapshotResponseDTO dto = entityToDTO(snapshot);
+    private void cacheSnapshot(ProjectRankingSnapshot snapshot, List<RankingItemDTO> ranking) {
+        ProjectRankingSnapshotResponseDTO dto = ProjectRankingSnapshotResponseDTO.builder()
+                .id(snapshot.getId())
+                .data(ranking)
+                .build();
+
         String idKey = snapshotCacheKeyPrefix + snapshot.getId();
         String latestKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
 
