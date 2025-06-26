@@ -38,6 +38,8 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private final RedisTemplate<String, Object> redisTemplate;
 
+    private final RedisTemplate<String, String> stringRedisTemplate;
+
     private final RedissonClient redissonClient;
 
     @Value("${ranking.snapshot.duration.minutes:5}")
@@ -76,7 +78,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
             // 캐시에 저장된 스냅샷 ID가 있는 경우 재사용
             String latestCacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
-            String cachedSnapshotId = (String) redisTemplate.opsForValue().get(latestCacheKey);
+            String cachedSnapshotId = stringRedisTemplate.opsForValue().get(latestCacheKey);
             if (cachedSnapshotId != null) {
                 Long snapshotId = Long.parseLong(cachedSnapshotId);
                 log.info("Reusing cached snapshot with ID={}", snapshotId);
@@ -103,8 +105,8 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 if (!hasNewProject && latestSnapshot.getRequestedAt().isAfter(threshold)) {
                     long remainingTime = Duration.between(now, latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
                     if (remainingTime > 0) {
-                        redisTemplate.opsForValue().set(latestCacheKey,
-                                latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
+                        stringRedisTemplate.opsForValue().set(latestCacheKey,
+                                latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime)); // ✅
                     }
 
                     log.info("Reusing DB fallback snapshot with ID={}", latestSnapshot.getId());
@@ -195,7 +197,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         String latestKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
 
         redisTemplate.opsForValue().set(idKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
-        redisTemplate.opsForValue().set(latestKey, snapshot.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
+        stringRedisTemplate.opsForValue().set(latestKey, snapshot.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes)); // ✅
 
         log.info("New snapshot created with ID={}", snapshot.getId());
     }
