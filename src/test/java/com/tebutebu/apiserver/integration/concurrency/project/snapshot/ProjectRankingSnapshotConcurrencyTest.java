@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.integration.concurrency.project.snapshot;
 
+import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import lombok.extern.log4j.Log4j2;
@@ -33,13 +34,16 @@ public class ProjectRankingSnapshotConcurrencyTest {
     private ProjectRankingSnapshotRepository snapshotRepository;
 
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate;
 
     @BeforeEach
     void clearSnapshots() {
         snapshotRepository.deleteAll();
-        // Clear Redis cache as well
-        Objects.requireNonNull(redisTemplate.getConnectionFactory()).getConnection().flushAll();
+    }
+
+    @BeforeEach
+    void clearCache() {
+        Objects.requireNonNull(snapshotRedisTemplate.getConnectionFactory()).getConnection().flushAll();
     }
 
     @Nested
@@ -115,5 +119,41 @@ public class ProjectRankingSnapshotConcurrencyTest {
             assertThat(snapshotRepository.count()).isEqualTo(1);
         }
 
+    }
+
+    @Nested
+    @DisplayName("getLatestSnapshot() 호출 시")
+    class GetLatestSnapshot {
+
+        @Test
+        @DisplayName("ID만 캐시되어 있는 경우에도 본문이 DB에서 조회되어 캐싱된다")
+        void getLatestSnapshot_fetchesFromDBIfOnlyIdCached() {
+            // given
+            Long snapshotId = snapshotService.register();
+            String bodyKey = "ranking:snapshot:" + snapshotId; // 환경 변수 값과 일치해야 함
+            snapshotRedisTemplate.delete(bodyKey);
+
+            // when
+            ProjectRankingSnapshotResponseDTO snapshot = snapshotService.getLatestSnapshot();
+
+            // then
+            assertThat(snapshot).isNotNull();
+            assertThat(snapshot.getId()).isEqualTo(snapshotId);
+        }
+
+        @Test
+        @DisplayName("캐시에 DTO가 존재하는 경우, DB 조회 없이 캐시된 DTO 반환")
+        void getLatestSnapshot_returnsCachedDTO() {
+            // given
+            Long snapshotId = snapshotService.register();
+
+            // when
+            ProjectRankingSnapshotResponseDTO dto1 = snapshotService.getLatestSnapshot();
+            ProjectRankingSnapshotResponseDTO dto2 = snapshotService.getLatestSnapshot();
+
+            // then
+            assertThat(dto1.getId()).isEqualTo(snapshotId);
+            assertThat(dto2.getId()).isEqualTo(snapshotId);
+        }
     }
 }
