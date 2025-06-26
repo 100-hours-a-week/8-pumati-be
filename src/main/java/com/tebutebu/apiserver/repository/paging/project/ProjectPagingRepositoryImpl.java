@@ -8,6 +8,7 @@ import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.domain.QProject;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
+import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
@@ -19,13 +20,14 @@ import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -41,21 +43,35 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final ObjectMapper objectMapper;
 
+    private final RedisTemplate<String, Object> redisTemplate;
+
     private final QProject qProject = QProject.project;
+
+    @Value("${ranking.snapshot.cache.key-prefix}")
+    private String snapshotCacheKeyPrefix;
 
     @Override
     public CursorPage<ProjectPageResponseDTO> findByRankingCursor(ContextCursorPageRequestDTO req) {
-        ProjectRankingSnapshot snapshot = snapshotRepository.findById(req.getContextId())
-                .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
+        Long snapshotId = req.getContextId();
+        String cacheKey = snapshotCacheKeyPrefix + snapshotId;
 
-        List<RankingItemDTO> dtoList = parseSnapshotJson(snapshot);
+        ProjectRankingSnapshotResponseDTO cachedSnapshot = (ProjectRankingSnapshotResponseDTO) redisTemplate.opsForValue().get(cacheKey);
 
-        int start = calculateStartIndex(dtoList, req.getCursorId());
+        List<RankingItemDTO> dtoList;
+        if (cachedSnapshot != null) {
+            dtoList = cachedSnapshot.getData();
+        } else {
+            ProjectRankingSnapshot snapshot = snapshotRepository.findById(snapshotId)
+                    .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
+            dtoList = parseSnapshotJson(snapshot);
+        }
+
+        int start = calculateStartIndex(dtoList, snapshotId);
         int end = Math.min(start + req.getPageSize(), dtoList.size());
 
         List<Long> projectIds = dtoList.subList(start, end).stream()
                 .map(RankingItemDTO::getProjectId)
-                .collect(Collectors.toList());
+                .toList();
 
         List<Project> projects = projectRepository.findAllById(projectIds).stream()
                 .sorted(Comparator.comparingInt(p -> projectIds.indexOf(p.getId())))
@@ -65,7 +81,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
         List<ProjectPageResponseDTO> projectPageResponseDtoList = projects.stream()
                 .map(proj -> toPageResponseDTO(proj, commentCountMap))
-                .collect(Collectors.toList());
+                .toList();
 
         boolean hasNext = end < dtoList.size();
         Long nextCursorId = hasNext ? dtoList.get(end - 1).getProjectId() : null;
@@ -100,12 +116,12 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
         List<Long> projectIds = page.items().stream()
                 .map(Project::getId)
-                .collect(Collectors.toList());
+                .toList();
         Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
 
         List<ProjectPageResponseDTO> projectPageResponseDtoList = page.items().stream()
                 .map(proj -> toPageResponseDTO(proj, commentCountMap))
-                .collect(Collectors.toList());
+                .toList();
 
         return CursorPage.<ProjectPageResponseDTO>builder()
                 .items(projectPageResponseDtoList)
