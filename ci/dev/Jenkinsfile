@@ -172,36 +172,83 @@ spec:
                         try {
                             echo '🔐 APM 시크릿 토큰 설정 중...'
                             
-                            // Jenkins Credential에서 APM 토큰 가져오기 (옵션 1: Secret Text)
-                            // 만약 Jenkins에 'apm-secret-token' credential이 있다면:
+                            // 파일 권한 확인 및 수정
+                            sh '''
+                                echo "현재 작업 디렉토리 권한 확인:"
+                                ls -la .env || echo ".env 파일이 아직 없습니다"
+                                whoami
+                                id
+                                
+                                # .env 파일이 있다면 쓰기 권한 부여
+                                if [ -f .env ]; then
+                                    chmod 644 .env
+                                    echo ".env 파일 권한을 644로 설정했습니다"
+                                fi
+                            '''
+                            
+                            // Jenkins Credential에서 APM 토큰 가져오기
                             withCredentials([string(credentialsId: 'apm-secret-token', variable: 'APM_TOKEN')]) {
-                                sh """
-                                    echo "" >> .env
-                                    echo "# ==== Elastic APM 설정 (Jenkins에서 자동 추가) ====" >> .env
-                                    echo "ELASTIC_APM_SECRET_TOKEN=\${APM_TOKEN}" >> .env
-                                    echo "# APM 설정 완료" >> .env
-                                """
-                                echo '✅ APM 토큰이 .env 파일에 추가되었습니다.'
+                                sh '''
+                                    echo "APM 토큰 변수 확인 중..."
+                                    if [ -n "$APM_TOKEN" ]; then
+                                        echo "✅ APM 토큰이 성공적으로 로드되었습니다"
+                                        
+                                        # .env 파일에 APM 설정 추가
+                                        {
+                                            echo ""
+                                            echo "# ==== Elastic APM 설정 (Jenkins에서 자동 추가) ===="
+                                            echo "ELASTIC_APM_SECRET_TOKEN=$APM_TOKEN"
+                                            echo "# APM 설정 완료"
+                                        } >> .env
+                                        
+                                        echo "✅ APM 토큰이 .env 파일에 추가되었습니다"
+                                        
+                                        # 확인 (토큰 값은 마스킹하여 출력)
+                                        echo "📋 .env 파일 내용 확인 (토큰은 마스킹됨):"
+                                        sed 's/ELASTIC_APM_SECRET_TOKEN=.*/ELASTIC_APM_SECRET_TOKEN=***MASKED***/' .env | tail -5
+                                    else
+                                        echo "❌ APM 토큰이 비어있습니다"
+                                        exit 1
+                                    fi
+                                '''
                             }
                             
                         } catch (Exception e) {
-                            echo "⚠️ APM 토큰 credential을 찾을 수 없습니다: ${e.getMessage()}"
+                            echo "⚠️ APM 토큰 설정 중 오류 발생: ${e.getMessage()}"
                             echo "APM 에이전트는 기본 설정으로 실행됩니다."
-                            echo ""
-                            echo "📋 Jenkins Credential 설정 방법:"
-                            echo "1. Jenkins > Manage Jenkins > Credentials"
-                            echo "2. Add Credentials > Secret text"
-                            echo "3. ID: 'apm-secret-token'"
-                            echo "4. Secret: Terraform에서 생성된 APM 토큰 값"
-                            echo ""
                             
-                            // APM 토큰 없이도 기본 설정 추가
-                            sh """
-                                echo "" >> .env
-                                echo "# ==== Elastic APM 설정 (기본값) ====" >> .env
-                                echo "# ELASTIC_APM_SECRET_TOKEN=<토큰 미설정>" >> .env
-                                echo "# APM 에이전트는 토큰 없이 실행됩니다 (보안 수준 낮음)" >> .env
-                            """
+                            // 디버그 정보 출력
+                            sh '''
+                                echo ""
+                                echo "🔍 디버그 정보:"
+                                echo "작업 디렉토리: $(pwd)"
+                                echo "사용자: $(whoami)"
+                                echo "권한: $(id)"
+                                echo ".env 파일 상태:"
+                                ls -la .env 2>/dev/null || echo ".env 파일 없음"
+                                echo ""
+                            '''
+                            
+                            try {
+                                // APM 토큰 없이도 기본 설정 추가 (안전한 방식)
+                                sh '''
+                                    # 파일이 쓰기 가능한지 확인
+                                    if [ -w .env ] || [ ! -f .env ]; then
+                                        {
+                                            echo ""
+                                            echo "# ==== Elastic APM 설정 (기본값) ===="
+                                            echo "# ELASTIC_APM_SECRET_TOKEN=<토큰 미설정>"
+                                            echo "# APM 에이전트는 토큰 없이 실행됩니다 (보안 수준 낮음)"
+                                        } >> .env
+                                        echo "📝 기본 APM 설정이 추가되었습니다"
+                                    else
+                                        echo "⚠️ .env 파일에 쓸 수 없습니다. APM 설정을 건너뜁니다"
+                                    fi
+                                '''
+                            } catch (Exception e2) {
+                                echo "기본 설정 추가도 실패했습니다: ${e2.getMessage()}"
+                                echo "APM 에이전트는 환경 변수만으로 실행됩니다"
+                            }
                         }
                     }
                 }
