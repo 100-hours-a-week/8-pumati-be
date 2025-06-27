@@ -24,6 +24,9 @@ RUN apt-get update && \
     # 타임존을 서울로 설정
     ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
     echo "Asia/Seoul" > /etc/timezone && \
+    # Elastic APM Java 에이전트 다운로드 (소스 코드 변경 없이 모니터링 추가)
+    curl -L -o /opt/elastic-apm-agent.jar \
+        https://search.maven.org/remotecontent?filepath=co/elastic/apm/elastic-apm-agent/1.44.0/elastic-apm-agent-1.44.0.jar && \
     # 캐시 정리
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -39,11 +42,13 @@ COPY build/libs/*.jar app.jar
 # 환경 변수 파일 복사 (Jenkins에서 생성된 .env 파일)
 COPY .env /app/.env
 
-# JAR 파일 권한 설정
+# JAR 파일 및 APM 에이전트 권한 설정
 RUN chown appuser:appuser app.jar && \
     chown appuser:appuser .env && \
+    chown appuser:appuser /opt/elastic-apm-agent.jar && \
     chmod 644 app.jar && \
-    chmod 600 .env
+    chmod 600 .env && \
+    chmod 644 /opt/elastic-apm-agent.jar
 
 # 애플리케이션 포트 노출 (Spring Boot 기본 포트)
 EXPOSE 8080
@@ -103,12 +108,39 @@ ENV JAVA_OPTS="-Xms512m \
 ENV SPRING_PROFILES_ACTIVE=dev
 
 # ==============================================================================
-# 애플리케이션 실행 및 환경 변수 로딩
+# Elastic APM 에이전트 환경 설정 (소스 코드 변경 없이 모니터링 추가)
 # ==============================================================================
-# 복합 명령어를 통한 안전하고 효율적인 애플리케이션 시작
-ENTRYPOINT ["sh", "-c", "set -a && . /app/.env && set +a && exec java $JAVA_OPTS -Dspring.profiles.active=$SPRING_PROFILES_ACTIVE -jar app.jar"]
+# APM 서비스 이름 (Kibana에서 표시될 애플리케이션 이름)
+ENV ELASTIC_APM_SERVICE_NAME=pumati-backend
 
-# ENTRYPOINT 명령어 상세 분석:
+# APM 환경 설정 (dev, staging, prod 등)
+ENV ELASTIC_APM_ENVIRONMENT=dev
+
+# APM 서버 URL (Kubernetes 내부 서비스명)
+ENV ELASTIC_APM_SERVER_URL=http://apm-server-apm-server.elk-system.svc.cluster.local:8200
+
+# APM 시크릿 토큰 (환경 변수로 오버라이드 가능)
+ENV ELASTIC_APM_SECRET_TOKEN=""
+
+# APM 로그 레벨 설정
+ENV ELASTIC_APM_LOG_LEVEL=INFO
+
+# APM 샘플링 비율 (1.0 = 100%, 0.1 = 10%)
+ENV ELASTIC_APM_TRANSACTION_SAMPLE_RATE=1.0
+
+# APM 활성화 여부 (true/false)
+ENV ELASTIC_APM_ENABLED=true
+
+# APM 애플리케이션 패키지 설정 (성능 최적화)
+ENV ELASTIC_APM_APPLICATION_PACKAGES=com.tebutebu.apiserver
+
+# ==============================================================================
+# 애플리케이션 실행 및 환경 변수 로딩 (APM 에이전트 포함)
+# ==============================================================================
+# 복합 명령어를 통한 안전하고 효율적인 애플리케이션 시작 (APM 모니터링 활성화)
+ENTRYPOINT ["sh", "-c", "set -a && . /app/.env && set +a && exec java $JAVA_OPTS -javaagent:/opt/elastic-apm-agent.jar -Dspring.profiles.active=$SPRING_PROFILES_ACTIVE -jar app.jar"]
+
+# ENTRYPOINT 명령어 상세 분석 (APM 에이전트 포함):
 #
 # "sh -c": 
 #   ├─ 쉘을 통해 복합 명령어 실행
@@ -122,7 +154,7 @@ ENTRYPOINT ["sh", "-c", "set -a && . /app/.env && set +a && exec java $JAVA_OPTS
 # ". /app/.env":
 #   ├─ .env 파일의 내용을 현재 쉘에 로드 (source와 동일)
 #   ├─ 형식: KEY=VALUE 형태의 환경 변수들
-#   └─ 예: spring.datasource.url=${DB_HOST} 등에서 사용됨
+#   └─ 예: spring.datasource.url=${DB_HOST}, ELASTIC_APM_SECRET_TOKEN=xxx 등
 #
 # "set +a":
 #   ├─ auto-export 기능 비활성화 (보안 강화)
@@ -138,6 +170,13 @@ ENTRYPOINT ["sh", "-c", "set -a && . /app/.env && set +a && exec java $JAVA_OPTS
 #   ├─ 위에서 설정한 JVM 튜닝 옵션들 적용
 #   ├─ 실행 시 환경 변수로 오버라이드 가능
 #   └─ 예: docker run -e JAVA_OPTS="-Xmx2g" 로 메모리 변경 가능
+#
+# "-javaagent:/opt/elastic-apm-agent.jar":
+#   ├─ Elastic APM Java 에이전트를 JVM에 연결 (소스 코드 변경 없음!)
+#   ├─ 애플리케이션 시작 시 자동으로 계측(instrumentation) 수행
+#   ├─ Spring Boot, JPA, HTTP 요청/응답 등을 자동으로 모니터링
+#   ├─ 환경 변수(ELASTIC_APM_*)를 통해 APM 서버로 데이터 전송
+#   └─ 성능 영향: 일반적으로 5% 미만의 오버헤드
 #
 # "-Dspring.profiles.active=$SPRING_PROFILES_ACTIVE":
 #   ├─ Spring Boot 프로파일을 JVM 시스템 프로퍼티로 설정
