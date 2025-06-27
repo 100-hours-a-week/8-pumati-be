@@ -1,6 +1,8 @@
 package com.tebutebu.apiserver.integration.concurrency.project.snapshot;
 
+import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
+import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import lombok.extern.log4j.Log4j2;
@@ -10,9 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -51,8 +51,8 @@ public class ProjectRankingSnapshotConcurrencyTest {
     class Register {
 
         @RepeatedTest(5)
-        @DisplayName("동시 호출 시 register() 결과는 하나의 Snapshot ID만 생성됨")
-        void concurrentRegister_createsSingleSnapshot() throws InterruptedException {
+        @DisplayName("동시 호출 시 register() 결과는 하나의 Snapshot ID만 생성되고 형식도 유효함")
+        void concurrentRegister_createsSingleSnapshot() throws Exception {
             // given
             int threadCount = 50;
             CountDownLatch startLatch = new CountDownLatch(1);
@@ -62,43 +62,59 @@ public class ProjectRankingSnapshotConcurrencyTest {
 
             ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
-            // when
-            for (int i = 0; i < threadCount; i++) {
-                final int threadNum = i;
-                executor.submit(() -> {
-                    try {
-                        startLatch.await(); // All threads start at the same time
-                        log.info("Thread {} starting register()", threadNum);
-                        Long id = snapshotService.register();
-                        snapshotIds.add(id);
-                        log.info("Thread {} completed with ID={}", threadNum, id);
-                    } catch (Exception e) {
-                        log.error("Thread {} failed with error: {}", threadNum, e.getMessage());
-                        exceptions.add(e);
-                    } finally {
-                        endLatch.countDown();
-                    }
-                });
+            try {
+                for (int i = 0; i < threadCount; i++) {
+                    final int threadNum = i;
+                    executor.submit(() -> {
+                        try {
+                            startLatch.await();
+                            log.info("Thread {} starting register()", threadNum);
+                            Long id = snapshotService.register();
+                            snapshotIds.add(id);
+                            log.info("Thread {} completed with ID={}", threadNum, id);
+                        } catch (Exception e) {
+                            log.error("Thread {} failed with error: {}", threadNum, e.getMessage());
+                            exceptions.add(e);
+                        } finally {
+                            endLatch.countDown();
+                        }
+                    });
+                }
+
+                startLatch.countDown();
+                endLatch.await(30, TimeUnit.SECONDS);
+
+                // then
+                List<Long> distinctIds = snapshotIds.stream().distinct().toList();
+                Long expectedId = distinctIds.getFirst();
+
+                assertThat(exceptions).isEmpty();
+                assertThat(snapshotIds).hasSize(threadCount);
+                assertThat(snapshotIds).allMatch(Objects::nonNull);
+                assertThat(snapshotIds).allMatch(id -> id.equals(expectedId));
+                assertThat(distinctIds).hasSize(1);
+                assertThat(snapshotRepository.count()).isEqualTo(1);
+
+                // entityToDTO()를 통해 스냅샷 내용 검증
+                ProjectRankingSnapshot snapshot = snapshotRepository.findById(expectedId)
+                        .orElseThrow(() -> new AssertionError("Snapshot not found in DB"));
+
+                ProjectRankingSnapshotResponseDTO dto = snapshotService.entityToDTO(snapshot);
+
+                assertThat(dto).isNotNull();
+                assertThat(dto.getId()).isEqualTo(expectedId);
+                assertThat(dto.getData()).isNotNull();
+
+                if (!dto.getData().isEmpty()) {
+                    assertThat(dto.getData().getFirst().getRank()).isEqualTo(1);
+                    assertThat(dto.getData()).isSortedAccordingTo(
+                            Comparator.comparingInt(RankingItemDTO::getRank)
+                    );
+                }
+
+            } finally {
+                executor.shutdownNow();
             }
-
-            startLatch.countDown(); // Start all threads
-            endLatch.await(30, TimeUnit.SECONDS); // Wait up to 30 seconds
-
-            // then
-            List<Long> distinctIds = snapshotIds.stream().distinct().toList();
-
-            log.info("All snapshot IDs: {}", snapshotIds);
-            log.info("Distinct snapshot IDs: {}", distinctIds);
-            log.info("Snapshot count in DB: {}", snapshotRepository.count());
-
-            if (!exceptions.isEmpty()) {
-                log.error("Exceptions occurred: {}", exceptions);
-            }
-
-            assertThat(exceptions).isEmpty();
-            assertThat(snapshotIds).hasSize(threadCount);
-            assertThat(distinctIds).hasSize(1);
-            assertThat(snapshotRepository.count()).isEqualTo(1);
         }
 
         @Test
