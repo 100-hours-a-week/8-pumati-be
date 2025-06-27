@@ -176,8 +176,10 @@ spec:
                             sh '''
                                 echo "현재 작업 디렉토리 권한 확인:"
                                 ls -la .env || echo ".env 파일이 아직 없습니다"
-                                whoami
-                                id
+                                
+                                # 사용자 정보 확인 (오류 무시)
+                                whoami 2>/dev/null || echo "사용자 이름 확인 불가 (컨테이너 환경)"
+                                id 2>/dev/null || echo "사용자 ID 확인 불가 (컨테이너 환경)"
                                 
                                 # .env 파일이 있다면 쓰기 권한 부여
                                 if [ -f .env ]; then
@@ -189,27 +191,34 @@ spec:
                             // Jenkins Credential에서 APM 토큰 가져오기
                             withCredentials([string(credentialsId: 'apm-secret-token', variable: 'APM_TOKEN')]) {
                                 sh '''
+                                    set +e  # 명령어 실패해도 스크립트 계속 실행
+                                    
                                     echo "APM 토큰 변수 확인 중..."
-                                    if [ -n "$APM_TOKEN" ]; then
+                                    if [ -n "$APM_TOKEN" ] && [ "$APM_TOKEN" != "" ]; then
                                         echo "✅ APM 토큰이 성공적으로 로드되었습니다"
                                         
-                                        # .env 파일에 APM 설정 추가
-                                        {
-                                            echo ""
-                                            echo "# ==== Elastic APM 설정 (Jenkins에서 자동 추가) ===="
-                                            echo "ELASTIC_APM_SECRET_TOKEN=$APM_TOKEN"
-                                            echo "# APM 설정 완료"
-                                        } >> .env
+                                        # .env 파일에 APM 설정 추가 (간단한 방식)
+                                        echo "" >> .env
+                                        echo "# ==== Elastic APM 설정 (Jenkins에서 자동 추가) ====" >> .env
+                                        echo "ELASTIC_APM_SECRET_TOKEN=$APM_TOKEN" >> .env
+                                        echo "# APM 설정 완료" >> .env
                                         
-                                        echo "✅ APM 토큰이 .env 파일에 추가되었습니다"
-                                        
-                                        # 확인 (토큰 값은 마스킹하여 출력)
-                                        echo "📋 .env 파일 내용 확인 (토큰은 마스킹됨):"
-                                        sed 's/ELASTIC_APM_SECRET_TOKEN=.*/ELASTIC_APM_SECRET_TOKEN=***MASKED***/' .env | tail -5
+                                        if [ $? -eq 0 ]; then
+                                            echo "✅ APM 토큰이 .env 파일에 추가되었습니다"
+                                            
+                                            # 확인 (토큰 값은 마스킹하여 출력)
+                                            echo "📋 .env 파일 마지막 5줄 확인 (토큰은 마스킹됨):"
+                                            tail -5 .env | sed 's/ELASTIC_APM_SECRET_TOKEN=.*/ELASTIC_APM_SECRET_TOKEN=***MASKED***/'
+                                        else
+                                            echo "❌ .env 파일 쓰기 실패"
+                                            exit 1
+                                        fi
                                     else
-                                        echo "❌ APM 토큰이 비어있습니다"
+                                        echo "❌ APM 토큰이 비어있거나 로드되지 않았습니다"
                                         exit 1
                                     fi
+                                    
+                                    set -e  # 다시 오류 시 중단 모드로 변경
                                 '''
                             }
                             
