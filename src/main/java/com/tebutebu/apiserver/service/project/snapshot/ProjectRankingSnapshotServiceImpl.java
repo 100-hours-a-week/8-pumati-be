@@ -70,7 +70,8 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         LocalDateTime now = LocalDateTime.now();
 
         try {
-            isLocked = lock.tryLock(15, 60, TimeUnit.SECONDS);
+            long lockWaitTimeSeconds = 15, lockLeaseTimeSeconds = 60;
+            isLocked = lock.tryLock(lockWaitTimeSeconds, lockLeaseTimeSeconds, TimeUnit.SECONDS);
             if (!isLocked) {
                 log.warn("Failed to acquire lock for snapshot registration.");
                 throw new BusinessException(BusinessErrorCode.SNAPSHOT_LOCK_UNAVAILABLE);
