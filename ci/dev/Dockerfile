@@ -119,8 +119,7 @@ ENV ELASTIC_APM_ENVIRONMENT=dev
 # APM 서버 URL (Kubernetes 내부 서비스명)
 ENV ELASTIC_APM_SERVER_URL=http://apm-server-apm-server.elk-system.svc.cluster.local:8200
 
-# APM 시크릿 토큰 (환경 변수로 오버라이드 가능)
-ENV ELASTIC_APM_SECRET_TOKEN=""
+# APM 시크릿 토큰은 .env 파일에서 로드됨 (Jenkins에서 자동 설정)
 
 # APM 로그 레벨 설정
 ENV ELASTIC_APM_LOG_LEVEL=INFO
