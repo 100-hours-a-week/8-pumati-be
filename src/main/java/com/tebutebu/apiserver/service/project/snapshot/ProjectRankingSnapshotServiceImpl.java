@@ -67,76 +67,97 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         RLock lock = redissonClient.getLock(registerLockKey);
         boolean isLocked = false;
         boolean success = false;
-        LocalDateTime now = LocalDateTime.now();
 
         try {
-            long lockWaitTimeSeconds = 15, lockLeaseTimeSeconds = 60;
-            isLocked = lock.tryLock(lockWaitTimeSeconds, lockLeaseTimeSeconds, TimeUnit.SECONDS);
+            isLocked = tryAcquireLock(lock);
             if (!isLocked) {
-                log.warn("Failed to acquire lock for snapshot registration.");
                 throw new BusinessException(BusinessErrorCode.SNAPSHOT_LOCK_UNAVAILABLE);
             }
 
-            log.info("Lock acquired for snapshot registration.");
-
-            String latestCacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
-            String cachedSnapshotId = stringRedisTemplate.opsForValue().get(latestCacheKey);
-            if (cachedSnapshotId != null) {
-                Long snapshotId = Long.parseLong(cachedSnapshotId);
-                log.info("Reusing cached snapshot with ID={}", snapshotId);
-                success = true;
-                return snapshotId;
+            Long cached = getSnapshotIdFromCache();
+            if (cached != null) {
+                return cached;
             }
 
-            // 캐시에는 없지만 DB에 스냅샷이 있는 경우 fallback 확인
-            LocalDateTime threshold = now.minusMinutes(snapshotDurationMinutes);
-            ProjectRankingSnapshot latestSnapshot = projectRankingSnapshotRepository
-                    .findTopByOrderByRequestedAtDesc()
-                    .orElse(null);
-
-            if (latestSnapshot != null) {
-                boolean hasNewProject = projectRepository.existsByCreatedAtAfter(latestSnapshot.getRequestedAt());
-
-                if (!hasNewProject && latestSnapshot.getRequestedAt().isAfter(threshold)) {
-                    long remainingTime = Duration.between(now, latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
-
-                    // Redis에 다시 캐시
-                    if (remainingTime > 0) {
-                        stringRedisTemplate.opsForValue().set(latestCacheKey,
-                                latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
-                    }
-
-                    log.info("Reusing DB fallback snapshot with ID={}", latestSnapshot.getId());
-                    success = true;
-                    return latestSnapshot.getId();
-                }
+            Long fallback = getFallbackSnapshotId();
+            if (fallback != null) {
+                return fallback;
             }
 
-            // 중복 생성 방지 플래그 확인
-            Boolean isGenerating = booleanRedisTemplate.opsForValue()
-                    .setIfAbsent(snapshotGeneratingKey, true, Duration.ofSeconds(snapshotGeneratingTtlSeconds));
-            if (Boolean.FALSE.equals(isGenerating)) {
-                log.warn("Snapshot is already being generated. Skipping duplicate request.");
-                throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
-            }
+            ensureNotGenerating();
 
-            // 새로 생성
             Long createdId = createAndSaveSnapshot();
-            success = true; // 생성 성공 시에만 success = true
+            success = true;
             return createdId;
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("lockInterrupted", e);
         } finally {
-            // 스냅샷 생성이 성공한 경우에만 키 삭제
             if (success) {
                 booleanRedisTemplate.delete(snapshotGeneratingKey);
             }
             if (isLocked && lock.isHeldByCurrentThread()) {
                 lock.unlock();
-                log.info("Lock released for snapshot registration.");
             }
+        }
+    }
+
+    private boolean tryAcquireLock(RLock lock) throws InterruptedException {
+        long waitTime = 15, leaseTime = 60;
+        boolean isLocked = lock.tryLock(waitTime, leaseTime, TimeUnit.SECONDS);
+        if (isLocked) {
+            log.info("Lock acquired for snapshot registration.");
+        } else {
+            log.warn("Failed to acquire lock for snapshot registration.");
+        }
+        return isLocked;
+    }
+
+    private Long getSnapshotIdFromCache() {
+        String cacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
+        String cachedId = stringRedisTemplate.opsForValue().get(cacheKey);
+        if (cachedId != null) {
+            log.info("Reusing cached snapshot with ID={}", cachedId);
+            return Long.parseLong(cachedId);
+        }
+        return null;
+    }
+
+    private Long getFallbackSnapshotId() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime threshold = now.minusMinutes(snapshotDurationMinutes);
+
+        ProjectRankingSnapshot snapshot = projectRankingSnapshotRepository
+                .findTopByOrderByRequestedAtDesc()
+                .orElse(null);
+
+        if (snapshot == null) {
+            return null;
+        }
+
+        boolean noNewProject = !projectRepository.existsByCreatedAtAfter(snapshot.getRequestedAt());
+        boolean isValid = snapshot.getRequestedAt().isAfter(threshold);
+
+        if (noNewProject && isValid) {
+            long ttl = Duration.between(now, snapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
+            if (ttl > 0) {
+                String cacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
+                stringRedisTemplate.opsForValue().set(cacheKey, snapshot.getId().toString(), Duration.ofMinutes(ttl));
+            }
+            log.info("Reusing DB fallback snapshot with ID={}", snapshot.getId());
+            return snapshot.getId();
+        }
+
+        return null;
+    }
+
+    private void ensureNotGenerating() {
+        Boolean isGenerating = booleanRedisTemplate.opsForValue()
+                .setIfAbsent(snapshotGeneratingKey, true, Duration.ofSeconds(snapshotGeneratingTtlSeconds));
+        if (Boolean.FALSE.equals(isGenerating)) {
+            log.warn("Snapshot is already being generated. Skipping duplicate request.");
+            throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
         }
     }
 
@@ -168,19 +189,18 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private List<RankingItemDTO> generateRanking() {
         List<Project> projects = projectRepository.findAllForRanking();
-
         List<RankingItemDTO> rankingList = new ArrayList<>();
         int rank = 1;
         for (Project p : projects) {
-            if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) continue;
-
+            if (p.getId() == null || p.getTeam() == null || p.getTeam().getGivedPumatiCount() == null) {
+                continue;
+            }
             rankingList.add(RankingItemDTO.builder()
                     .projectId(p.getId())
                     .rank(rank++)
                     .givedPumatiCount(p.getTeam().getGivedPumatiCount())
                     .build());
         }
-
         return rankingList;
     }
 
@@ -197,7 +217,6 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .rankingData(json)
                 .requestedAt(LocalDateTime.now())
                 .build();
-
         ProjectRankingSnapshot saved = projectRankingSnapshotRepository.save(newSnap);
         projectRankingSnapshotRepository.flush();
         return saved;
@@ -208,13 +227,10 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .id(snapshot.getId())
                 .data(ranking)
                 .build();
-
         String idKey = snapshotCacheKeyPrefix + snapshot.getId();
         String latestKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
-
         snapshotRedisTemplate.opsForValue().set(idKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
         stringRedisTemplate.opsForValue().set(latestKey, snapshot.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
-
         log.info("New snapshot created with ID={}", snapshot.getId());
     }
 
