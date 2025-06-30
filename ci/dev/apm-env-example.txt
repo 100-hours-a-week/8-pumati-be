@@ -1,0 +1,42 @@
+# ==============================================================================
+# .env 파일에 추가할 Elastic APM 환경 변수 예시
+# ==============================================================================
+# 이 내용을 기존 .env 파일에 추가하세요.
+# Jenkins에서 빌드 시 Kubernetes Secret에서 가져온 APM 토큰을 설정합니다.
+
+# APM 시크릿 토큰 (Kubernetes Secret에서 가져옴)
+# Jenkins 파이프라인에서 다음과 같이 설정:
+# kubectl get secret apm-server-apm-token -n elk-system -o jsonpath='{.data.secret-token}' | base64 -d
+ELASTIC_APM_SECRET_TOKEN=${APM_SECRET_TOKEN}
+
+# 선택적 오버라이드 설정들 (필요시에만 사용)
+# ELASTIC_APM_SERVICE_NAME=pumati-backend-custom
+# ELASTIC_APM_ENVIRONMENT=staging
+# ELASTIC_APM_ENABLED=false
+# ELASTIC_APM_TRANSACTION_SAMPLE_RATE=0.1
+
+# ==============================================================================
+# Jenkins에서 .env 파일 생성 예시
+# ==============================================================================
+# Jenkins 파이프라인에서 다음과 같이 APM 토큰을 가져와서 .env 파일에 추가:
+#
+# stage('Create Environment File') {
+#     steps {
+#         script {
+#             def apmToken = sh(
+#                 script: "kubectl get secret apm-server-apm-token -n elk-system -o jsonpath='{.data.secret-token}' | base64 -d",
+#                 returnStdout: true
+#             ).trim()
+#             
+#             writeFile file: '.env', text: """
+# # 기존 환경 변수들...
+# DB_HOST=mysql-service
+# DB_PORT=3306
+# # ... 기타 설정들 ...
+# 
+# # APM 설정
+# ELASTIC_APM_SECRET_TOKEN=${apmToken}
+# """
+#         }
+#     }
+# } 
