@@ -88,14 +88,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 return snapshotId;
             }
 
-            Boolean isGenerating = booleanRedisTemplate.opsForValue()
-                    .setIfAbsent(snapshotGeneratingKey, true, Duration.ofSeconds(snapshotGeneratingTtlSeconds));
-
-            if (Boolean.FALSE.equals(isGenerating)) {
-                log.warn("Snapshot is already being generated. Skipping duplicate request.");
-                throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
-            }
-
+            // 캐시에는 없지만 DB에 스냅샷이 있는 경우 fallback 확인
             LocalDateTime threshold = now.minusMinutes(snapshotDurationMinutes);
             ProjectRankingSnapshot latestSnapshot = projectRankingSnapshotRepository
                     .findTopByOrderByRequestedAtDesc()
@@ -106,6 +99,8 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
                 if (!hasNewProject && latestSnapshot.getRequestedAt().isAfter(threshold)) {
                     long remainingTime = Duration.between(now, latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
+
+                    // Redis에 다시 캐시
                     if (remainingTime > 0) {
                         stringRedisTemplate.opsForValue().set(latestCacheKey,
                                 latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
@@ -117,6 +112,15 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 }
             }
 
+            // 중복 생성 방지 플래그 확인
+            Boolean isGenerating = booleanRedisTemplate.opsForValue()
+                    .setIfAbsent(snapshotGeneratingKey, true, Duration.ofSeconds(snapshotGeneratingTtlSeconds));
+            if (Boolean.FALSE.equals(isGenerating)) {
+                log.warn("Snapshot is already being generated. Skipping duplicate request.");
+                throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
+            }
+
+            // 새로 생성
             Long createdId = createAndSaveSnapshot();
             success = true; // 생성 성공 시에만 success = true
             return createdId;
