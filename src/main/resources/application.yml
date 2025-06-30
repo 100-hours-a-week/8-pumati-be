@@ -1,3 +1,15 @@
 spring:
   profiles:
     active: ${spring.profiles.active}
+  cache:
+    type: redis
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true

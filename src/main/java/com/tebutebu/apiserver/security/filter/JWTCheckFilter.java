@@ -35,6 +35,10 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         }
 
         String path = request.getRequestURI();
+        if (path.startsWith("/actuator")) {
+            return true;
+        }
+
         if (path.startsWith("/oauth2/authorization/")) {
             return true;
         }
