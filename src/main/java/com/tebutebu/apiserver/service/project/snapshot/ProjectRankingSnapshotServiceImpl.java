@@ -94,22 +94,22 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     .findTopByOrderByRequestedAtDesc()
                     .orElse(null);
 
-            if (latestSnapshot != null) {
-                boolean hasNewProject = projectRepository.existsByCreatedAtAfter(latestSnapshot.getRequestedAt());
+            if (latestSnapshot != null
+                    && !projectRepository.existsByCreatedAtAfter(latestSnapshot.getRequestedAt())
+                    && latestSnapshot.getRequestedAt().isAfter(threshold)) {
 
-                if (!hasNewProject && latestSnapshot.getRequestedAt().isAfter(threshold)) {
-                    long remainingTime = Duration.between(now, latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
-
-                    // Redis에 다시 캐시
-                    if (remainingTime > 0) {
-                        stringRedisTemplate.opsForValue().set(latestCacheKey,
-                                latestSnapshot.getId().toString(), Duration.ofMinutes(remainingTime));
-                    }
-
-                    log.info("Reusing DB fallback snapshot with ID={}", latestSnapshot.getId());
-                    success = true;
-                    return latestSnapshot.getId();
+                long remainingTime = Duration.between(now,latestSnapshot.getRequestedAt().plusMinutes(snapshotDurationMinutes)).toMinutes();
+                if (remainingTime > 0) {
+                    stringRedisTemplate.opsForValue().set(
+                            latestCacheKey,
+                            latestSnapshot.getId().toString(),
+                            Duration.ofMinutes(remainingTime)
+                    );
                 }
+
+                log.info("Reusing DB fallback snapshot with ID={}", latestSnapshot.getId());
+                success = true;
+                return latestSnapshot.getId();
             }
 
             // 중복 생성 방지 플래그 확인
