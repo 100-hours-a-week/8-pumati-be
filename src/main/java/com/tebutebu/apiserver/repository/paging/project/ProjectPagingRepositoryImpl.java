@@ -66,7 +66,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
             dtoList = parseSnapshotJson(snapshot);
         }
 
-        int start = calculateStartIndex(dtoList, snapshotId);
+        int start = calculateStartIndex(dtoList, req.getCursorId());
         int end = Math.min(start + req.getPageSize(), dtoList.size());
 
         List<Long> projectIds = dtoList.subList(start, end).stream()
