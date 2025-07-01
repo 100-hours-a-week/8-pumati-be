@@ -4,6 +4,7 @@ import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapsh
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.redisson.config.SingleServerConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.GenericToStringSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.util.StringUtils;
 
 @Configuration
 public class RedisConfig {
@@ -21,6 +23,22 @@ public class RedisConfig {
 
     @Value("${spring.data.redis.port}")
     private int redisPort;
+
+    @Value("${spring.data.redis.password:}")
+    private String redisPassword;
+
+    @Bean
+    public RedissonClient redissonClient() {
+        Config config = new Config();
+        SingleServerConfig singleServer = config.useSingleServer()
+                .setAddress("redis://" + redisHost + ":" + redisPort);
+
+        if (StringUtils.hasText(redisPassword)) {
+            singleServer.setPassword(redisPassword);
+        }
+
+        return Redisson.create(config);
+    }
 
     @Bean
     public RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate(RedisConnectionFactory factory) {
@@ -60,14 +78,6 @@ public class RedisConfig {
         template.setValueSerializer(new GenericToStringSerializer<>(Boolean.class));
         template.afterPropertiesSet();
         return template;
-    }
-
-    @Bean
-    public RedissonClient redissonClient() {
-        Config config = new Config();
-        config.useSingleServer()
-                .setAddress("redis://" + redisHost + ":" + redisPort);
-        return Redisson.create(config);
     }
 
 }
