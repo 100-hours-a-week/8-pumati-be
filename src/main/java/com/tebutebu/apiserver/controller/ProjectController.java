@@ -113,6 +113,37 @@ public class ProjectController {
         ));
     }
 
+    @GetMapping("/subscription/term/{term}")
+    public ResponseEntity<?> getSubscribedProjectsByTerm(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @PathVariable("term") int term,
+            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
+            @RequestParam(name = "cursor-time", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
+            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
+    ) {
+        if (cursorTime == null) {
+            cursorTime = LocalDateTime.now();
+        }
+
+        Long memberId = memberService.get(authorizationHeader).getId();
+
+        CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
+                .cursorId(cursorId)
+                .cursorTime(cursorTime)
+                .pageSize(pageSize)
+                .build();
+
+        CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page =
+                projectService.getSubscribedPageByTerm(memberId, term, dto);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "getSubscribedProjectsSuccess",
+                "data", page.getData(),
+                "meta", page.getMeta()
+        ));
+    }
+
     @GetMapping("/{projectId}/comments")
     public ResponseEntity<?> scrollComments(
             @PathVariable("projectId") Long projectId,

@@ -120,6 +120,24 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> getSubscribedPageByTerm(Long memberId, int term, CursorTimePageRequestDTO dto) {
+
+        CursorPage<ProjectPageResponseDTO> page = projectPagingRepository
+                .findSubscribedProjectsByTerm(memberId, term, dto);
+
+        TimeCursorMetaDTO meta = TimeCursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
+
+        return CursorPageResponseDTO.<ProjectPageResponseDTO, TimeCursorMetaDTO>builder()
+                .data(page.items())
+                .meta(meta)
+                .build();
+    }
+
+    @Override
     public List<ProjectGithubUrlDTO> getAllGithubUrls() {
         return projectRepository.findAll().stream()
                 .map(p -> ProjectGithubUrlDTO.builder()

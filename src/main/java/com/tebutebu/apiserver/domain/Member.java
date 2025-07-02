@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -24,7 +25,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = {"team", "comments", "attendancesDaily", "attendancesWeekly"})
+@ToString(exclude = {"team", "comments", "attendancesDaily", "attendancesWeekly", "subscriptions"})
 public class Member extends TimeStampedEntity {
 
     @Id
@@ -71,6 +72,9 @@ public class Member extends TimeStampedEntity {
 
     @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<AttendanceWeekly> attendancesWeekly;
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Subscription> subscriptions = new ArrayList<>();
 
     public void changeCourse(Course course) {
         this.course = course;

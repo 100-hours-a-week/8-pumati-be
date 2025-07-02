@@ -37,6 +37,9 @@ public interface ProjectService {
     CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> getLatestPage(CursorTimePageRequestDTO dto);
 
     @Transactional(readOnly = true)
+    CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> getSubscribedPageByTerm(Long memberId, int term, CursorTimePageRequestDTO dto);
+
+    @Transactional(readOnly = true)
     List<ProjectGithubUrlDTO> getAllGithubUrls();
 
     Long register(ProjectCreateRequestDTO dto);
