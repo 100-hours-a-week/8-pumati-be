@@ -1,0 +1,24 @@
+# 환경 변수 파일
+.env*
+
+# 로그 및 임시파일
+*.log
+*.pid
+*.tmp
+
+# Kafka/Zookeeper 데이터 디렉터리
+data/
+logs/
+
+# IDE 관련
+*.iml
+.idea/
+.vscode/
+
+# Docker 관련 캐시 (이미지 빌드시 생길 수 있음)
+*.tar
+*.bak
+*.tmp
+
+# Docker Compose override (로컬용)
+docker-compose.override.yml
