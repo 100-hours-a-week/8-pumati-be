@@ -8,6 +8,8 @@ import com.tebutebu.apiserver.repository.MemberRepository;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.token.RefreshTokenService;
 import com.tebutebu.apiserver.util.JWTUtil;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,8 +21,6 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private static final String BEARER_PREFIX = "Bearer ";
-
     private final RefreshTokenService refreshTokenService;
 
     private final MemberRepository memberRepository;
@@ -29,23 +29,9 @@ public class AuthServiceImpl implements AuthService {
     private int refreshTokenExpiration;
 
     @Override
-    public TokensDTO refreshTokens(String authorizationHeader, String refreshTokenCookie) {
+    public TokensDTO refreshTokens(String refreshTokenCookie) {
         if (refreshTokenCookie == null || refreshTokenCookie.isBlank()) {
             throw new IllegalArgumentException("nullRefreshToken");
-        }
-
-        boolean isValidAccessToken = false;
-        String currentAccessToken = null;
-        if (authorizationHeader != null && authorizationHeader.startsWith(BEARER_PREFIX)) {
-            currentAccessToken = authorizationHeader.substring(BEARER_PREFIX.length());
-            isValidAccessToken = !isExpired(currentAccessToken);
-        }
-
-        if (isValidAccessToken) {
-            return TokensDTO.builder()
-                    .accessToken(currentAccessToken)
-                    .refreshToken(refreshTokenCookie)
-                    .build();
         }
 
         RefreshTokenResponseDTO storedDto = refreshTokenService.findByToken(refreshTokenCookie);
@@ -53,16 +39,23 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("expiredRefreshToken");
         }
 
-        Map<String, Object> claims = JWTUtil.validateToken(refreshTokenCookie);
-        Long memberId = ((Number) claims.get("sub")).longValue();
+        Map<String, Object> claims;
+        try {
+            claims = JWTUtil.validateToken(refreshTokenCookie);
+        } catch (ExpiredJwtException e) {
+            throw new IllegalArgumentException("expiredRefreshToken");
+        } catch (JwtException e) {
+            throw new IllegalArgumentException("invalidRefreshToken");
+        }
 
+        Long memberId = parseMemberId(claims.get("sub"));
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new NoSuchElementException("memberNotFound"));
 
         CustomOAuth2User customOAuth2User = new CustomOAuth2User(member);
         Map<String, Object> attributes = customOAuth2User.getAttributes();
 
-        String newAccess = JWTUtil.generateAccessToken(attributes);
+        String newAccessToken = JWTUtil.generateAccessToken(attributes);
 
         RefreshTokenRotateRequestDTO rotateDto = RefreshTokenRotateRequestDTO.builder()
                 .memberId(storedDto.getMemberId())
@@ -72,18 +65,16 @@ public class AuthServiceImpl implements AuthService {
         RefreshTokenResponseDTO rotated = refreshTokenService.rotateToken(rotateDto);
 
         return TokensDTO.builder()
-                .accessToken(newAccess)
+                .accessToken(newAccessToken)
                 .refreshToken(rotated.getToken())
                 .build();
     }
 
-    private boolean isExpired(String token) {
+    private Long parseMemberId(Object subClaim) {
         try {
-            JWTUtil.validateToken(token);
-            return false;
-        } catch (RuntimeException e) {
-            String msg = e.getMessage();
-            return msg != null && msg.toLowerCase().contains("expired");
+            return Long.parseLong(String.valueOf(subClaim));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("invalidSubClaim");
         }
     }
 
