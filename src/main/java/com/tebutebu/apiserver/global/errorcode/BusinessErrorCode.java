@@ -24,6 +24,7 @@ public enum BusinessErrorCode implements ErrorCode {
     SNAPSHOT_LOCK_INTERRUPTED(BusinessErrorMessages.SNAPSHOT_LOCK_INTERRUPTED, HttpStatus.INTERNAL_SERVER_ERROR),
     SNAPSHOT_NOT_FOUND(BusinessErrorMessages.SNAPSHOT_NOT_FOUND, HttpStatus.NOT_FOUND),
     SNAPSHOT_ALREADY_IN_PROGRESS(BusinessErrorMessages.SNAPSHOT_ALREADY_IN_PROGRESS, HttpStatus.BAD_REQUEST),
+    INVALID_SNAPSHOT_ID(BusinessErrorMessages.INVALID_SNAPSHOT_ID, HttpStatus.INTERNAL_SERVER_ERROR),
 
     // Paging
     CONTEXT_ID_REQUIRED(BusinessErrorMessages.CONTEXT_ID_REQUIRED, HttpStatus.BAD_REQUEST),

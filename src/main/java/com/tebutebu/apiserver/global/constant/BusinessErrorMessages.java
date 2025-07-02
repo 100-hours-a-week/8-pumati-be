@@ -22,6 +22,7 @@ public class BusinessErrorMessages {
     public static final String SNAPSHOT_LOCK_INTERRUPTED = "snapshotLockInterrupted";
     public static final String SNAPSHOT_NOT_FOUND = "snapshotNotFound";
     public static final String SNAPSHOT_ALREADY_IN_PROGRESS = "snapshotAlreadyInProgress";
+    public static final String INVALID_SNAPSHOT_ID = "invalidSnapshotId";
 
     // Paging
     public static final String CONTEXT_ID_REQUIRED = "contextIdRequired";

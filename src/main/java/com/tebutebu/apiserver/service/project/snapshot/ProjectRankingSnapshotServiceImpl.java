@@ -74,9 +74,12 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 throw new BusinessException(BusinessErrorCode.SNAPSHOT_LOCK_UNAVAILABLE);
             }
 
-            Long cached = getSnapshotIdFromCache();
-            if (cached != null) {
-                return cached;
+            Long cachedSnapshotId = getSnapshotIdFromCache();
+            if (cachedSnapshotId != null) {
+                if (cachedSnapshotId <= 0) {
+                    throw new BusinessException(BusinessErrorCode.INVALID_SNAPSHOT_ID);
+                }
+                return cachedSnapshotId;
             }
 
             Long fallback = getFallbackSnapshotId();
