@@ -17,6 +17,7 @@ import com.tebutebu.apiserver.service.comment.CommentService;
 import com.tebutebu.apiserver.service.member.MemberService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.project.ProjectService;
+import com.tebutebu.apiserver.service.subscription.SubscriptionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -48,9 +49,18 @@ public class ProjectController {
 
     private final CommentService commentService;
 
+    private final SubscriptionService subscriptionService;
+
     @GetMapping("/{projectId}")
-    public ResponseEntity<?> get(@PathVariable long projectId) {
-        ProjectResponseDTO dto = projectService.get(projectId);
+    public ResponseEntity<?> get(
+            @PathVariable long projectId,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader
+    ) {
+        Long memberId = (authorizationHeader != null)
+                ? memberService.get(authorizationHeader).getId()
+                : null;
+
+        ProjectResponseDTO dto = projectService.get(projectId, memberId);
         return ResponseEntity.ok(Map.of("message", "getProjectSuccess", "data", dto));
     }
 
@@ -78,15 +88,20 @@ public class ProjectController {
 
     @GetMapping(params = "sort=rank")
     public ResponseEntity<?> scrollRanking(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(name = "context-id") @NotNull Long contextId,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
+        Long memberId = (authorizationHeader != null) ? memberService.get(authorizationHeader).getId() : null;
+
         ContextCursorPageRequestDTO dto = ContextCursorPageRequestDTO.builder()
                 .contextId(contextId)
                 .cursorId(cursorId)
                 .pageSize(pageSize)
+                .memberId(memberId)
                 .build();
+
         CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> page = projectService.getRankingPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getRankingPageSuccess",
@@ -97,6 +112,7 @@ public class ProjectController {
 
     @GetMapping(params = "sort=latest")
     public ResponseEntity<?> scrollLatest(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
             @RequestParam(name = "cursor-time", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
@@ -106,14 +122,50 @@ public class ProjectController {
             cursorTime = LocalDateTime.now();
         }
 
+        Long memberId = (authorizationHeader != null) ? memberService.get(authorizationHeader).getId() : null;
+
         CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
                 .cursorId(cursorId)
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
+                .memberId(memberId)
                 .build();
+
         CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page = projectService.getLatestPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getLatestPageSuccess",
+                "data", page.getData(),
+                "meta", page.getMeta()
+        ));
+    }
+
+    @GetMapping("/subscription/term/{term}")
+    public ResponseEntity<?> getSubscribedProjectsByTerm(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @PathVariable("term") int term,
+            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
+            @RequestParam(name = "cursor-time", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
+            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
+    ) {
+        if (cursorTime == null) {
+            cursorTime = LocalDateTime.now();
+        }
+
+        Long memberId = memberService.get(authorizationHeader).getId();
+
+        CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
+                .cursorId(cursorId)
+                .cursorTime(cursorTime)
+                .pageSize(pageSize)
+                .memberId(memberId)
+                .build();
+
+        CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page =
+                projectService.getSubscribedPageByTerm(memberId, term, dto);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "getSubscribedProjectsSuccess",
                 "data", page.getData(),
                 "meta", page.getMeta()
         ));
@@ -193,6 +245,33 @@ public class ProjectController {
                 "message", "registerSuccess",
                 "data", Map.of("id", commentId)
         ));
+    }
+
+    @PostMapping("/{projectId}/subscription")
+    public ResponseEntity<?> subscribe(
+            @PathVariable Long projectId,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        Long id = subscriptionService.subscribe(memberId, projectId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of(
+                        "message", "subscribeSuccess",
+                        "data", Map.of(
+                                "id", id,
+                                "subscribedAt", LocalDateTime.now()
+                        )
+                ));
+    }
+
+    @DeleteMapping("/{projectId}/subscription")
+    public ResponseEntity<?> unsubscribe(
+            @PathVariable Long projectId,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        subscriptionService.unsubscribe(memberId, projectId);
+        return ResponseEntity.ok(Map.of("message", "unsubscribeSuccess"));
     }
 
 }

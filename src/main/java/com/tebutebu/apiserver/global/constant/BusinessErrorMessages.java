@@ -37,4 +37,8 @@ public class BusinessErrorMessages {
     public static final String INVALID_FILE_EXTENSION = "invalidFileExtension";
     public static final String UNSUPPORTED_FILE_EXTENSION = "unsupportedFileExtension";
 
+    // Subscription
+    public static final String SUBSCRIPTION_NOT_FOUND = "subscriptionNotFound";
+    public static final String ALREADY_SUBSCRIBED = "alreadySubscribed";
+
 }

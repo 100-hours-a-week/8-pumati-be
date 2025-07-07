@@ -11,4 +11,6 @@ public interface ProjectPagingRepository {
 
     CursorPage<ProjectPageResponseDTO> findByLatestCursor(CursorTimePageRequestDTO req);
 
+    CursorPage<ProjectPageResponseDTO> findSubscribedProjectsByTerm(Long memberId, int term, CursorTimePageRequestDTO req);
+
 }

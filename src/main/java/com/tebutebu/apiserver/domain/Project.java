@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = {"team", "images", "projectTags", "comments"})
+@ToString(exclude = {"team", "images", "projectTags", "comments", "subscriptions"})
 public class Project extends TimeStampedEntity {
 
     @Id
@@ -65,6 +65,9 @@ public class Project extends TimeStampedEntity {
     @Builder.Default
     @OneToMany(mappedBy="project", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<Comment> comments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Subscription> subscriptions = new ArrayList<>();
 
     public void changeTitle(String title) {
         this.title = title;

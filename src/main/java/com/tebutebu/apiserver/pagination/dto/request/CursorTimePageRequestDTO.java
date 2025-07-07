@@ -20,4 +20,6 @@ public class CursorTimePageRequestDTO extends CursorPageRequestDTO {
     @PastOrPresent(message = ValidationMessages.CURSOR_TIME_PAST_OR_PRESENT)
     private LocalDateTime cursorTime;
 
+    private Long memberId;
+
 }

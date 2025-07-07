@@ -19,161 +19,210 @@ import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
+import com.tebutebu.apiserver.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
 public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
-    private final ProjectRankingSnapshotRepository snapshotRepository;
+        private final ProjectRankingSnapshotRepository snapshotRepository;
 
-    private final ProjectRepository projectRepository;
+        private final ProjectRepository projectRepository;
 
-    private final CommentRepository commentRepository;
+        private final CommentRepository commentRepository;
 
-    private final CursorPageFactory cursorPageFactory;
+        private final SubscriptionRepository subscriptionRepository;
 
-    private final ObjectMapper objectMapper;
+        private final CursorPageFactory cursorPageFactory;
 
-    private final RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate;
+        private final ObjectMapper objectMapper;
 
-    private final QProject qProject = QProject.project;
+        private final RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate;
 
-    @Value("${ranking.snapshot.cache.key-prefix}")
-    private String snapshotCacheKeyPrefix;
+        private final QProject qProject = QProject.project;
 
-    @Override
-    public CursorPage<ProjectPageResponseDTO> findByRankingCursor(ContextCursorPageRequestDTO req) {
-        Long snapshotId = req.getContextId();
-        String cacheKey = snapshotCacheKeyPrefix + snapshotId;
+        @Value("${ranking.snapshot.cache.key-prefix}")
+        private String snapshotCacheKeyPrefix;
 
-        ProjectRankingSnapshotResponseDTO cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
+        @Override
+        public CursorPage<ProjectPageResponseDTO> findByRankingCursor(ContextCursorPageRequestDTO req) {
+                Long snapshotId = req.getContextId();
+                String cacheKey = snapshotCacheKeyPrefix + snapshotId;
 
-        List<RankingItemDTO> dtoList;
-        if (cachedSnapshot != null) {
-            dtoList = cachedSnapshot.getData();
-        } else {
-            ProjectRankingSnapshot snapshot = snapshotRepository.findById(snapshotId)
-                    .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
-            dtoList = parseSnapshotJson(snapshot);
+                ProjectRankingSnapshotResponseDTO cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
+
+                List<RankingItemDTO> dtoList;
+                if (cachedSnapshot != null) {
+                        dtoList = cachedSnapshot.getData();
+                } else {
+                        ProjectRankingSnapshot snapshot = snapshotRepository.findById(snapshotId)
+                                        .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
+                        dtoList = parseSnapshotJson(snapshot);
+                }
+
+                int start = calculateStartIndex(dtoList, req.getCursorId());
+                int end = Math.min(start + req.getPageSize(), dtoList.size());
+
+                List<Long> projectIds = dtoList.subList(start, end).stream()
+                                .map(RankingItemDTO::getProjectId)
+                                .collect(Collectors.toList());
+
+                List<Project> projects = projectRepository.findAllById(projectIds).stream()
+                                .sorted(Comparator.comparingInt(p -> projectIds.indexOf(p.getId())))
+                                .toList();
+
+                Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+                Set<Long> subscribedProjectIds = (req.getMemberId() != null)
+                                ? new HashSet<>(subscriptionRepository
+                                                .findSubscribedProjectIdsByMemberId(req.getMemberId()))
+                                : Collections.emptySet();
+
+                List<ProjectPageResponseDTO> projectPageResponseDtoList = projects.stream()
+                                .map(proj -> toPageResponseDTO(proj, commentCountMap, subscribedProjectIds))
+                                .collect(Collectors.toList());
+
+                boolean hasNext = end < dtoList.size();
+                Long nextCursorId = hasNext ? dtoList.get(end - 1).getProjectId() : null;
+
+                return CursorPage.<ProjectPageResponseDTO>builder()
+                                .items(projectPageResponseDtoList)
+                                .nextCursorId(nextCursorId)
+                                .nextCursorTime(null)
+                                .hasNext(hasNext)
+                                .build();
         }
 
-        int start = calculateStartIndex(dtoList, req.getCursorId());
-        int end = Math.min(start + req.getPageSize(), dtoList.size());
+        @Override
+        public CursorPage<ProjectPageResponseDTO> findByLatestCursor(CursorTimePageRequestDTO req) {
+                BooleanBuilder where = new BooleanBuilder();
+                OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[] {
+                                qProject.createdAt.desc(),
+                                qProject.id.desc()
+                };
 
-        List<Long> projectIds = dtoList.subList(start, end).stream()
-                .map(RankingItemDTO::getProjectId)
-                .toList();
+                CursorPageSpec<Project> spec = CursorPageSpec.<Project>builder()
+                                .entityPath(qProject)
+                                .where(where)
+                                .orderBy(orderBy)
+                                .createdAtExpr(qProject.createdAt)
+                                .idExpr(qProject.id)
+                                .cursorId(req.getCursorId())
+                                .cursorTime(req.getCursorTime())
+                                .pageSize(req.getPageSize())
+                                .build();
 
-        List<Project> projects = projectRepository.findAllById(projectIds).stream()
-                .sorted(Comparator.comparingInt(p -> projectIds.indexOf(p.getId())))
-                .toList();
+                CursorPage<Project> page = cursorPageFactory.create(spec);
+                List<Long> projectIds = page.items().stream().map(Project::getId).toList();
+                Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+                Set<Long> subscribedProjectIds = (req.getMemberId() != null)
+                                ? new HashSet<>(subscriptionRepository
+                                                .findSubscribedProjectIdsByMemberId(req.getMemberId()))
+                                : Collections.emptySet();
 
-        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+                List<ProjectPageResponseDTO> projectPageResponseDtoList = page.items().stream()
+                                .map(proj -> toPageResponseDTO(proj, commentCountMap, subscribedProjectIds))
+                                .toList();
 
-        List<ProjectPageResponseDTO> projectPageResponseDtoList = projects.stream()
-                .map(proj -> toPageResponseDTO(proj, commentCountMap))
-                .toList();
-
-        boolean hasNext = end < dtoList.size();
-        Long nextCursorId = hasNext ? dtoList.get(end - 1).getProjectId() : null;
-
-        return CursorPage.<ProjectPageResponseDTO>builder()
-                .items(projectPageResponseDtoList)
-                .nextCursorId(nextCursorId)
-                .nextCursorTime(null)
-                .hasNext(hasNext)
-                .build();
-    }
-
-    @Override
-    public CursorPage<ProjectPageResponseDTO> findByLatestCursor(CursorTimePageRequestDTO req) {
-        BooleanBuilder where = new BooleanBuilder();
-        OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
-                qProject.createdAt.desc(),
-                qProject.id.desc()
-        };
-
-        CursorPageSpec<Project> spec = CursorPageSpec.<Project>builder()
-                .entityPath(qProject)
-                .where(where)
-                .orderBy(orderBy)
-                .createdAtExpr(qProject.createdAt)
-                .idExpr(qProject.id)
-                .cursorId(req.getCursorId())
-                .cursorTime(req.getCursorTime())
-                .pageSize(req.getPageSize())
-                .build();
-        CursorPage<Project> page = cursorPageFactory.create(spec);
-
-        List<Long> projectIds = page.items().stream()
-                .map(Project::getId)
-                .toList();
-        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
-
-        List<ProjectPageResponseDTO> projectPageResponseDtoList = page.items().stream()
-                .map(proj -> toPageResponseDTO(proj, commentCountMap))
-                .toList();
-
-        return CursorPage.<ProjectPageResponseDTO>builder()
-                .items(projectPageResponseDtoList)
-                .nextCursorId(page.nextCursorId())
-                .nextCursorTime(page.nextCursorTime())
-                .hasNext(page.hasNext())
-                .build();
-    }
-
-    private List<RankingItemDTO> parseSnapshotJson(ProjectRankingSnapshot snapshot) {
-        try {
-            Map<String, List<RankingItemDTO>> map = objectMapper.readValue(
-                    snapshot.getRankingData(),
-                    new TypeReference<>() {}
-            );
-            return map.get("projects");
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
+                return CursorPage.<ProjectPageResponseDTO>builder()
+                                .items(projectPageResponseDtoList)
+                                .nextCursorId(page.nextCursorId())
+                                .nextCursorTime(page.nextCursorTime())
+                                .hasNext(page.hasNext())
+                                .build();
         }
-    }
 
-    private int calculateStartIndex(List<RankingItemDTO> all, Long afterId) {
-        if (afterId == null) {
-            return 0;
-        }
-        for (int i = 0; i < all.size(); i++) {
-            if (all.get(i).getProjectId().equals(afterId)) {
-                return i + 1;
-            }
-        }
-        return 0;
-    }
+        @Override
+        public CursorPage<ProjectPageResponseDTO> findSubscribedProjectsByTerm(Long memberId, int term,
+                        CursorTimePageRequestDTO req) {
+                BooleanBuilder where = new BooleanBuilder();
+                where.and(qProject.team.term.eq(term));
+                where.and(qProject.subscriptions.any().member.id.eq(memberId));
+                where.and(qProject.subscriptions.any().deletedAt.isNull());
 
-    private ProjectPageResponseDTO toPageResponseDTO(Project proj, Map<Long, Long> commentCountMap) {
-        return ProjectPageResponseDTO.builder()
-                .id(proj.getId())
-                .teamId(proj.getTeam().getId())
-                .term(proj.getTeam().getTerm())
-                .teamNumber(proj.getTeam().getNumber())
-                .title(proj.getTitle())
-                .introduction(proj.getIntroduction())
-                .representativeImageUrl(proj.getRepresentativeImageUrl())
-                .tags(proj.getTagContents().stream()
-                        .map(t -> new TagResponseDTO(t.getContent()))
-                        .toList())
-                .commentCount(commentCountMap.getOrDefault(proj.getId(), 0L))
-                .givedPumatiCount(proj.getTeam().getGivedPumatiCount())
-                .receivedPumatiCount(proj.getTeam().getReceivedPumatiCount())
-                .badgeImageUrl(proj.getTeam().getBadgeImageUrl())
-                .createdAt(proj.getCreatedAt())
-                .modifiedAt(proj.getModifiedAt())
-                .build();
-    }
+                OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[] {
+                                qProject.createdAt.desc(),
+                                qProject.id.desc()
+                };
+
+                CursorPageSpec<Project> spec = CursorPageSpec.<Project>builder()
+                                .entityPath(qProject)
+                                .where(where)
+                                .orderBy(orderBy)
+                                .createdAtExpr(qProject.createdAt)
+                                .idExpr(qProject.id)
+                                .cursorId(req.getCursorId())
+                                .cursorTime(req.getCursorTime())
+                                .pageSize(req.getPageSize())
+                                .build();
+
+                CursorPage<Project> page = cursorPageFactory.create(spec);
+                List<Long> projectIds = page.items().stream().map(Project::getId).toList();
+                Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+
+                List<ProjectPageResponseDTO> pageResponseDtoList = page.items().stream()
+                                .map(proj -> toPageResponseDTO(proj, commentCountMap, Set.of(proj.getId())))
+                                .toList();
+
+                return CursorPage.<ProjectPageResponseDTO>builder()
+                                .items(pageResponseDtoList)
+                                .nextCursorId(page.nextCursorId())
+                                .nextCursorTime(page.nextCursorTime())
+                                .hasNext(page.hasNext())
+                                .build();
+        }
+
+        private List<RankingItemDTO> parseSnapshotJson(ProjectRankingSnapshot snapshot) {
+                try {
+                        Map<String, List<RankingItemDTO>> map = objectMapper.readValue(
+                                        snapshot.getRankingData(),
+                                        new TypeReference<>() {
+                                        });
+                        return map.get("projects");
+                } catch (Exception e) {
+                        throw new RuntimeException(e.getMessage());
+                }
+        }
+
+        private int calculateStartIndex(List<RankingItemDTO> all, Long afterId) {
+                if (afterId == null)
+                        return 0;
+                for (int i = 0; i < all.size(); i++) {
+                        if (all.get(i).getProjectId().equals(afterId)) {
+                                return i + 1;
+                        }
+                }
+                return 0;
+        }
+
+        private ProjectPageResponseDTO toPageResponseDTO(Project project, Map<Long, Long> commentCountMap,
+                        Set<Long> subscribedIds) {
+                boolean isSubscribed = subscribedIds != null && subscribedIds.contains(project.getId());
+                return ProjectPageResponseDTO.builder()
+                                .id(project.getId())
+                                .teamId(project.getTeam().getId())
+                                .term(project.getTeam().getTerm())
+                                .teamNumber(project.getTeam().getNumber())
+                                .title(project.getTitle())
+                                .introduction(project.getIntroduction())
+                                .representativeImageUrl(project.getRepresentativeImageUrl())
+                                .tags(project.getTagContents().stream()
+                                                .map(t -> new TagResponseDTO(t.getContent()))
+                                                .toList())
+                                .commentCount(commentCountMap.getOrDefault(project.getId(), 0L))
+                                .givedPumatiCount(project.getTeam().getGivedPumatiCount())
+                                .receivedPumatiCount(project.getTeam().getReceivedPumatiCount())
+                                .badgeImageUrl(project.getTeam().getBadgeImageUrl())
+                                .isSubscribed(isSubscribed)
+                                .createdAt(project.getCreatedAt())
+                                .modifiedAt(project.getModifiedAt())
+                                .build();
+        }
 
 }

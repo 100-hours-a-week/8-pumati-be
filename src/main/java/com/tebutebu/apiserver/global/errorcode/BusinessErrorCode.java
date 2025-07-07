@@ -37,7 +37,11 @@ public enum BusinessErrorCode implements ErrorCode {
     // PreSignedUrl
     REQUEST_COUNT_EXCEEDED(BusinessErrorMessages.REQUEST_COUNT_EXCEEDED, HttpStatus.BAD_REQUEST),
     INVALID_FILE_EXTENSION(BusinessErrorMessages.INVALID_FILE_EXTENSION, HttpStatus.BAD_REQUEST),
-    UNSUPPORTED_FILE_EXTENSION(BusinessErrorMessages.UNSUPPORTED_FILE_EXTENSION, HttpStatus.BAD_REQUEST);
+    UNSUPPORTED_FILE_EXTENSION(BusinessErrorMessages.UNSUPPORTED_FILE_EXTENSION, HttpStatus.BAD_REQUEST),
+
+    // Subscription
+    SUBSCRIPTION_NOT_FOUND(BusinessErrorMessages.SUBSCRIPTION_NOT_FOUND, HttpStatus.NOT_FOUND),
+    ALREADY_SUBSCRIBED(BusinessErrorMessages.ALREADY_SUBSCRIBED, HttpStatus.CONFLICT);
 
     private final String message;
     private final HttpStatus status;
