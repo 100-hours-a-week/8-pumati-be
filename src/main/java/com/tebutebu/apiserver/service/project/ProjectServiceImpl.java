@@ -25,6 +25,7 @@ import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
+import com.tebutebu.apiserver.repository.SubscriptionRepository;
 import com.tebutebu.apiserver.repository.paging.project.ProjectPagingRepository;
 import com.tebutebu.apiserver.service.tag.TagService;
 import com.tebutebu.apiserver.service.ai.badge.AiBadgeImageRequestService;
@@ -54,6 +55,8 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectImageService projectImageService;
 
+    private final SubscriptionRepository subscriptionRepository;
+
     private final TagService tagService;
 
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
@@ -66,17 +69,17 @@ public class ProjectServiceImpl implements ProjectService {
     private String aiCommentDefaultType;
 
     @Override
-    public ProjectResponseDTO get(Long id) {
+    public ProjectResponseDTO get(Long id, Long memberId) {
         Project project = projectRepository.findProjectWithTeamAndImagesById(id)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
-        return buildProjectResponseDTO(project);
+        return buildProjectResponseDTO(project, memberId);
     }
 
     @Override
     public ProjectResponseDTO getByTeamId(Long teamId) {
         Project project = projectRepository.findProjectByTeamId(teamId)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
-        return buildProjectResponseDTO(project);
+        return buildProjectResponseDTO(project, null);
     }
 
     @Override
@@ -275,7 +278,7 @@ public class ProjectServiceImpl implements ProjectService {
         return project;
     }
 
-    private ProjectResponseDTO buildProjectResponseDTO(Project project) {
+    private ProjectResponseDTO buildProjectResponseDTO(Project project, Long memberId) {
         Long id = project.getId();
 
         Team team = project.getTeam();
@@ -300,7 +303,9 @@ public class ProjectServiceImpl implements ProjectService {
         long commentCount = commentRepository.findCommentCountMap(List.of(id))
                 .getOrDefault(id, 0L);
 
-        return entityToDTO(project, team, images, tags, teamRank, commentCount);
+        boolean isSubscribed = subscriptionRepository.existsByMemberIdAndProjectIdAndDeletedAtIsNull(memberId, id);
+
+        return entityToDTO(project, team, images, tags, teamRank, commentCount, isSubscribed);
     }
 
 }

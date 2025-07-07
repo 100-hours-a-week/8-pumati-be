@@ -52,8 +52,15 @@ public class ProjectController {
     private final SubscriptionService subscriptionService;
 
     @GetMapping("/{projectId}")
-    public ResponseEntity<?> get(@PathVariable long projectId) {
-        ProjectResponseDTO dto = projectService.get(projectId);
+    public ResponseEntity<?> get(
+            @PathVariable long projectId,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader
+    ) {
+        Long memberId = (authorizationHeader != null)
+                ? memberService.get(authorizationHeader).getId()
+                : null;
+
+        ProjectResponseDTO dto = projectService.get(projectId, memberId);
         return ResponseEntity.ok(Map.of("message", "getProjectSuccess", "data", dto));
     }
 
