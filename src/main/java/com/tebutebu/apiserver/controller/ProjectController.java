@@ -75,15 +75,20 @@ public class ProjectController {
 
     @GetMapping(params = "sort=rank")
     public ResponseEntity<?> scrollRanking(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(name = "context-id") @NotNull Long contextId,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
             @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
     ) {
+        Long memberId = (authorizationHeader != null) ? memberService.get(authorizationHeader).getId() : null;
+
         ContextCursorPageRequestDTO dto = ContextCursorPageRequestDTO.builder()
                 .contextId(contextId)
                 .cursorId(cursorId)
                 .pageSize(pageSize)
+                .memberId(memberId)
                 .build();
+
         CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> page = projectService.getRankingPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getRankingPageSuccess",
@@ -94,6 +99,7 @@ public class ProjectController {
 
     @GetMapping(params = "sort=latest")
     public ResponseEntity<?> scrollLatest(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
             @RequestParam(name = "cursor-time", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
@@ -103,11 +109,15 @@ public class ProjectController {
             cursorTime = LocalDateTime.now();
         }
 
+        Long memberId = (authorizationHeader != null) ? memberService.get(authorizationHeader).getId() : null;
+
         CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
                 .cursorId(cursorId)
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
+                .memberId(memberId)
                 .build();
+
         CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page = projectService.getLatestPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getLatestPageSuccess",
@@ -135,6 +145,7 @@ public class ProjectController {
                 .cursorId(cursorId)
                 .cursorTime(cursorTime)
                 .pageSize(pageSize)
+                .memberId(memberId)
                 .build();
 
         CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page =

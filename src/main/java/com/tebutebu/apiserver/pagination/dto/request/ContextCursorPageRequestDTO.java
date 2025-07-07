@@ -18,4 +18,6 @@ public class ContextCursorPageRequestDTO extends CursorPageRequestDTO {
     @Positive(message = ValidationMessages.CONTEXT_ID_MUST_BE_POSITIVE)
     private Long contextId;
 
+    private Long memberId;
+
 }
