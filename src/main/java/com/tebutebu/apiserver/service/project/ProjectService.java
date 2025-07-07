@@ -22,7 +22,7 @@ import java.util.List;
 public interface ProjectService {
 
     @Transactional(readOnly = true)
-    ProjectResponseDTO get(Long id);
+    ProjectResponseDTO get(Long id, Long memberId);
 
     @Transactional(readOnly = true)
     boolean existsByTeamId(Long teamId);
@@ -50,7 +50,7 @@ public interface ProjectService {
 
     Project dtoToEntity(ProjectCreateRequestDTO dto);
 
-    default ProjectResponseDTO entityToDTO(Project project, Team team, List<ProjectImageResponseDTO> images, List<TagResponseDTO> tags, Integer teamRank, Long commentCount) {
+    default ProjectResponseDTO entityToDTO(Project project, Team team, List<ProjectImageResponseDTO> images, List<TagResponseDTO> tags, Integer teamRank, Long commentCount, boolean isSubscribed) {
         return ProjectResponseDTO.builder()
                 .id(project.getId())
                 .teamId(team.getId())
@@ -69,6 +69,7 @@ public interface ProjectService {
                 .deploymentUrl(project.getDeploymentUrl())
                 .githubUrl(project.getGithubUrl())
                 .tags(tags)
+                .isSubscribed(isSubscribed)
                 .createdAt(project.getCreatedAt())
                 .modifiedAt(project.getModifiedAt())
                 .build();

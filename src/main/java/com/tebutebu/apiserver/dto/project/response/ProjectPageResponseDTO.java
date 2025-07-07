@@ -37,6 +37,8 @@ public class ProjectPageResponseDTO {
 
     private String badgeImageUrl;
 
+    private boolean isSubscribed;
+
     private LocalDateTime createdAt, modifiedAt;
 
 }

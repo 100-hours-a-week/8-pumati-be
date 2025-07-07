@@ -6,11 +6,11 @@ import com.tebutebu.apiserver.domain.Subscription;
 import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
 import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.repository.SubscriptionRepository;
-import com.tebutebu.apiserver.service.member.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -18,13 +18,20 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
 
-    private final MemberService memberService;
-
     @Override
     public Long subscribe(Long memberId, Long projectId) {
         boolean exists = subscriptionRepository.existsByMemberIdAndProjectIdAndDeletedAtIsNull(memberId, projectId);
         if (exists) {
             throw new BusinessException(BusinessErrorCode.ALREADY_SUBSCRIBED);
+        }
+
+        Optional<Subscription> deletedSubscription = subscriptionRepository
+                .findByMemberIdAndProjectId(memberId, projectId);
+
+        if (deletedSubscription.isPresent()) {
+            Subscription sub = deletedSubscription.get();
+            sub.restore();
+            return sub.getId();
         }
 
         Member member = Member.builder().id(memberId).build();
