@@ -92,4 +92,12 @@ public class ValidationMessages {
     public static final String FILE_LIST_MUST_NOT_BE_EMPTY = "fileListMustNotBeEmpty";
     public static final String REQUEST_COUNT_EXCEEDED = "requestCountExceeded";
 
+    // Mail
+    public static final String EMAIL_REQUIRED = "emailRequired";
+    public static final String EMAIL_INVALID = "emailInvalid";
+    public static final String MAIL_SUBJECT_REQUIRED = "mailSubjectRequired";
+    public static final String MAIL_SUBJECT_MAX_LENGTH_EXCEEDED = "mailSubjectMaxLengthExceeded";
+    public static final String MAIL_CONTENT_REQUIRED = "mailContentRequired";
+    public static final String MAIL_CONTENT_MAX_LENGTH_EXCEEDED = "mailContentMaxLengthExceeded";
+
 }
