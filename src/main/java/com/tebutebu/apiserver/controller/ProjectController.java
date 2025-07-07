@@ -17,6 +17,7 @@ import com.tebutebu.apiserver.service.comment.CommentService;
 import com.tebutebu.apiserver.service.member.MemberService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import com.tebutebu.apiserver.service.project.ProjectService;
+import com.tebutebu.apiserver.service.subscription.SubscriptionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -47,6 +48,8 @@ public class ProjectController {
     private final MemberService memberService;
 
     private final CommentService commentService;
+
+    private final SubscriptionService subscriptionService;
 
     @GetMapping("/{projectId}")
     public ResponseEntity<?> get(@PathVariable long projectId) {
@@ -108,6 +111,37 @@ public class ProjectController {
         CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page = projectService.getLatestPage(dto);
         return ResponseEntity.ok(Map.of(
                 "message", "getLatestPageSuccess",
+                "data", page.getData(),
+                "meta", page.getMeta()
+        ));
+    }
+
+    @GetMapping("/subscription/term/{term}")
+    public ResponseEntity<?> getSubscribedProjectsByTerm(
+            @RequestHeader("Authorization") String authorizationHeader,
+            @PathVariable("term") int term,
+            @RequestParam(name = "cursor-id", defaultValue = "0") @PositiveOrZero Long cursorId,
+            @RequestParam(name = "cursor-time", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursorTime,
+            @RequestParam(name = "page-size", defaultValue = "10") @Positive @Min(1) @Max(100) Integer pageSize
+    ) {
+        if (cursorTime == null) {
+            cursorTime = LocalDateTime.now();
+        }
+
+        Long memberId = memberService.get(authorizationHeader).getId();
+
+        CursorTimePageRequestDTO dto = CursorTimePageRequestDTO.builder()
+                .cursorId(cursorId)
+                .cursorTime(cursorTime)
+                .pageSize(pageSize)
+                .build();
+
+        CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page =
+                projectService.getSubscribedPageByTerm(memberId, term, dto);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "getSubscribedProjectsSuccess",
                 "data", page.getData(),
                 "meta", page.getMeta()
         ));
@@ -187,6 +221,33 @@ public class ProjectController {
                 "message", "registerSuccess",
                 "data", Map.of("id", commentId)
         ));
+    }
+
+    @PostMapping("/{projectId}/subscription")
+    public ResponseEntity<?> subscribe(
+            @PathVariable Long projectId,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        Long id = subscriptionService.subscribe(memberId, projectId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of(
+                        "message", "subscribeSuccess",
+                        "data", Map.of(
+                                "id", id,
+                                "subscribedAt", LocalDateTime.now()
+                        )
+                ));
+    }
+
+    @DeleteMapping("/{projectId}/subscription")
+    public ResponseEntity<?> unsubscribe(
+            @PathVariable Long projectId,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        subscriptionService.unsubscribe(memberId, projectId);
+        return ResponseEntity.ok(Map.of("message", "unsubscribeSuccess"));
     }
 
 }

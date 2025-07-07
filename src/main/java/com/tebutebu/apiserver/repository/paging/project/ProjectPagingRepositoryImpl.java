@@ -115,6 +115,49 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                 .build();
     }
 
+    @Override
+    public CursorPage<ProjectPageResponseDTO> findSubscribedProjectsByTerm(Long memberId, int term, CursorTimePageRequestDTO req) {
+        BooleanBuilder where = new BooleanBuilder();
+        where.and(qProject.team.term.eq(term));
+        where.and(qProject.subscriptions.any().member.id.eq(memberId));
+        where.and(qProject.subscriptions.any().deletedAt.isNull());
+
+        OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
+                qProject.createdAt.desc(),
+                qProject.id.desc()
+        };
+
+        CursorPageSpec<Project> spec = CursorPageSpec.<Project>builder()
+                .entityPath(qProject)
+                .where(where)
+                .orderBy(orderBy)
+                .createdAtExpr(qProject.createdAt)
+                .idExpr(qProject.id)
+                .cursorId(req.getCursorId())
+                .cursorTime(req.getCursorTime())
+                .pageSize(req.getPageSize())
+                .build();
+
+        CursorPage<Project> page = cursorPageFactory.create(spec);
+
+        List<Long> projectIds = page.items().stream()
+                .map(Project::getId)
+                .toList();
+
+        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+
+        List<ProjectPageResponseDTO> pageResponseDtoList = page.items().stream()
+                .map(proj -> toPageResponseDTO(proj, commentCountMap))
+                .toList();
+
+        return CursorPage.<ProjectPageResponseDTO>builder()
+                .items(pageResponseDtoList)
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
+    }
+
     private List<RankingItemDTO> parseSnapshotJson(ProjectRankingSnapshot snapshot) {
         try {
             Map<String, List<RankingItemDTO>> map = objectMapper.readValue(
@@ -139,24 +182,24 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
         return 0;
     }
 
-    private ProjectPageResponseDTO toPageResponseDTO(Project proj, Map<Long, Long> commentCountMap) {
+    private ProjectPageResponseDTO toPageResponseDTO(Project project, Map<Long, Long> commentCountMap) {
         return ProjectPageResponseDTO.builder()
-                .id(proj.getId())
-                .teamId(proj.getTeam().getId())
-                .term(proj.getTeam().getTerm())
-                .teamNumber(proj.getTeam().getNumber())
-                .title(proj.getTitle())
-                .introduction(proj.getIntroduction())
-                .representativeImageUrl(proj.getRepresentativeImageUrl())
-                .tags(proj.getTagContents().stream()
+                .id(project.getId())
+                .teamId(project.getTeam().getId())
+                .term(project.getTeam().getTerm())
+                .teamNumber(project.getTeam().getNumber())
+                .title(project.getTitle())
+                .introduction(project.getIntroduction())
+                .representativeImageUrl(project.getRepresentativeImageUrl())
+                .tags(project.getTagContents().stream()
                         .map(t -> new TagResponseDTO(t.getContent()))
                         .toList())
-                .commentCount(commentCountMap.getOrDefault(proj.getId(), 0L))
-                .givedPumatiCount(proj.getTeam().getGivedPumatiCount())
-                .receivedPumatiCount(proj.getTeam().getReceivedPumatiCount())
-                .badgeImageUrl(proj.getTeam().getBadgeImageUrl())
-                .createdAt(proj.getCreatedAt())
-                .modifiedAt(proj.getModifiedAt())
+                .commentCount(commentCountMap.getOrDefault(project.getId(), 0L))
+                .givedPumatiCount(project.getTeam().getGivedPumatiCount())
+                .receivedPumatiCount(project.getTeam().getReceivedPumatiCount())
+                .badgeImageUrl(project.getTeam().getBadgeImageUrl())
+                .createdAt(project.getCreatedAt())
+                .modifiedAt(project.getModifiedAt())
                 .build();
     }
 
