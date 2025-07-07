@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,6 +77,10 @@ public class Member extends TimeStampedEntity {
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Subscription> subscriptions = new ArrayList<>();
 
+    private LocalDateTime emailOptInAt;
+
+    private LocalDateTime emailOptOutAt;
+
     public void changeCourse(Course course) {
         this.course = course;
     }
@@ -102,6 +107,19 @@ public class Member extends TimeStampedEntity {
 
     public void changeState(MemberState state) {
         this.state = state;
+    }
+
+    public void agreeToReceiveEmail() {
+        this.emailOptInAt = LocalDateTime.now();
+        this.emailOptOutAt = null;
+    }
+
+    public void declineToReceiveEmail() {
+        this.emailOptOutAt = LocalDateTime.now();
+    }
+
+    public boolean hasEmailConsent() {
+        return this.emailOptInAt != null && this.emailOptOutAt == null;
     }
 
 }

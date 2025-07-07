@@ -50,6 +50,7 @@ public interface MemberService {
                 .profileImageUrl(member.getProfileImageUrl())
                 .role(member.getRole())
                 .state(member.getState())
+                .hasEmailConsent(member.hasEmailConsent())
                 .createdAt(member.getCreatedAt())
                 .modifiedAt(member.getModifiedAt())
                 .build();

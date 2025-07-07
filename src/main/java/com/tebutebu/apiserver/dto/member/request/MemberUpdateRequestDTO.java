@@ -41,4 +41,6 @@ public class MemberUpdateRequestDTO {
 
     private MemberRole role;
 
+    private Boolean emailConsent;
+
 }
