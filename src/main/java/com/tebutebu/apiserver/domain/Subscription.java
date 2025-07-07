@@ -41,6 +41,11 @@ public class Subscription extends TimeStampedEntity {
         this.deletedAt = now;
     }
 
+    public void restore() {
+        this.deletedAt = null;
+        this.subscribedAt = LocalDateTime.now();
+    }
+
     public boolean isActive() {
         return this.deletedAt == null;
     }
