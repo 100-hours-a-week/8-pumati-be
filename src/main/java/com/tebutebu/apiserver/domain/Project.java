@@ -66,6 +66,7 @@ public class Project extends TimeStampedEntity {
     @OneToMany(mappedBy="project", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<Comment> comments = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Subscription> subscriptions = new ArrayList<>();
 
