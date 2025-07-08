@@ -76,6 +76,12 @@ public class ProjectController {
     @PostMapping("/snapshot")
     public ResponseEntity<?> registerSnapshot() {
         Long snapshotId = projectRankingSnapshotService.register();
+
+        if (snapshotId == null) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "snapshotCreationFailed"));
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("message", "snapshotCreated", "data", Map.of("id", snapshotId)));
     }
