@@ -73,6 +73,7 @@ public class Member extends TimeStampedEntity {
     @OneToMany(mappedBy="member", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<AttendanceWeekly> attendancesWeekly;
 
+    @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Subscription> subscriptions = new ArrayList<>();
 
