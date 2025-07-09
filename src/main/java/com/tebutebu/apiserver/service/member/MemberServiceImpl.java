@@ -190,12 +190,19 @@ public class MemberServiceImpl implements MemberService {
             member.changeRole(dto.getRole());
         }
 
-        if (dto.getEmailConsent() != null) {
-            if (dto.getEmailConsent()) {
-                member.agreeToReceiveEmail();
-            } else {
-                member.declineToReceiveEmail();
-            }
+        memberRepository.save(member);
+    }
+
+    @Override
+    public void toggleEmailConsent(String authorizationHeader) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND));
+
+        if (member.hasEmailConsent()) {
+            member.declineToReceiveEmail();
+        } else {
+            member.agreeToReceiveEmail();
         }
 
         memberRepository.save(member);

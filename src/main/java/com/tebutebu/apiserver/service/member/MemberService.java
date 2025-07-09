@@ -31,6 +31,8 @@ public interface MemberService {
 
     void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
 
+    void toggleEmailConsent(String authorizationHeader);
+
     void delete(String authorizationHeader, HttpServletRequest request, HttpServletResponse response);
 
     Member dtoToEntity(MemberOAuthSignupRequestDTO dto, String email);
