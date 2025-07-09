@@ -118,6 +118,9 @@ ai:
   badge:
     service:
       url: ${default.badge.image.url}
+  report:
+    service:
+      url: ${ai.report.service.url}
 
 chatbot:
   service:

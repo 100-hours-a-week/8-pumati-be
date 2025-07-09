@@ -117,6 +117,9 @@ ai:
   badge:
     service:
       url: test-ai-badge-service-url
+  report:
+    service:
+      url: test-ai-report-service-url
 
 chatbot:
   service:

@@ -20,4 +20,7 @@ public class RankingItemDTO {
     @JsonProperty("gived_pumati_count")
     private Long givedPumatiCount;
 
+    @JsonProperty("received_pumati_count")
+    private Long receivedPumatiCount;
+
 }

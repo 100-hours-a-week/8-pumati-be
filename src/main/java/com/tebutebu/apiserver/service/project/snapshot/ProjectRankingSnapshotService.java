@@ -17,6 +17,8 @@ public interface ProjectRankingSnapshotService {
 
     ProjectRankingSnapshotResponseDTO getLatestSnapshot();
 
+    List<ProjectRankingSnapshotResponseDTO> getSnapshotsForLast7Days();
+
     default ProjectRankingSnapshotResponseDTO entityToDTO(ProjectRankingSnapshot snapshot) {
         List<RankingItemDTO> items;
         try {
@@ -34,6 +36,7 @@ public interface ProjectRankingSnapshotService {
         return ProjectRankingSnapshotResponseDTO.builder()
                 .id(snapshot.getId())
                 .data(items)
+                .requestedAt(snapshot.getRequestedAt())
                 .build();
     }
 
