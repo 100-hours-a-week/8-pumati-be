@@ -1,5 +1,7 @@
 package com.tebutebu.apiserver.service.report;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.Team;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Log4j2
@@ -52,7 +55,9 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
             if (team == null) continue;
 
             WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
-            String imageUrl = aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO);
+            String imageUrl = extractImageUrlFromJson(
+                    aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
+            );
 
             List<Member> consentingMembers = memberRepository.findAllByTeamIdWithTeam(team.getId()).stream()
                     .filter(Member::hasEmailConsent)
@@ -191,6 +196,17 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 .map(String::valueOf)
                 .findFirst()
                 .orElse("N/A");
+    }
+
+    private String extractImageUrlFromJson(String json) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, String> map = objectMapper.readValue(json, new TypeReference<>() {});
+            return map.getOrDefault("reportImageUrl", null);
+        } catch (Exception e) {
+            log.warn("이미지 URL 파싱 실패: {}", json, e);
+            return null;
+        }
     }
 
 }
