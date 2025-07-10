@@ -7,6 +7,8 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.domain.QProject;
+import com.tebutebu.apiserver.domain.QSubscription;
+import com.tebutebu.apiserver.domain.Subscription;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
@@ -120,32 +122,38 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     @Override
     public CursorPage<ProjectPageResponseDTO> findSubscribedProjectsByTerm(Long memberId, int term, CursorTimePageRequestDTO req) {
+        QSubscription subscription = QSubscription.subscription;
+
         BooleanBuilder where = new BooleanBuilder();
-        where.and(qProject.team.term.eq(term));
-        where.and(qProject.subscriptions.any().member.id.eq(memberId));
-        where.and(qProject.subscriptions.any().deletedAt.isNull());
+        where.and(subscription.member.id.eq(memberId));
+        where.and(subscription.deletedAt.isNull());
+        where.and(subscription.project.team.term.eq(term));
 
         OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
-                qProject.createdAt.desc(),
-                qProject.id.desc()
+                subscription.modifiedAt.desc(),
+                subscription.id.desc()
         };
 
-        CursorPageSpec<Project> spec = CursorPageSpec.<Project>builder()
-                .entityPath(qProject)
+        CursorPageSpec<Subscription> spec = CursorPageSpec.<Subscription>builder()
+                .entityPath(subscription)
                 .where(where)
                 .orderBy(orderBy)
-                .createdAtExpr(qProject.createdAt)
-                .idExpr(qProject.id)
+                .createdAtExpr(subscription.modifiedAt)
+                .idExpr(subscription.id)
                 .cursorId(req.getCursorId())
                 .cursorTime(req.getCursorTime())
                 .pageSize(req.getPageSize())
                 .build();
 
-        CursorPage<Project> page = cursorPageFactory.create(spec);
-        List<Long> projectIds = page.items().stream().map(Project::getId).toList();
+        CursorPage<Subscription> page = cursorPageFactory.create(spec);
+        List<Project> projects = page.items().stream()
+                .map(Subscription::getProject)
+                .toList();
+
+        List<Long> projectIds = projects.stream().map(Project::getId).toList();
         Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
 
-        List<ProjectPageResponseDTO> pageResponseDtoList = page.items().stream()
+        List<ProjectPageResponseDTO> pageResponseDtoList = projects.stream()
                 .map(proj -> toPageResponseDTO(proj, commentCountMap, Set.of(proj.getId())))
                 .toList();
 
