@@ -19,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
@@ -116,8 +115,13 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                     .findFirst()
                     .orElse(null);
 
-            long currentGivedPumatiCount = item != null ? item.getGivedPumatiCount() : prevGivedPumatiCount;
-            long currentReceivedPumatiCount = item != null ? item.getReceivedPumatiCount() : prevReceivedPumatiCount;
+            long currentGivedPumatiCount = (item != null && item.getGivedPumatiCount() != null)
+                    ? item.getGivedPumatiCount()
+                    : prevGivedPumatiCount;
+
+            long currentReceivedPumatiCount = (item != null && item.getReceivedPumatiCount() != null)
+                    ? item.getReceivedPumatiCount()
+                    : prevReceivedPumatiCount;
 
             long givedDiff = currentGivedPumatiCount - prevGivedPumatiCount;
             long receivedDiff = currentReceivedPumatiCount - prevReceivedPumatiCount;
