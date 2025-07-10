@@ -24,6 +24,7 @@ import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Log4j2
@@ -148,6 +149,8 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                     .append(count).append("개\n");
         }
 
+        String pumatiRank = getLatestPumatiRank(project.getId());
+
         return """
             안녕하세요, %s님!
 
@@ -155,7 +158,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
             - 받은 품앗이 수: %d개
             - 준 품앗이 수: %d개
-            - 총 뱃지 수: %d개
+            - 품앗이 등수: %s위
 
             [받은 팀별 뱃지 수]
             %s
@@ -171,10 +174,23 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 project.getTitle(),
                 team.getReceivedPumatiCount(),
                 team.getGivedPumatiCount(),
-                team.getTotalReceivedBadgeCount(),
+                pumatiRank,
                 badgeDetails.toString(),
                 imageUrl != null ? imageUrl : "(이미지 생성 실패)"
         );
+    }
+
+    private String getLatestPumatiRank(Long projectId) {
+        ProjectRankingSnapshotResponseDTO latestSnapshot = projectRankingSnapshotService.getLatestSnapshot();
+        if (latestSnapshot == null || latestSnapshot.getData() == null) return "N/A";
+
+        return latestSnapshot.getData().stream()
+                .filter(dto -> dto.getProjectId().equals(projectId))
+                .map(RankingItemDTO::getRank)
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .findFirst()
+                .orElse("N/A");
     }
 
 }
