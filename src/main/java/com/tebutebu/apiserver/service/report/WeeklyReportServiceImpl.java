@@ -54,14 +54,18 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
             Team team = project.getTeam();
             if (team == null) continue;
 
+            List<Member> consentingMembers = memberRepository.findAllByTeamIdWithTeam(team.getId()).stream()
+                    .filter(Member::hasEmailConsent)
+                    .toList();
+
+            if (consentingMembers.isEmpty()) {
+                continue;
+            }
+
             WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
             String imageUrl = extractImageUrlFromJson(
                     aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
             );
-
-            List<Member> consentingMembers = memberRepository.findAllByTeamIdWithTeam(team.getId()).stream()
-                    .filter(Member::hasEmailConsent)
-                    .toList();
 
             for (Member member : consentingMembers) {
                 try {
