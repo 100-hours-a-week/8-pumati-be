@@ -22,6 +22,7 @@ public class BusinessErrorMessages {
     public static final String SNAPSHOT_LOCK_INTERRUPTED = "snapshotLockInterrupted";
     public static final String SNAPSHOT_NOT_FOUND = "snapshotNotFound";
     public static final String SNAPSHOT_ALREADY_IN_PROGRESS = "snapshotAlreadyInProgress";
+    public static final String INVALID_SNAPSHOT_ID = "invalidSnapshotId";
 
     // Paging
     public static final String CONTEXT_ID_REQUIRED = "contextIdRequired";
@@ -35,5 +36,9 @@ public class BusinessErrorMessages {
     public static final String REQUEST_COUNT_EXCEEDED = "requestCountExceeded";
     public static final String INVALID_FILE_EXTENSION = "invalidFileExtension";
     public static final String UNSUPPORTED_FILE_EXTENSION = "unsupportedFileExtension";
+
+    // Subscription
+    public static final String SUBSCRIPTION_NOT_FOUND = "subscriptionNotFound";
+    public static final String ALREADY_SUBSCRIBED = "alreadySubscribed";
 
 }

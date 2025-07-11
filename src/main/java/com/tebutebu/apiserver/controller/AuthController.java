@@ -31,25 +31,26 @@ public class AuthController {
 
     @PutMapping("/tokens")
     public ResponseEntity<?> refreshToken(
-            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @CookieValue(value = "${spring.jwt.refresh.cookie.name}", required = false) String refreshTokenCookie,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         try {
-            TokensDTO tokens = authService.refreshTokens(authorizationHeader, refreshTokenCookie);
+            TokensDTO tokens = authService.refreshTokens(refreshTokenCookie);
+            String newAccessToken = tokens.getAccessToken();
+            String newRefreshToken = tokens.getRefreshToken();
 
             cookieUtil.addRefreshTokenCookie(
                     response,
                     refreshCookieName,
-                    tokens.getRefreshToken(),
+                    newRefreshToken,
                     refreshCookieMaxAge,
                     request.isSecure()
             );
 
             Map<String, Object> body = Map.of(
                     "message", "refreshSuccess",
-                    "data", Map.of("accessToken", tokens.getAccessToken())
+                    "data", Map.of("accessToken", newAccessToken)
             );
             return ResponseEntity.ok(body);
         } catch (Exception e) {

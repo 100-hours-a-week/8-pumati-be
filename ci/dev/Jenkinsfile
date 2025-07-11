@@ -97,8 +97,8 @@ spec:
         AWS_REGION = 'ap-northeast-2'        // 서울 리전
         ECR_REPOSITORY = 'pumati-dev-backend-ecr'  // ECR 리포지토리 이름
         
-        // 이미지 태그 설정 (브랜치명과 빌드 번호 조합)
-        IMAGE_TAG = "${BRANCH_NAME}-${BUILD_NUMBER}"
+        // 이미지 태그 설정 (브랜치명과 빌드 번호 조합) - 슬래시를 하이픈으로 변경
+        IMAGE_TAG = "${BRANCH_NAME.replace('/', '-')}-${BUILD_NUMBER}"
         
         // Gradle 홈 디렉토리 설정 (권한 문제 해결)
         GRADLE_USER_HOME = '/home/jenkins/agent/.gradle'
