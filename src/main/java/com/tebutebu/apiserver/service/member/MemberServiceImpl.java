@@ -18,7 +18,6 @@ import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.oauth.OAuthService;
 import com.tebutebu.apiserver.service.token.RefreshTokenService;
 import com.tebutebu.apiserver.service.team.TeamService;
-import com.tebutebu.apiserver.global.errorcode.AuthErrorCode;
 import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
@@ -82,7 +81,7 @@ public class MemberServiceImpl implements MemberService {
 
     @Override
     public List<MemberResponseDTO> getMembersByTeamId(Long teamId) {
-        List<Member> members = memberRepository.findAllByTeamId(teamId);
+        List<Member> members = memberRepository.findAllByTeamIdWithTeam(teamId);
         if (members.isEmpty()) {
             return List.of();
         }
@@ -189,6 +188,21 @@ public class MemberServiceImpl implements MemberService {
 
         if (dto.getRole() != null) {
             member.changeRole(dto.getRole());
+        }
+
+        memberRepository.save(member);
+    }
+
+    @Override
+    public void toggleEmailConsent(String authorizationHeader) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND));
+
+        if (member.hasEmailConsent()) {
+            member.declineToReceiveEmail();
+        } else {
+            member.agreeToReceiveEmail();
         }
 
         memberRepository.save(member);

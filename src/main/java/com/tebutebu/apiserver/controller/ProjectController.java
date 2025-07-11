@@ -274,4 +274,17 @@ public class ProjectController {
         return ResponseEntity.ok(Map.of("message", "unsubscribeSuccess"));
     }
 
+    @GetMapping("/{projectId}/subscription")
+    public ResponseEntity<?> checkSubscription(
+            @PathVariable Long projectId,
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        Long memberId = memberService.get(authorizationHeader).getId();
+        boolean isSubscribed = subscriptionService.isSubscribed(memberId, projectId);
+        return ResponseEntity.ok(Map.of(
+                "message", "getSubscriptionStatusSuccess",
+                "data", Map.of("isSubscribed", isSubscribed)
+        ));
+    }
+
 }

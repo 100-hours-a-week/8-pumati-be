@@ -89,4 +89,11 @@ public class Team extends TimeStampedEntity {
         this.isAiBadgeInProgress = isAiBadgeInProgress;
     }
 
+    public int getTotalReceivedBadgeCount() {
+        return receivedBadges == null ? 0 :
+                receivedBadges.stream()
+                        .mapToInt(TeamBadgeStat::getAcquiredCount)
+                        .sum();
+    }
+
 }

@@ -40,6 +40,8 @@ public class MemberResponseDTO {
 
     private MemberState state;
 
+    private Boolean hasEmailConsent;
+
     private LocalDateTime createdAt, modifiedAt;
 
 }

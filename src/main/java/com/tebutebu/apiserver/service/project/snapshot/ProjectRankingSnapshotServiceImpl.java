@@ -19,11 +19,15 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.NoSuchElementException;
 
 @Service
 @Log4j2
@@ -182,6 +186,57 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         return projectRankingSnapshotResponseDTO;
     }
 
+    @Override
+    public List<ProjectRankingSnapshotResponseDTO> getSnapshotsForLast7Days() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime start = now.minusDays(6).toLocalDate().atStartOfDay();
+
+        List<ProjectRankingSnapshot> allSnapshots = projectRankingSnapshotRepository
+                .findAllByRequestedAtBetween(start, now);
+
+        Map<LocalDate, ProjectRankingSnapshot> latestPerDate = new HashMap<>();
+        allSnapshots.stream()
+                .sorted(Comparator.comparing(ProjectRankingSnapshot::getRequestedAt).reversed())
+                .forEach(snap -> {
+                    LocalDate date = snap.getRequestedAt().toLocalDate();
+                    latestPerDate.putIfAbsent(date, snap);
+                });
+
+        List<LocalDate> last7Days = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            last7Days.add(now.toLocalDate().minusDays(i));
+        }
+
+        List<ProjectRankingSnapshotResponseDTO> filledList = new ArrayList<>();
+        ProjectRankingSnapshot lastKnownSnapshot = null;
+
+        for (int i = 0; i < last7Days.size(); i++) {
+            LocalDate date = last7Days.get(i);
+
+            if (latestPerDate.containsKey(date)) {
+                lastKnownSnapshot = latestPerDate.get(date);
+            } else if (i == 0 && lastKnownSnapshot == null) {
+                try {
+                    lastKnownSnapshot = projectRankingSnapshotRepository
+                            .findTopByOrderByRequestedAtDesc()
+                            .orElse(null);
+                    log.warn("No snapshot found for the first day. Using latest snapshot as fallback: {}",
+                            lastKnownSnapshot != null ? lastKnownSnapshot.getRequestedAt() : "null");
+                } catch (Exception e) {
+                    log.error("Failed to fetch the latest snapshot for fallback", e);
+                }
+            }
+
+            if (lastKnownSnapshot != null) {
+                filledList.add(entityToDTO(lastKnownSnapshot));
+            } else {
+                filledList.add(null);
+            }
+        }
+
+        return filledList;
+    }
+
     private Long createAndSaveSnapshot() {
         List<RankingItemDTO> ranking = generateRanking();
         String json = serializeToJson(ranking);
@@ -202,6 +257,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     .projectId(p.getId())
                     .rank(rank++)
                     .givedPumatiCount(p.getTeam().getGivedPumatiCount())
+                    .receivedPumatiCount(p.getTeam().getGivedPumatiCount())
                     .build());
         }
         return rankingList;

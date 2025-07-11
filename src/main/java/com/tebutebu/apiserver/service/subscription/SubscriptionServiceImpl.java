@@ -54,4 +54,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscription.unsubscribe(LocalDateTime.now());
     }
 
+    @Override
+    public boolean isSubscribed(Long memberId, Long projectId) {
+        return subscriptionRepository.existsByMemberIdAndProjectIdAndDeletedAtIsNull(memberId, projectId);
+    }
+
 }

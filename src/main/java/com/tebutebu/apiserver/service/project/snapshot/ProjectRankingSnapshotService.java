@@ -18,6 +18,8 @@ public interface ProjectRankingSnapshotService {
     @Transactional(readOnly = true)
     ProjectRankingSnapshotResponseDTO getLatestSnapshot();
 
+    List<ProjectRankingSnapshotResponseDTO> getSnapshotsForLast7Days();
+
     default ProjectRankingSnapshotResponseDTO entityToDTO(ProjectRankingSnapshot snapshot) {
         try {
             String raw = snapshot.getRankingData();
@@ -34,6 +36,7 @@ public interface ProjectRankingSnapshotService {
             return ProjectRankingSnapshotResponseDTO.builder()
                     .id(snapshot.getId())
                     .data(wrapper.getOrDefault("projects", List.of()))
+                    .requestedAt(snapshot.getRequestedAt())
                     .build();
         } catch (Exception e) {
             throw new RuntimeException("Failed to deserialize ProjectRankingSnapshot JSON", e);

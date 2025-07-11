@@ -58,6 +58,43 @@ spring:
       password: ${redis.password}
       timeout: ${redis.timeout}
 
+  mail:
+    host: ${mail.host}
+    port: ${mail.port}
+    username: ${mail.username}
+    password: ${mail.password}
+    properties:
+      mail:
+        smtp:
+          auth: ${mail.smtp.auth:true}
+          starttls:
+            enable: ${mail.smtp.starttls.enable:true}
+
+  kafka:
+    bootstrap-servers: ${kafka.advertised.host}:${kafka.port}
+    consumer:
+      group-id: ${kafka.consumer.group.id}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "*"
+    producer:
+      properties:
+        retries: 3
+        acks: all
+    listener:
+      ack-mode: manual
+      concurrency: 1
+      missing-topics-fatal: false
+      type: single
+      poll-timeout: 3000
+    topic:
+      mail-send: ${kafka.topic.mail.send}
+      mail-send-dlq: ${kafka.topic.mail.send.dlq}
+
 server:
   forward-headers-strategy: framework
 
@@ -88,6 +125,9 @@ ai:
   badge:
     service:
       url: ${default.badge.image.url}
+  report:
+    service:
+      url: ${ai.report.service.url}
 
 chatbot:
   service:

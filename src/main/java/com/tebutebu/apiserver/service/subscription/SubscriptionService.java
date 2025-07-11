@@ -9,4 +9,7 @@ public interface SubscriptionService {
 
     void unsubscribe(Long memberId, Long projectId);
 
+    @Transactional(readOnly = true)
+    boolean isSubscribed(Long memberId, Long projectId);
+
 }

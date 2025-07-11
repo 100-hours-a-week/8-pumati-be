@@ -31,6 +31,8 @@ public interface MemberService {
 
     void modify(String authorizationHeader, MemberUpdateRequestDTO dto);
 
+    void toggleEmailConsent(String authorizationHeader);
+
     void delete(String authorizationHeader, HttpServletRequest request, HttpServletResponse response);
 
     Member dtoToEntity(MemberOAuthSignupRequestDTO dto, String email);
@@ -50,6 +52,7 @@ public interface MemberService {
                 .profileImageUrl(member.getProfileImageUrl())
                 .role(member.getRole())
                 .state(member.getState())
+                .hasEmailConsent(member.hasEmailConsent())
                 .createdAt(member.getCreatedAt())
                 .modifiedAt(member.getModifiedAt())
                 .build();

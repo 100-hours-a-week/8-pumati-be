@@ -4,9 +4,12 @@ import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface ProjectRankingSnapshotRepository extends JpaRepository<ProjectRankingSnapshot, Long> {
 
     Optional<ProjectRankingSnapshot> findTopByOrderByRequestedAtDesc();
+
+    List<ProjectRankingSnapshot> findAllByRequestedAtBetween(LocalDateTime start, LocalDateTime end);
 
 }

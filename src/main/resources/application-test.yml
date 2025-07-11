@@ -58,6 +58,43 @@ spring:
       password:
       timeout: 5000
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: test@gmail.com
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: test-consumer-group-id
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "*"
+    producer:
+      properties:
+        retries: 3
+        acks: all
+    topic:
+      mail-send: test-topic-mail-send
+      mail-send-dlq: test-topic-mail-send-dlq
+    listener:
+      ack-mode: manual
+      concurrency: 1
+      missing-topics-fatal: false
+      type: single
+      poll-timeout: 3000
+
 server:
   forward-headers-strategy: framework
 
@@ -87,6 +124,9 @@ ai:
   badge:
     service:
       url: test-ai-badge-service-url
+  report:
+    service:
+      url: test-ai-report-service-url
 
 chatbot:
   service:
@@ -136,3 +176,6 @@ scheduler:
   pumati-count:
     reset-cron: 0 0 9 * * MON
     reset-zone: Asia/Seoul
+  weekly-report:
+    send-cron: "0 0 9 * * MON"
+    send-zone: "Asia/Seoul"
