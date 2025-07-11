@@ -62,20 +62,29 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 continue;
             }
 
-            WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
-            String imageUrl = extractImageUrlFromJson(
-                    aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
-            );
+            try {
+                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
+                String imageUrl = extractImageUrlFromJson(
+                        aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
+                );
 
-            for (Member member : consentingMembers) {
-                try {
-                    String subject = "[주간 리포트] %d기 %d팀 - %s".formatted(team.getTerm(), team.getNumber(), project.getTitle());
-                    String content = generateReportContent(project, team, member, imageUrl);
-                    mailService.sendMail(member.getEmail(), subject, content);
-                    log.info("메일 발송 성공: {}", member.getEmail());
-                } catch (Exception e) {
-                    log.error("메일 발송 실패: {}", member.getEmail(), e);
-                }
+                sendMailsToMembers(consentingMembers, project, team, imageUrl);
+
+            } catch (Exception e) {
+                log.error("주간 리포트 이미지 생성 또는 사전 처리 실패: projectId={}", project.getId(), e);
+            }
+        }
+    }
+
+    private void sendMailsToMembers(List<Member> members, Project project, Team team, String imageUrl) {
+        for (Member member : members) {
+            try {
+                String subject = "[주간 리포트] %d기 %d팀 - %s".formatted(team.getTerm(), team.getNumber(), project.getTitle());
+                String content = generateReportContent(project, team, member, imageUrl);
+                mailService.sendMail(member.getEmail(), subject, content);
+                log.info("메일 발송 성공: {}", member.getEmail());
+            } catch (Exception e) {
+                log.error("메일 발송 실패: {}", member.getEmail(), e);
             }
         }
     }
