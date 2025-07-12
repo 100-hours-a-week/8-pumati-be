@@ -79,6 +79,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 tasks.named('test') {
