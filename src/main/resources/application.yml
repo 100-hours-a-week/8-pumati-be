@@ -8,8 +8,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: prometheus
+        include: prometheus,metrics,health,info
   prometheus:
     metrics:
       export:
         enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
