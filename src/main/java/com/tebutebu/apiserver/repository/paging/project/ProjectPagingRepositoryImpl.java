@@ -63,7 +63,16 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
         Long snapshotId = req.getContextId();
         String cacheKey = snapshotCacheKeyPrefix + snapshotId;
 
-        ProjectRankingSnapshotResponseDTO cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
+        Object rawCachedValue = snapshotRedisTemplate.opsForValue().get(cacheKey);
+        ProjectRankingSnapshotResponseDTO cachedSnapshot = null;
+
+        if (rawCachedValue != null) {
+            try {
+                cachedSnapshot = objectMapper.convertValue(rawCachedValue, ProjectRankingSnapshotResponseDTO.class);
+            } catch (IllegalArgumentException e) {
+                log.warn("Failed to convert cached snapshot. key={}, class={}", cacheKey, rawCachedValue.getClass(), e);
+            }
+        }
 
         List<RankingItemDTO> dtoList;
         if (cachedSnapshot != null) {
