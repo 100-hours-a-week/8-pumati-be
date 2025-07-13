@@ -24,9 +24,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Log4j2
@@ -108,7 +108,11 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 }
             }
             if (isLocked && lock.isHeldByCurrentThread()) {
-                lock.unlock();
+                try {
+                    lock.unlock();
+                } catch (Exception e) {
+                    log.warn("Failed to unlock Redisson lock", e);
+                }
             }
         }
     }
@@ -126,10 +130,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     private Long getSnapshotIdFromCache() {
         String cacheKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
-        String cachedId = stringRedisTemplate.opsForValue().get(cacheKey);
-        if (cachedId != null) {
-            log.info("Reusing cached snapshot with ID={}", cachedId);
-            return Long.parseLong(cachedId);
+        try {
+            String cachedId = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cachedId != null) {
+                log.info("Reusing cached snapshot with ID={}", cachedId);
+                return Long.parseLong(cachedId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read snapshot ID from Redis cache", e);
         }
         return null;
     }
@@ -163,8 +171,15 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
     }
 
     private void ensureNotGenerating() {
-        Boolean isGenerating = booleanRedisTemplate.opsForValue()
-                .setIfAbsent(snapshotGeneratingKey, true, Duration.ofSeconds(snapshotGeneratingTtlSeconds));
+        Boolean isGenerating;
+        try {
+            isGenerating = booleanRedisTemplate.opsForValue()
+                    .setIfAbsent(snapshotGeneratingKey, true, Duration.ofSeconds(snapshotGeneratingTtlSeconds));
+        } catch (Exception e) {
+            log.error("Failed to set snapshot generating flag in Redis", e);
+            throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
+        }
+
         if (Boolean.FALSE.equals(isGenerating)) {
             log.warn("Snapshot is already being generated. Skipping duplicate request.");
             throw new BusinessException(BusinessErrorCode.SNAPSHOT_ALREADY_IN_PROGRESS);
@@ -178,7 +193,12 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.SNAPSHOT_NOT_FOUND));
 
         String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
-        ProjectRankingSnapshotResponseDTO cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
+        ProjectRankingSnapshotResponseDTO cachedSnapshot = null;
+        try {
+            cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
+        } catch (Exception e) {
+            log.warn("Failed to get snapshot cache from Redis for key={}", cacheKey, e);
+        }
 
         if (cachedSnapshot != null) {
             return cachedSnapshot;
