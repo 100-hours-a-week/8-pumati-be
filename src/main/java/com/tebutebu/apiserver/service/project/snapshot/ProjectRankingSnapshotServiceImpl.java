@@ -67,6 +67,19 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     @Override
     public Long register() {
+        Long cachedId = getSnapshotIdFromCache();
+        if (cachedId != null) {
+            if (cachedId <= 0) {
+                throw new BusinessException(BusinessErrorCode.INVALID_SNAPSHOT_ID);
+            }
+            return cachedId;
+        }
+
+        Long fallback = getFallbackSnapshotId();
+        if (fallback != null) {
+            return fallback;
+        }
+
         RLock lock = redissonClient.getLock(registerLockKey);
         boolean isLocked = false;
         boolean success = false;
@@ -77,17 +90,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 throw new BusinessException(BusinessErrorCode.SNAPSHOT_LOCK_UNAVAILABLE);
             }
 
-            Long cachedSnapshotId = getSnapshotIdFromCache();
-            if (cachedSnapshotId != null) {
-                if (cachedSnapshotId <= 0) {
-                    throw new BusinessException(BusinessErrorCode.INVALID_SNAPSHOT_ID);
-                }
-                return cachedSnapshotId;
+            Long secondCachedId = getSnapshotIdFromCache();
+            if (secondCachedId != null) {
+                return secondCachedId;
             }
 
-            Long fallback = getFallbackSnapshotId();
-            if (fallback != null) {
-                return fallback;
+            Long secondFallback = getFallbackSnapshotId();
+            if (secondFallback != null) {
+                return secondFallback;
             }
 
             ensureNotGenerating();
