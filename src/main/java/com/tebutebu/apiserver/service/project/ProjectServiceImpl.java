@@ -90,14 +90,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> getRankingPage(ContextCursorPageRequestDTO dto) {
-        Long contextId = dto.getContextId();
-
-        if (contextId == null || contextId <= 0) {
-            log.warn("Invalid or missing contextId. Falling back to latest snapshot.");
-            contextId = fallbackToLatestSnapshotId();
+        if (dto.getContextId() == null || dto.getContextId() <= 0) {
+            throw new BusinessException(BusinessErrorCode.INVALID_SNAPSHOT_ID);
         }
 
-        dto.setContextId(contextId);
 
         try {
             CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByRankingCursor(dto);
@@ -112,7 +108,7 @@ public class ProjectServiceImpl implements ProjectService {
                     .meta(meta)
                     .build();
         } catch (RuntimeException e) {
-            log.error("Failed to get ranking page for contextId={}", contextId, e);
+            log.error("Failed to get ranking page for contextId={}", dto.getContextId(), e);
             throw new BusinessException(BusinessErrorCode.SNAPSHOT_NOT_FOUND);
         }
     }
@@ -287,15 +283,6 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         return project;
-    }
-
-    private Long fallbackToLatestSnapshotId() {
-        try {
-            return projectRankingSnapshotService.getLatestSnapshot().getId();
-        } catch (Exception e) {
-            log.error("Failed to fallback to latest snapshot", e);
-            throw new BusinessException(BusinessErrorCode.SNAPSHOT_NOT_FOUND);
-        }
     }
 
     private ProjectResponseDTO buildProjectResponseDTO(Project project, Long memberId) {
