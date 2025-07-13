@@ -58,6 +58,9 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
     @Value("${ranking.snapshot.cache.key-prefix}")
     private String snapshotCacheKeyPrefix;
 
+    @Value("${ranking.snapshot.duration.minutes:5}")
+    private long snapshotDurationMinutes;
+
     @Override
     public CursorPage<ProjectPageResponseDTO> findByRankingCursor(ContextCursorPageRequestDTO req) {
         Long snapshotId = req.getContextId();
@@ -87,7 +90,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                     .data(dtoList)
                     .build();
 
-            snapshotRedisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(5));
+            snapshotRedisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
         }
 
         int start = calculateStartIndex(dtoList, req.getCursorId());
