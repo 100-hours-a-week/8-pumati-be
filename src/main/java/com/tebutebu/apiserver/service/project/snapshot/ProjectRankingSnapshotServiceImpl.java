@@ -260,7 +260,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     .projectId(p.getId())
                     .rank(rank++)
                     .givedPumatiCount(p.getTeam().getGivedPumatiCount())
-                    .receivedPumatiCount(p.getTeam().getGivedPumatiCount())
+                    .receivedPumatiCount(p.getTeam().getReceivedPumatiCount())
                     .build());
         }
         return rankingList;
