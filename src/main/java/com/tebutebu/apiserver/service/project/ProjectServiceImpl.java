@@ -40,7 +40,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -90,27 +89,21 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> getRankingPage(ContextCursorPageRequestDTO dto) {
-        if (dto.getContextId() == null || dto.getContextId() <= 0) {
-            throw new BusinessException(BusinessErrorCode.INVALID_SNAPSHOT_ID);
+        if (dto.getContextId() == null) {
+            throw new BusinessException(BusinessErrorCode.CONTEXT_ID_REQUIRED);
         }
 
+        CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByRankingCursor(dto);
 
-        try {
-            CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByRankingCursor(dto);
+        CursorMetaDTO meta = CursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .hasNext(page.hasNext())
+                .build();
 
-            CursorMetaDTO meta = CursorMetaDTO.builder()
-                    .nextCursorId(page.nextCursorId())
-                    .hasNext(page.hasNext())
-                    .build();
-
-            return CursorPageResponseDTO.<ProjectPageResponseDTO, CursorMetaDTO>builder()
-                    .data(page.items())
-                    .meta(meta)
-                    .build();
-        } catch (RuntimeException e) {
-            log.error("Failed to get ranking page for contextId={}", dto.getContextId(), e);
-            throw new BusinessException(BusinessErrorCode.SNAPSHOT_NOT_FOUND);
-        }
+        return CursorPageResponseDTO.<ProjectPageResponseDTO, CursorMetaDTO>builder()
+                .data(page.items())
+                .meta(meta)
+                .build();
     }
 
     @Override

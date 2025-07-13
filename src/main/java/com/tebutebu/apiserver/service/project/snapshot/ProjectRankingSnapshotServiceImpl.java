@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.NoSuchElementException;
 
 @Service
 @Log4j2
@@ -101,11 +102,7 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
             throw new RuntimeException("lockInterrupted", e);
         } finally {
             if (success) {
-                try {
-                    booleanRedisTemplate.delete(snapshotGeneratingKey);
-                } catch (Exception e) {
-                    log.warn("Failed to delete snapshotGeneratingKey", e);
-                }
+                booleanRedisTemplate.delete(snapshotGeneratingKey);
             }
             if (isLocked && lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -291,12 +288,9 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .build();
         String idKey = snapshotCacheKeyPrefix + snapshot.getId();
         String latestKey = snapshotCacheKeyPrefix + snapshotCacheKeyLatestSuffix;
-        try {
-            snapshotRedisTemplate.opsForValue().set(idKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
-            stringRedisTemplate.opsForValue().set(latestKey, snapshot.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
-        } catch (Exception e) {
-            log.error("Failed to cache snapshot ID={} into Redis", snapshot.getId(), e);
-        }
+        snapshotRedisTemplate.opsForValue().set(idKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
+        stringRedisTemplate.opsForValue().set(latestKey, snapshot.getId().toString(), Duration.ofMinutes(snapshotDurationMinutes));
+        log.info("New snapshot created with ID={}", snapshot.getId());
     }
 
 }
