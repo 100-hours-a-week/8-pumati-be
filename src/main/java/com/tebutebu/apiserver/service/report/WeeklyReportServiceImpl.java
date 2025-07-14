@@ -152,39 +152,58 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
         for (int i = 0; i < snapshots.size(); i++) {
             ProjectRankingSnapshotResponseDTO snapshot = snapshots.get(i);
-            if (snapshot == null) {
-                LocalDate fallbackDate = LocalDate.now().minusDays(6 - i);
-                String fallbackDayStr = fallbackDate.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase();
-                dailyStats.add(new DailyPumatiStatDTO(fallbackDayStr, 0, 0));
-                continue;
-            }
 
-            RankingItemDTO item = snapshot.getData().stream()
-                    .filter(dto -> dto.getProjectId().equals(projectId))
-                    .findFirst()
-                    .orElse(null);
+            DailyPumatiStatDTO statDTO = createDailyStat(
+                    snapshot, projectId, i, prevGivedPumatiCount, prevReceivedPumatiCount
+            );
 
-            long currentGivedPumatiCount = (item != null && item.getGivedPumatiCount() != null)
-                    ? item.getGivedPumatiCount()
-                    : prevGivedPumatiCount;
+            dailyStats.add(statDTO);
 
-            long currentReceivedPumatiCount = (item != null && item.getReceivedPumatiCount() != null)
-                    ? item.getReceivedPumatiCount()
-                    : prevReceivedPumatiCount;
-
-            long givedDiff = currentGivedPumatiCount - prevGivedPumatiCount;
-            long receivedDiff = currentReceivedPumatiCount - prevReceivedPumatiCount;
-
-            prevGivedPumatiCount = currentGivedPumatiCount;
-            prevReceivedPumatiCount = currentReceivedPumatiCount;
-
-            LocalDate actualDate = LocalDate.now().minusDays(6 - i);
-            String dayStr = actualDate.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase();
-
-            dailyStats.add(new DailyPumatiStatDTO(dayStr, givedDiff, receivedDiff));
+            prevGivedPumatiCount += statDTO.givedPumatiCount();
+            prevReceivedPumatiCount += statDTO.receivedPumatiCount();
         }
 
         return dailyStats;
+    }
+
+    private DailyPumatiStatDTO createDailyStat(
+            ProjectRankingSnapshotResponseDTO snapshot,
+            Long projectId,
+            int index,
+            long prevGivedPumatiCount,
+            long prevReceivedPumatiCount
+    ) {
+        String dayStr = getDayOfWeekLabel(index);
+
+        if (snapshot == null) {
+            return new DailyPumatiStatDTO(dayStr, 0, 0);
+        }
+
+        RankingItemDTO item = snapshot.getData().stream()
+                .filter(dto -> dto.getProjectId().equals(projectId))
+                .findFirst()
+                .orElse(null);
+
+        long currentGived = (item != null && item.getGivedPumatiCount() != null)
+                ? item.getGivedPumatiCount()
+                : prevGivedPumatiCount;
+
+        long currentReceived = (item != null && item.getReceivedPumatiCount() != null)
+                ? item.getReceivedPumatiCount()
+                : prevReceivedPumatiCount;
+
+        long givedDiff = currentGived - prevGivedPumatiCount;
+        long receivedDiff = currentReceived - prevReceivedPumatiCount;
+
+        return new DailyPumatiStatDTO(dayStr, givedDiff, receivedDiff);
+    }
+
+    private String getDayOfWeekLabel(int index) {
+        return LocalDate.now()
+                .minusDays(6 - index)
+                .getDayOfWeek()
+                .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+                .toUpperCase();
     }
 
     private String generateReportContent(ProjectPageResponseDTO projectDTO, MemberResponseDTO member, String imageUrl) {
