@@ -80,7 +80,7 @@ spring:
         acks: all
     listener:
       ack-mode: manual
-      concurrency: 1
+      concurrency: ${kafka.listener.concurrency}
       missing-topics-fatal: false
       type: single
       poll-timeout: 3000

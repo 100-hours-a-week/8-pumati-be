@@ -83,7 +83,7 @@ spring:
       mail-send-dlq: test-topic-mail-send-dlq
     listener:
       ack-mode: manual
-      concurrency: 1
+      concurrency: 3
       missing-topics-fatal: false
       type: single
       poll-timeout: 3000
