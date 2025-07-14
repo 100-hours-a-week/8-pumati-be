@@ -1,10 +1,11 @@
 package com.tebutebu.apiserver.util;
 
-import com.tebutebu.apiserver.util.exception.CustomJWTException;
+import com.tebutebu.apiserver.global.errorcode.AuthErrorCode;
+import com.tebutebu.apiserver.global.errorcode.GlobalErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.InvalidClaimException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -75,16 +76,14 @@ public class JWTUtil {
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-        } catch (MalformedJwtException malformedJwtException) {
-            throw new CustomJWTException("tokenMalformed");
-        } catch (ExpiredJwtException expiredJwtException) {
-            throw new CustomJWTException("tokenExpired");
-        } catch (InvalidClaimException invalidClaimException) {
-            throw new CustomJWTException("invalidClaim");
-        } catch (JwtException jwtException) {
-            throw new CustomJWTException("jwtException");
+        } catch (MalformedJwtException e) {
+            throw new BusinessException(AuthErrorCode.MALFORMED_TOKEN, e);
+        } catch (ExpiredJwtException e) {
+            throw new BusinessException(AuthErrorCode.EXPIRED_TOKEN, e);
+        } catch (JwtException e) {
+            throw new BusinessException(AuthErrorCode.INVALID_TOKEN, e);
         } catch (Exception e) {
-            throw new CustomJWTException(e.getMessage());
+            throw new BusinessException(GlobalErrorCode.INTERNAL_SERVER_ERROR, e);
         }
         return claim;
     }

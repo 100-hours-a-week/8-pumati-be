@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.service.comment;
 
 import com.tebutebu.apiserver.domain.Comment;
-import com.tebutebu.apiserver.domain.CommentType;
+import com.tebutebu.apiserver.domain.enums.CommentType;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.dto.ai.comment.request.AiCommentCreateRequestDTO;
@@ -9,6 +9,8 @@ import com.tebutebu.apiserver.dto.comment.request.CommentCreateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.request.CommentUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.comment.response.CommentResponseDTO;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
@@ -16,12 +18,9 @@ import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.paging.comment.CommentPagingRepository;
 import com.tebutebu.apiserver.service.member.MemberService;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
-
-import java.util.NoSuchElementException;
 
 @Service
 @Log4j2
@@ -37,10 +36,10 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public CommentResponseDTO get(Long commentId) {
         Comment comment = commentRepository.findByIdWithMemberAndProject(commentId)
-                .orElseThrow(() -> new NoSuchElementException("commentNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.COMMENT_NOT_FOUND));
 
         if (comment.getProject() == null) {
-            throw new NoSuchElementException("projectNotFound");
+            throw new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND);
         }
         return entityToDTO(comment);
     }
@@ -71,10 +70,10 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public void modify(Long commentId, Long memberId, CommentUpdateRequestDTO dto) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NoSuchElementException("commentNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.getMember().getId().equals(memberId)) {
-            throw new CustomValidationException("notCommentAuthor");
+            throw new BusinessException(BusinessErrorCode.NOT_COMMENT_AUTHOR);
         }
 
         comment.changeContent(dto.getContent());
@@ -84,7 +83,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public void remove(Long commentId) {
         if (!commentRepository.existsById(commentId)) {
-            throw new NoSuchElementException("commentNotFound");
+            throw new BusinessException(BusinessErrorCode.COMMENT_NOT_FOUND);
         }
         commentRepository.deleteById(commentId);
     }
@@ -110,10 +109,10 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public void modifyAiComment(Long commentId, String content) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NoSuchElementException("commentNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.COMMENT_NOT_FOUND));
 
         if (comment.getType() != CommentType.AI) {
-            throw new IllegalArgumentException("notAiComment");
+            throw new BusinessException(BusinessErrorCode.NOT_AI_COMMENT);
         }
 
         comment.changeContent(content);
@@ -123,10 +122,10 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public void removeAiComment(Long commentId) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NoSuchElementException("commentNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.COMMENT_NOT_FOUND));
 
         if (comment.getType() != CommentType.AI) {
-            throw new IllegalArgumentException("notAiComment");
+            throw new BusinessException(BusinessErrorCode.NOT_AI_COMMENT);
         }
 
         commentRepository.delete(comment);

@@ -21,8 +21,6 @@ logs/
 *.log
 
 # 환경 설정 파일 제외
-.env
-.env.*
 application-*.yml
 application-*.properties
 !application.yml

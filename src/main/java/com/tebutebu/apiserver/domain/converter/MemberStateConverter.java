@@ -1,6 +1,6 @@
 package com.tebutebu.apiserver.domain.converter;
 
-import com.tebutebu.apiserver.domain.MemberState;
+import com.tebutebu.apiserver.domain.enums.MemberState;
 import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)

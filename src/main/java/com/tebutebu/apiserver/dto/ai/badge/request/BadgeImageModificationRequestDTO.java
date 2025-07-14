@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.dto.ai.badge.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,6 +17,6 @@ import java.util.List;
 @AllArgsConstructor
 public class BadgeImageModificationRequestDTO {
 
-    private List<@NotBlank(message = "각 태그는 공백이 아닌 문자열이어야 합니다.") String> modificationTags;
+    private List<@NotBlank(message = ValidationMessages.EACH_TAG_MUST_NOT_BE_BLANK) String> modificationTags;
 
 }

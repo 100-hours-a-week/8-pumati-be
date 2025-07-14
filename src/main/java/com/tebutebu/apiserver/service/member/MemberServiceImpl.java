@@ -2,8 +2,8 @@ package com.tebutebu.apiserver.service.member;
 
 import com.github.javafaker.Faker;
 import com.tebutebu.apiserver.domain.Member;
-import com.tebutebu.apiserver.domain.MemberRole;
-import com.tebutebu.apiserver.domain.MemberState;
+import com.tebutebu.apiserver.domain.enums.MemberRole;
+import com.tebutebu.apiserver.domain.enums.MemberState;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
@@ -12,14 +12,15 @@ import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
 import com.tebutebu.apiserver.dto.oauth.request.OAuthCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
 import com.tebutebu.apiserver.repository.MemberRepository;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.oauth.OAuthService;
 import com.tebutebu.apiserver.service.token.RefreshTokenService;
 import com.tebutebu.apiserver.service.team.TeamService;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -67,7 +67,7 @@ public class MemberServiceImpl implements MemberService {
     @Override
     public MemberResponseDTO get(Long memberId) {
         Member member = memberRepository.findByIdWithTeam(memberId)
-                .orElseThrow(() -> new NoSuchElementException("memberNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND));
         return entityToDTO(member);
     }
 
@@ -75,13 +75,13 @@ public class MemberServiceImpl implements MemberService {
     public MemberResponseDTO get(String authorizationHeader) {
         Long memberId = extractMemberIdFromHeader(authorizationHeader);
         Member member = memberRepository.findByIdWithTeam(memberId)
-                .orElseThrow(() -> new NoSuchElementException("memberNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND));
         return entityToDTO(member);
     }
 
     @Override
     public List<MemberResponseDTO> getMembersByTeamId(Long teamId) {
-        List<Member> members = memberRepository.findAllByTeamId(teamId);
+        List<Member> members = memberRepository.findAllByTeamIdWithTeam(teamId);
         if (members.isEmpty()) {
             return List.of();
         }
@@ -101,7 +101,7 @@ public class MemberServiceImpl implements MemberService {
         String email = auth.email();
 
         if (memberRepository.existsByEmail(email)) {
-            throw new CustomValidationException("emailAlreadyExists");
+            throw new BusinessException(BusinessErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         Member member = memberRepository.save(dtoToEntity(dto, email));
@@ -163,7 +163,7 @@ public class MemberServiceImpl implements MemberService {
     public void modify(String authorizationHeader, MemberUpdateRequestDTO dto) {
         Long memberId = extractMemberIdFromHeader(authorizationHeader);
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomValidationException("memberNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND));
 
         if (dto.getTerm() != null && dto.getTeamNumber() != null) {
             TeamResponseDTO teamResponseDTO = teamService.getByTermAndNumber(dto.getTerm(), dto.getTeamNumber());
@@ -194,6 +194,21 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
+    public void toggleEmailConsent(String authorizationHeader) {
+        Long memberId = extractMemberIdFromHeader(authorizationHeader);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND));
+
+        if (member.hasEmailConsent()) {
+            member.declineToReceiveEmail();
+        } else {
+            member.agreeToReceiveEmail();
+        }
+
+        memberRepository.save(member);
+    }
+
+    @Override
     public void delete(String authorizationHeader, HttpServletRequest request, HttpServletResponse response) {
         Long memberId = extractMemberIdFromHeader(authorizationHeader);
 
@@ -201,7 +216,7 @@ public class MemberServiceImpl implements MemberService {
         oauthService.deleteByMemberId(memberId);
 
         if (!memberRepository.existsById(memberId)) {
-            throw new CustomValidationException("memberNotFound");
+            throw new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND);
         }
 
         refreshTokenService.deleteByMemberId(memberId);

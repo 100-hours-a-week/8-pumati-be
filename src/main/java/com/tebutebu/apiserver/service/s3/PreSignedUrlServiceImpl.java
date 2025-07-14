@@ -4,7 +4,8 @@ import com.tebutebu.apiserver.dto.s3.request.MultiplePreSignedUrlsRequestDTO;
 import com.tebutebu.apiserver.dto.s3.request.SinglePreSignedUrlRequestDTO;
 import com.tebutebu.apiserver.dto.s3.response.MultiplePreSignedUrlsResponseDTO;
 import com.tebutebu.apiserver.dto.s3.response.SinglePreSignedUrlResponseDTO;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,10 +16,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -77,7 +75,7 @@ public class PreSignedUrlServiceImpl implements PreSignedUrlService {
     public MultiplePreSignedUrlsResponseDTO generatePreSignedUrls(MultiplePreSignedUrlsRequestDTO dto) {
         List<SinglePreSignedUrlRequestDTO> files = dto.getFiles();
         if (files.isEmpty() || files.size() > maxCount) {
-            throw new CustomValidationException("requestCountExceeded");
+            throw new BusinessException(BusinessErrorCode.REQUEST_COUNT_EXCEEDED);
         }
         List<SinglePreSignedUrlResponseDTO> urls = files.stream()
                 .map(this::generatePreSignedUrl)
@@ -104,14 +102,14 @@ public class PreSignedUrlServiceImpl implements PreSignedUrlService {
     private String extractExtension(String fileName) {
         int idx = fileName.lastIndexOf('.');
         if (idx <= 0 || idx == fileName.length() - 1) {
-            throw new CustomValidationException("invalidFileExtension");
+            throw new BusinessException(BusinessErrorCode.INVALID_FILE_EXTENSION);
         }
         return fileName.substring(idx).toLowerCase();
     }
 
     private void validateExtension(String ext) {
         if (!allowedExtensions.contains(ext)) {
-            throw new CustomValidationException("unsupportedFileExtension");
+            throw new BusinessException(BusinessErrorCode.UNSUPPORTED_FILE_EXTENSION);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.dto.project.image.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -17,15 +18,15 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 public class ProjectImageRequestDTO {
 
-    @NotNull(message = "프로젝트 ID는 필수 입력 값입니다.")
-    @Positive(message = "프로젝트 ID는 양수여야 합니다.")
+    @NotNull(message = ValidationMessages.PROJECT_ID_REQUIRED)
+    @Positive(message = ValidationMessages.PROJECT_ID_MUST_BE_POSITIVE)
     private Long projectId;
 
-    @NotBlank(message = "프로젝트 이미지 URL은 필수 입력 값입니다.")
-    @Size(max = 512, message = "프로젝트 이미지 URL은 최대 512자까지 가능합니다.")
+    @NotBlank(message = ValidationMessages.PROJECT_IMAGE_URL_REQUIRED)
+    @Size(max = 512, message = ValidationMessages.PROJECT_IMAGE_URL_MAX_LENGTH_EXCEEDED)
     private String url;
 
-    @NotNull(message = "프로젝트 이미지 순서는 필수 입력 값입니다.")
+    @NotNull(message = ValidationMessages.PROJECT_IMAGE_SEQUENCE_REQUIRED)
     private Integer sequence;
 
 }

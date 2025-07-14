@@ -6,6 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public interface AuthService {
 
-    TokensDTO refreshTokens(String authorizationHeader, String refreshTokenCookie);
+    TokensDTO refreshTokens(String refreshTokenCookie);
 
 }

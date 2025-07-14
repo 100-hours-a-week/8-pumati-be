@@ -6,7 +6,6 @@ import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberSignupResponseDTO;
 import com.tebutebu.apiserver.service.member.MemberService;
 import com.tebutebu.apiserver.service.project.ProjectService;
-import com.tebutebu.apiserver.service.team.TeamService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -27,8 +26,6 @@ public class MemberController {
     private final MemberService memberService;
 
     private final ProjectService projectService;
-
-    private final TeamService teamService;
 
     @GetMapping("/{memberId}")
     public ResponseEntity<?> get(@PathVariable("memberId") Long memberId) {
@@ -81,6 +78,14 @@ public class MemberController {
     ) {
         memberService.modify(authorizationHeader, dto);
         return ResponseEntity.ok(Map.of("message", "modifyMemberSuccess"));
+    }
+
+    @PatchMapping("/me/email-consent")
+    public ResponseEntity<?> toggleEmailConsent(
+            @RequestHeader("Authorization") String authorizationHeader
+    ) {
+        memberService.toggleEmailConsent(authorizationHeader);
+        return ResponseEntity.ok(Map.of("message", "toggleEmailConsentSuccess"));
     }
 
     @DeleteMapping("/me")

@@ -1,5 +1,6 @@
 package com.tebutebu.apiserver.pagination.dto.request;
 
+import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.PastOrPresent;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class CursorTimePageRequestDTO extends CursorPageRequestDTO {
 
-    @PastOrPresent(message = "커서 시간은 현재보다 이후일 수 없습니다.")
+    @PastOrPresent(message = ValidationMessages.CURSOR_TIME_PAST_OR_PRESENT)
     private LocalDateTime cursorTime;
+
+    private Long memberId;
 
 }

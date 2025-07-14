@@ -12,10 +12,13 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.NoSuchElementException;
 
 @Service
@@ -55,6 +58,57 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
         return entityToDTO(snapshot);
     }
 
+    @Override
+    public List<ProjectRankingSnapshotResponseDTO> getSnapshotsForLast7Days() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime start = now.minusDays(6).toLocalDate().atStartOfDay();
+
+        List<ProjectRankingSnapshot> allSnapshots = projectRankingSnapshotRepository
+                .findAllByRequestedAtBetween(start, now);
+
+        Map<LocalDate, ProjectRankingSnapshot> latestPerDate = new HashMap<>();
+        allSnapshots.stream()
+                .sorted(Comparator.comparing(ProjectRankingSnapshot::getRequestedAt).reversed())
+                .forEach(snap -> {
+                    LocalDate date = snap.getRequestedAt().toLocalDate();
+                    latestPerDate.putIfAbsent(date, snap);
+                });
+
+        List<LocalDate> last7Days = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            last7Days.add(now.toLocalDate().minusDays(i));
+        }
+
+        List<ProjectRankingSnapshotResponseDTO> filledList = new ArrayList<>();
+        ProjectRankingSnapshot lastKnownSnapshot = null;
+
+        for (int i = 0; i < last7Days.size(); i++) {
+            LocalDate date = last7Days.get(i);
+
+            if (latestPerDate.containsKey(date)) {
+                lastKnownSnapshot = latestPerDate.get(date);
+            } else if (i == 0 && lastKnownSnapshot == null) {
+                try {
+                    lastKnownSnapshot = projectRankingSnapshotRepository
+                            .findTopByOrderByRequestedAtDesc()
+                            .orElse(null);
+                    log.warn("No snapshot found for the first day. Using latest snapshot as fallback: {}",
+                            lastKnownSnapshot != null ? lastKnownSnapshot.getRequestedAt() : "null");
+                } catch (Exception e) {
+                    log.error("Failed to fetch the latest snapshot for fallback", e);
+                }
+            }
+
+            if (lastKnownSnapshot != null) {
+                filledList.add(entityToDTO(lastKnownSnapshot));
+            } else {
+                filledList.add(null);
+            }
+        }
+
+        return filledList;
+    }
+
     private Long createAndSaveSnapshot() {
         List<Project> projects = projectRepository.findAllForRanking();
 
@@ -67,7 +121,8 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
             rankingList.add(Map.of(
                     "project_id", p.getId(),
                     "rank",           rank++,
-                    "gived_pumati_count", p.getTeam().getGivedPumatiCount()
+                    "gived_pumati_count", p.getTeam().getGivedPumatiCount(),
+                    "received_pumati_count", p.getTeam().getReceivedPumatiCount()
             ));
         }
 

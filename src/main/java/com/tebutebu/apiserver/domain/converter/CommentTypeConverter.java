@@ -1,6 +1,6 @@
 package com.tebutebu.apiserver.domain.converter;
 
-import com.tebutebu.apiserver.domain.CommentType;
+import com.tebutebu.apiserver.domain.enums.CommentType;
 import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)

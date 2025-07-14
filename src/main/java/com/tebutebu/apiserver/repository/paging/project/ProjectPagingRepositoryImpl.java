@@ -7,6 +7,8 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.domain.ProjectRankingSnapshot;
 import com.tebutebu.apiserver.domain.QProject;
+import com.tebutebu.apiserver.domain.QSubscription;
+import com.tebutebu.apiserver.domain.Subscription;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
@@ -18,13 +20,11 @@ import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
+import com.tebutebu.apiserver.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Repository
@@ -39,6 +39,8 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final CursorPageFactory cursorPageFactory;
 
+    private final SubscriptionRepository subscriptionRepository;
+
     private final ObjectMapper objectMapper;
 
     private final QProject qProject = QProject.project;
@@ -49,7 +51,6 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                 .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
 
         List<RankingItemDTO> dtoList = parseSnapshotJson(snapshot);
-
         int start = calculateStartIndex(dtoList, req.getCursorId());
         int end = Math.min(start + req.getPageSize(), dtoList.size());
 
@@ -62,9 +63,12 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                 .toList();
 
         Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+        Set<Long> subscribedProjectIds = (req.getMemberId() != null)
+                ? new HashSet<>(subscriptionRepository.findSubscribedProjectIdsByMemberId(req.getMemberId()))
+                : Collections.emptySet();
 
         List<ProjectPageResponseDTO> projectPageResponseDtoList = projects.stream()
-                .map(proj -> toPageResponseDTO(proj, commentCountMap))
+                .map(proj -> toPageResponseDTO(proj, commentCountMap, subscribedProjectIds))
                 .collect(Collectors.toList());
 
         boolean hasNext = end < dtoList.size();
@@ -96,19 +100,65 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
                 .cursorTime(req.getCursorTime())
                 .pageSize(req.getPageSize())
                 .build();
-        CursorPage<Project> page = cursorPageFactory.create(spec);
 
-        List<Long> projectIds = page.items().stream()
-                .map(Project::getId)
-                .collect(Collectors.toList());
+        CursorPage<Project> page = cursorPageFactory.create(spec);
+        List<Long> projectIds = page.items().stream().map(Project::getId).toList();
         Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+        Set<Long> subscribedProjectIds = (req.getMemberId() != null)
+                ? new HashSet<>(subscriptionRepository.findSubscribedProjectIdsByMemberId(req.getMemberId()))
+                : Collections.emptySet();
 
         List<ProjectPageResponseDTO> projectPageResponseDtoList = page.items().stream()
-                .map(proj -> toPageResponseDTO(proj, commentCountMap))
-                .collect(Collectors.toList());
+                .map(proj -> toPageResponseDTO(proj, commentCountMap, subscribedProjectIds))
+                .toList();
 
         return CursorPage.<ProjectPageResponseDTO>builder()
                 .items(projectPageResponseDtoList)
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
+    }
+
+    @Override
+    public CursorPage<ProjectPageResponseDTO> findSubscribedProjectsByTerm(Long memberId, int term, CursorTimePageRequestDTO req) {
+        QSubscription subscription = QSubscription.subscription;
+
+        BooleanBuilder where = new BooleanBuilder();
+        where.and(subscription.member.id.eq(memberId));
+        where.and(subscription.deletedAt.isNull());
+        where.and(subscription.project.team.term.eq(term));
+
+        OrderSpecifier<?>[] orderBy = new OrderSpecifier<?>[]{
+                subscription.modifiedAt.desc(),
+                subscription.id.desc()
+        };
+
+        CursorPageSpec<Subscription> spec = CursorPageSpec.<Subscription>builder()
+                .entityPath(subscription)
+                .where(where)
+                .orderBy(orderBy)
+                .createdAtExpr(subscription.modifiedAt)
+                .idExpr(subscription.id)
+                .cursorId(req.getCursorId())
+                .cursorTime(req.getCursorTime())
+                .pageSize(req.getPageSize())
+                .build();
+
+        CursorPage<Subscription> page = cursorPageFactory.create(spec);
+        List<Project> projects = page.items().stream()
+                .map(Subscription::getProject)
+                .toList();
+
+        List<Long> projectIds = projects.stream().map(Project::getId).toList();
+        Map<Long, Long> commentCountMap = commentRepository.findCommentCountMap(projectIds);
+
+        List<ProjectPageResponseDTO> pageResponseDtoList = projects.stream()
+                .map(proj -> toPageResponseDTO(proj, commentCountMap, Set.of(proj.getId())))
+                .toList();
+
+        return CursorPage.<ProjectPageResponseDTO>builder()
+                .items(pageResponseDtoList)
                 .nextCursorId(page.nextCursorId())
                 .nextCursorTime(page.nextCursorTime())
                 .hasNext(page.hasNext())
@@ -128,9 +178,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
     }
 
     private int calculateStartIndex(List<RankingItemDTO> all, Long afterId) {
-        if (afterId == null) {
-            return 0;
-        }
+        if (afterId == null) return 0;
         for (int i = 0; i < all.size(); i++) {
             if (all.get(i).getProjectId().equals(afterId)) {
                 return i + 1;
@@ -139,24 +187,26 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
         return 0;
     }
 
-    private ProjectPageResponseDTO toPageResponseDTO(Project proj, Map<Long, Long> commentCountMap) {
+    private ProjectPageResponseDTO toPageResponseDTO(Project project, Map<Long, Long> commentCountMap, Set<Long> subscribedIds) {
+        boolean isSubscribed = subscribedIds != null && subscribedIds.contains(project.getId());
         return ProjectPageResponseDTO.builder()
-                .id(proj.getId())
-                .teamId(proj.getTeam().getId())
-                .term(proj.getTeam().getTerm())
-                .teamNumber(proj.getTeam().getNumber())
-                .title(proj.getTitle())
-                .introduction(proj.getIntroduction())
-                .representativeImageUrl(proj.getRepresentativeImageUrl())
-                .tags(proj.getTagContents().stream()
+                .id(project.getId())
+                .teamId(project.getTeam().getId())
+                .term(project.getTeam().getTerm())
+                .teamNumber(project.getTeam().getNumber())
+                .title(project.getTitle())
+                .introduction(project.getIntroduction())
+                .representativeImageUrl(project.getRepresentativeImageUrl())
+                .tags(project.getTagContents().stream()
                         .map(t -> new TagResponseDTO(t.getContent()))
                         .toList())
-                .commentCount(commentCountMap.getOrDefault(proj.getId(), 0L))
-                .givedPumatiCount(proj.getTeam().getGivedPumatiCount())
-                .receivedPumatiCount(proj.getTeam().getReceivedPumatiCount())
-                .badgeImageUrl(proj.getTeam().getBadgeImageUrl())
-                .createdAt(proj.getCreatedAt())
-                .modifiedAt(proj.getModifiedAt())
+                .commentCount(commentCountMap.getOrDefault(project.getId(), 0L))
+                .givedPumatiCount(project.getTeam().getGivedPumatiCount())
+                .receivedPumatiCount(project.getTeam().getReceivedPumatiCount())
+                .badgeImageUrl(project.getTeam().getBadgeImageUrl())
+                .isSubscribed(isSubscribed)
+                .createdAt(project.getCreatedAt())
+                .modifiedAt(project.getModifiedAt())
                 .build();
     }
 

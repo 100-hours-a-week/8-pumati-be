@@ -1,0 +1,14 @@
+# Git
+.git
+.gitignore
+
+# 환경 변수
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# 로그 및 임시 파일
+*.log
+*.tmp

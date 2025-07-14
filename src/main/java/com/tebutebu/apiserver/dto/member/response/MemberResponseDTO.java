@@ -1,8 +1,8 @@
 package com.tebutebu.apiserver.dto.member.response;
 
-import com.tebutebu.apiserver.domain.Course;
-import com.tebutebu.apiserver.domain.MemberRole;
-import com.tebutebu.apiserver.domain.MemberState;
+import com.tebutebu.apiserver.domain.enums.Course;
+import com.tebutebu.apiserver.domain.enums.MemberRole;
+import com.tebutebu.apiserver.domain.enums.MemberState;
 import lombok.Getter;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
@@ -39,6 +39,8 @@ public class MemberResponseDTO {
     private MemberRole role;
 
     private MemberState state;
+
+    private Boolean hasEmailConsent;
 
     private LocalDateTime createdAt, modifiedAt;
 

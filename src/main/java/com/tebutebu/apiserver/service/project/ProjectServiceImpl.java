@@ -25,20 +25,21 @@ import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
+import com.tebutebu.apiserver.repository.SubscriptionRepository;
 import com.tebutebu.apiserver.repository.paging.project.ProjectPagingRepository;
 import com.tebutebu.apiserver.service.tag.TagService;
 import com.tebutebu.apiserver.service.ai.badge.AiBadgeImageRequestService;
 import com.tebutebu.apiserver.service.ai.comment.AiCommentRequestService;
 import com.tebutebu.apiserver.service.project.image.ProjectImageService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
-import com.tebutebu.apiserver.util.exception.CustomValidationException;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,6 +55,8 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectImageService projectImageService;
 
+    private final SubscriptionRepository subscriptionRepository;
+
     private final TagService tagService;
 
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
@@ -66,17 +69,17 @@ public class ProjectServiceImpl implements ProjectService {
     private String aiCommentDefaultType;
 
     @Override
-    public ProjectResponseDTO get(Long id) {
+    public ProjectResponseDTO get(Long id, Long memberId) {
         Project project = projectRepository.findProjectWithTeamAndImagesById(id)
-                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
-        return buildProjectResponseDTO(project);
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
+        return buildProjectResponseDTO(project, memberId);
     }
 
     @Override
     public ProjectResponseDTO getByTeamId(Long teamId) {
         Project project = projectRepository.findProjectByTeamId(teamId)
-                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
-        return buildProjectResponseDTO(project);
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
+        return buildProjectResponseDTO(project, null);
     }
 
     @Override
@@ -87,7 +90,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public CursorPageResponseDTO<ProjectPageResponseDTO, CursorMetaDTO> getRankingPage(ContextCursorPageRequestDTO dto) {
         if (dto.getContextId() == null) {
-            throw new CustomValidationException("contextIdRequired");
+            throw new BusinessException(BusinessErrorCode.CONTEXT_ID_REQUIRED);
         }
 
         CursorPage<ProjectPageResponseDTO> page = projectPagingRepository.findByRankingCursor(dto);
@@ -120,6 +123,24 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> getSubscribedPageByTerm(Long memberId, int term, CursorTimePageRequestDTO dto) {
+
+        CursorPage<ProjectPageResponseDTO> page = projectPagingRepository
+                .findSubscribedProjectsByTerm(memberId, term, dto);
+
+        TimeCursorMetaDTO meta = TimeCursorMetaDTO.builder()
+                .nextCursorId(page.nextCursorId())
+                .nextCursorTime(page.nextCursorTime())
+                .hasNext(page.hasNext())
+                .build();
+
+        return CursorPageResponseDTO.<ProjectPageResponseDTO, TimeCursorMetaDTO>builder()
+                .data(page.items())
+                .meta(meta)
+                .build();
+    }
+
+    @Override
     public List<ProjectGithubUrlDTO> getAllGithubUrls() {
         return projectRepository.findAll().stream()
                 .map(p -> ProjectGithubUrlDTO.builder()
@@ -132,7 +153,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public Long register(ProjectCreateRequestDTO dto) {
         if (projectRepository.existsByTeamId(dto.getTeamId())) {
-            throw new CustomValidationException("projectAlreadyExists");
+            throw new BusinessException(BusinessErrorCode.PROJECT_ALREADY_EXISTS);
         }
 
         Project project = projectRepository.save(dtoToEntity(dto));
@@ -183,7 +204,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void modify(Long projectId, ProjectUpdateRequestDTO dto) {
         Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new NoSuchElementException("projectNotFound"));
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND));
 
         project.changeTitle(dto.getTitle());
         project.changeIntroduction(dto.getIntroduction());
@@ -225,7 +246,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public void delete(Long projectId) {
         if (!projectRepository.existsById(projectId)) {
-            throw new NoSuchElementException("projectNotFound");
+            throw new BusinessException(BusinessErrorCode.PROJECT_NOT_FOUND);
         }
         projectRepository.deleteById(projectId);
     }
@@ -257,7 +278,7 @@ public class ProjectServiceImpl implements ProjectService {
         return project;
     }
 
-    private ProjectResponseDTO buildProjectResponseDTO(Project project) {
+    private ProjectResponseDTO buildProjectResponseDTO(Project project, Long memberId) {
         Long id = project.getId();
 
         Team team = project.getTeam();
@@ -282,7 +303,9 @@ public class ProjectServiceImpl implements ProjectService {
         long commentCount = commentRepository.findCommentCountMap(List.of(id))
                 .getOrDefault(id, 0L);
 
-        return entityToDTO(project, team, images, tags, teamRank, commentCount);
+        boolean isSubscribed = subscriptionRepository.existsByMemberIdAndProjectIdAndDeletedAtIsNull(memberId, id);
+
+        return entityToDTO(project, team, images, tags, teamRank, commentCount, isSubscribed);
     }
 
 }
