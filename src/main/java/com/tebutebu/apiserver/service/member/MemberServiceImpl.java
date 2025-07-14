@@ -2,8 +2,8 @@ package com.tebutebu.apiserver.service.member;
 
 import com.github.javafaker.Faker;
 import com.tebutebu.apiserver.domain.Member;
-import com.tebutebu.apiserver.domain.MemberRole;
-import com.tebutebu.apiserver.domain.MemberState;
+import com.tebutebu.apiserver.domain.enums.MemberRole;
+import com.tebutebu.apiserver.domain.enums.MemberState;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;
@@ -18,7 +18,6 @@ import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
 import com.tebutebu.apiserver.service.oauth.OAuthService;
 import com.tebutebu.apiserver.service.token.RefreshTokenService;
 import com.tebutebu.apiserver.service.team.TeamService;
-import com.tebutebu.apiserver.global.errorcode.AuthErrorCode;
 import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.util.CookieUtil;
 import com.tebutebu.apiserver.util.JWTUtil;
