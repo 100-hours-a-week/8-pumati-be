@@ -1,6 +1,6 @@
 package com.tebutebu.apiserver.domain.converter;
 
-import com.tebutebu.apiserver.domain.Course;
+import com.tebutebu.apiserver.domain.enums.Course;
 import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)

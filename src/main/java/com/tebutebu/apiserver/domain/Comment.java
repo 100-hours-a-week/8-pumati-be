@@ -1,6 +1,7 @@
 package com.tebutebu.apiserver.domain;
 
 import com.tebutebu.apiserver.domain.common.TimeStampedEntity;
+import com.tebutebu.apiserver.domain.enums.CommentType;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
