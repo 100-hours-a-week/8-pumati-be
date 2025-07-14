@@ -1,6 +1,6 @@
 package com.tebutebu.apiserver.dto.comment.response;
 
-import com.tebutebu.apiserver.domain.Course;
+import com.tebutebu.apiserver.domain.enums.Course;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
