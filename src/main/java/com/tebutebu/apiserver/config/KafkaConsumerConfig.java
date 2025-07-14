@@ -29,7 +29,7 @@ public class KafkaConsumerConfig {
                 kafkaTemplate,
                 (record, ex) -> {
                     log.warn("Sending message to DLQ due to error: {}", ex.getMessage());
-                    return new TopicPartition(mailSendDlqTopic, record.partition());
+                    return new TopicPartition(mailSendDlqTopic, 0);
                 });
         return new DefaultErrorHandler(deadLetterPublishingRecoverer, new FixedBackOff(0L, 0));
     }
