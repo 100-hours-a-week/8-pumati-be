@@ -2,6 +2,8 @@ package com.tebutebu.apiserver.service.mail.kafka.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tebutebu.apiserver.dto.mail.request.MailSendRequestDTO;
+import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
+import com.tebutebu.apiserver.global.exception.BusinessException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +41,7 @@ public class MailSendConsumer {
             log.info("Mail successfully sent. to={}, subject={}", dto.getEmail(), dto.getSubject());
         } catch (Exception e) {
             log.error("Failed to process Kafka mail message: {}", e.getMessage(), e);
-            throw new IllegalArgumentException("Failed to parse or send email", e);
+            throw new BusinessException(BusinessErrorCode.MAIL_SEND_PROCESSING_FAILED, e);
         }
     }
 
