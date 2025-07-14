@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.service.comment;
 
 import com.tebutebu.apiserver.domain.Comment;
-import com.tebutebu.apiserver.domain.CommentType;
+import com.tebutebu.apiserver.domain.enums.CommentType;
 import com.tebutebu.apiserver.domain.Member;
 import com.tebutebu.apiserver.domain.Project;
 import com.tebutebu.apiserver.dto.ai.comment.request.AiCommentCreateRequestDTO;

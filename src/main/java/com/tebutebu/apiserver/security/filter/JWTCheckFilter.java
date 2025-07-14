@@ -2,7 +2,7 @@ package com.tebutebu.apiserver.security.filter;
 
 import com.google.gson.Gson;
 import com.tebutebu.apiserver.domain.Member;
-import com.tebutebu.apiserver.domain.MemberRole;
+import com.tebutebu.apiserver.domain.enums.MemberRole;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.security.dto.CustomOAuth2User;
