@@ -84,9 +84,14 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 }
 
                 WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(projectDTO);
-                String imageUrl = extractImageUrlFromJson(
-                        aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
-                );
+                String imageUrl;
+                try {
+                    String json = aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO);
+                    imageUrl = extractImageUrlFromJson(json);
+                } catch (Exception e) {
+                    log.warn("AI 리포트 이미지 생성 실패: {}", imageRequestDTO, e);
+                    imageUrl = null;
+                }
 
                 for (MemberResponseDTO member : consentingMembers) {
                     try {
