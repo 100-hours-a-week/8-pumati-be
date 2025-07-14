@@ -2,25 +2,23 @@ package com.tebutebu.apiserver.service.report;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tebutebu.apiserver.domain.Member;
-import com.tebutebu.apiserver.domain.Project;
-import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.ai.report.request.BadgeStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.DailyPumatiStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.TeamInfoDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.WeeklyReportImageRequestDTO;
+import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
-import com.tebutebu.apiserver.repository.MemberRepository;
-import com.tebutebu.apiserver.repository.TeamBadgeStatRepository;
 import com.tebutebu.apiserver.service.ai.report.AiWeeklyReportImageRequestService;
 import com.tebutebu.apiserver.service.mail.MailService;
+import com.tebutebu.apiserver.service.member.MemberService;
 import com.tebutebu.apiserver.service.project.ProjectService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
+import com.tebutebu.apiserver.service.team.TeamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,14 +32,14 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Map;
 
-@RequiredArgsConstructor
 @Log4j2
 @Service
+@RequiredArgsConstructor
 public class WeeklyReportServiceImpl implements WeeklyReportService {
 
-    private final MemberRepository memberRepository;
+    private final MemberService memberService;
 
-    private final TeamBadgeStatRepository teamBadgeStatRepository;
+    private final TeamService teamService;
 
     private final MailService mailService;
 
@@ -70,45 +68,31 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
             List<ProjectPageResponseDTO> projectPageResponseDtoList = page.getData();
 
-            for (ProjectPageResponseDTO projectPageResponseDTO : projectPageResponseDtoList) {
-                Long teamId = projectPageResponseDTO.getTeamId();
+            for (ProjectPageResponseDTO projectDTO : projectPageResponseDtoList) {
+                Long teamId = projectDTO.getTeamId();
                 if (teamId == null) {
                     continue;
                 }
 
-                Team team = Team.builder()
-                        .id(teamId)
-                        .term(projectPageResponseDTO.getTerm())
-                        .number(projectPageResponseDTO.getTeamNumber())
-                        .givedPumatiCount(projectPageResponseDTO.getGivedPumatiCount())
-                        .receivedPumatiCount(projectPageResponseDTO.getReceivedPumatiCount())
-                        .badgeImageUrl(projectPageResponseDTO.getBadgeImageUrl())
-                        .build();
-
-                Project project = Project.builder()
-                        .id(projectPageResponseDTO.getId())
-                        .title(projectPageResponseDTO.getTitle())
-                        .team(team)
-                        .build();
-
-                List<Member> consentingMembers = memberRepository.findAllByTeamIdWithTeam(team.getId()).stream()
-                        .filter(Member::hasEmailConsent)
+                List<MemberResponseDTO> members = memberService.getMembersByTeamId(teamId);
+                List<MemberResponseDTO> consentingMembers = members.stream()
+                        .filter(member -> Boolean.TRUE.equals(member.getHasEmailConsent()))
                         .toList();
 
                 if (consentingMembers.isEmpty()) {
                     continue;
                 }
 
-                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
+                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(projectDTO);
                 String imageUrl = extractImageUrlFromJson(
                         aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
                 );
 
-                for (Member member : consentingMembers) {
+                for (MemberResponseDTO member : consentingMembers) {
                     try {
                         String subject = "[주간 리포트] %d기 %d팀 - %s"
-                                .formatted(team.getTerm(), team.getNumber(), project.getTitle());
-                        String content = generateReportContent(project, team, member, imageUrl);
+                                .formatted(projectDTO.getTerm(), projectDTO.getTeamNumber(), projectDTO.getTitle());
+                        String content = generateReportContent(projectDTO, member, imageUrl);
                         mailService.sendMail(member.getEmail(), subject, content);
                         log.info("메일 발송 성공: {}", member.getEmail());
                     } catch (Exception e) {
@@ -129,25 +113,26 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
         } while (hasNext);
     }
 
-    private WeeklyReportImageRequestDTO generateReportImageRequest(Project project, Team team) {
-        List<Object[]> badgeStatsRaw = teamBadgeStatRepository.findReceivedBadgeStatsWithTermByReceiverTeamId(team.getId());
-        List<BadgeStatDTO> badgeStats = badgeStatsRaw.stream()
-                .map(stat -> new BadgeStatDTO((Integer) stat[0], (Integer) stat[1], (Integer) stat[2]))
-                .toList();
+    private WeeklyReportImageRequestDTO generateReportImageRequest(ProjectPageResponseDTO projectDTO) {
+        List<BadgeStatDTO> badgeStats = teamService.getReceivedBadgeStats(projectDTO.getTeamId());
+
+        int totalBadgeCount = badgeStats.stream()
+                .mapToInt(BadgeStatDTO::badgeCount)
+                .sum();
 
         TeamInfoDTO teamInfo = new TeamInfoDTO(
-                team.getTerm(),
-                team.getNumber(),
-                team.getReceivedPumatiCount(),
-                team.getGivedPumatiCount(),
-                team.getTotalReceivedBadgeCount()
+                projectDTO.getTerm(),
+                projectDTO.getTeamNumber(),
+                projectDTO.getReceivedPumatiCount(),
+                projectDTO.getGivedPumatiCount(),
+                totalBadgeCount
         );
 
-        List<DailyPumatiStatDTO> dailyPumatiStats = generateDailyStats(project.getId());
+        List<DailyPumatiStatDTO> dailyPumatiStats = generateDailyStats(projectDTO.getId());
 
         return WeeklyReportImageRequestDTO.builder()
-                .projectId(project.getId())
-                .projectTitle(project.getTitle())
+                .projectId(projectDTO.getId())
+                .projectTitle(projectDTO.getTitle())
                 .team(teamInfo)
                 .badgeStats(badgeStats)
                 .dailyPumatiStats(dailyPumatiStats)
@@ -197,17 +182,19 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
         return dailyStats;
     }
 
-    private String generateReportContent(Project project, Team team, Member member, String imageUrl) {
-        List<Object[]> badgeStats = teamBadgeStatRepository.findReceivedBadgeStatsByReceiverTeamId(team.getId());
+    private String generateReportContent(ProjectPageResponseDTO projectDTO, MemberResponseDTO member, String imageUrl) {
+        List<BadgeStatDTO> badgeStats = teamService.getReceivedBadgeStats(projectDTO.getTeamId());
+
         StringBuilder badgeDetails = new StringBuilder();
-        for (Object[] stat : badgeStats) {
-            Integer giverTeamNumber = (Integer) stat[0];
-            Integer count = (Integer) stat[1];
-            badgeDetails.append("- ").append(giverTeamNumber).append("팀으로부터 받은 뱃지: ")
-                    .append(count).append("개\n");
+        for (BadgeStatDTO stat : badgeStats) {
+            badgeDetails.append("- ")
+                    .append(stat.giverTeamNumber())
+                    .append("팀으로부터 받은 뱃지: ")
+                    .append(stat.badgeCount())
+                    .append("개\n");
         }
 
-        String pumatiRank = getLatestPumatiRank(project.getId());
+        String pumatiRank = getLatestPumatiRank(projectDTO.getId());
 
         return """
             안녕하세요, %s님!
@@ -227,11 +214,11 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
             항상 응원합니다!
             """.formatted(
                 member.getNickname(),
-                team.getTerm(),
-                team.getNumber(),
-                project.getTitle(),
-                team.getReceivedPumatiCount(),
-                team.getGivedPumatiCount(),
+                projectDTO.getTerm(),
+                projectDTO.getTeamNumber(),
+                projectDTO.getTitle(),
+                projectDTO.getReceivedPumatiCount(),
+                projectDTO.getGivedPumatiCount(),
                 pumatiRank,
                 badgeDetails.toString(),
                 imageUrl != null ? imageUrl : "(이미지 생성 실패)"

@@ -5,6 +5,7 @@ import com.tebutebu.apiserver.domain.TeamBadgeStat;
 import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
 import com.tebutebu.apiserver.dto.ai.badge.request.TeamBadgeImageUpdateRequestDTO;
 import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgeStatPageResponseDTO;
+import com.tebutebu.apiserver.dto.ai.report.request.BadgeStatDTO;
 import com.tebutebu.apiserver.dto.project.request.ProjectSummaryDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
@@ -107,6 +108,20 @@ public class TeamServiceImpl implements TeamService {
                         .term(e.getKey())
                         .teamNumbers(e.getValue())
                         .build())
+                .toList();
+    }
+
+    @Override
+    public List<BadgeStatDTO> getReceivedBadgeStats(Long teamId) {
+        List<Object[]> rawStats = teamBadgeStatRepository.findReceivedBadgeStatsWithTermByReceiverTeamId(teamId);
+
+        return rawStats.stream()
+                .map(stat -> {
+                    Integer giverTerm = (Integer) stat[0];
+                    Integer giverTeamNumber = (Integer) stat[1];
+                    Integer badgeCount = (Integer) stat[2];
+                    return new BadgeStatDTO(giverTerm, giverTeamNumber, badgeCount);
+                })
                 .toList();
     }
 
