@@ -18,8 +18,11 @@ import com.tebutebu.apiserver.pagination.internal.CursorPage;
 import com.tebutebu.apiserver.repository.CommentRepository;
 import com.tebutebu.apiserver.repository.paging.comment.CommentPagingRepository;
 import com.tebutebu.apiserver.service.member.MemberService;
+import com.tebutebu.apiserver.service.project.ProjectService;
+import com.tebutebu.apiserver.service.team.TeamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,6 +35,13 @@ public class CommentServiceImpl implements CommentService {
     private final CommentPagingRepository commentPagingRepository;
 
     private final MemberService memberService;
+
+    private final ProjectService projectService;
+
+    private final TeamService teamService;
+
+    @Value("${pumati.comment.count}")
+    private long commentPumatiCount;
 
     @Override
     public CommentResponseDTO get(Long commentId) {
@@ -64,6 +74,13 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public Long register(Long projectId, Long memberId, CommentCreateRequestDTO dto) {
         Comment comment = dtoToEntity(projectId, memberId, dto);
+
+        Long giverTeamId = memberService.get(memberId).getTeamId();
+        teamService.incrementGivedPumatiBy(giverTeamId, commentPumatiCount);
+
+        Long receiverTeamId = projectService.get(projectId, memberId).getTeamId();
+        teamService.incrementReceivedPumatiBy(receiverTeamId, commentPumatiCount);
+
         return commentRepository.save(comment).getId();
     }
 

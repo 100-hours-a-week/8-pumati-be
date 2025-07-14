@@ -40,7 +40,11 @@ public interface TeamService {
 
     Long incrementGivedPumati(Long teamId);
 
+    void incrementGivedPumatiBy(Long teamId, long amount);
+
     Long incrementReceivedPumati(Long teamId);
+
+    void incrementReceivedPumatiBy(Long teamId, long amount);
 
     void resetAllPumatiCounts();
 

@@ -163,3 +163,10 @@ scheduler:
   pumati-count:
     reset-cron: ${scheduler.pumati-count.reset-cron}
     reset-zone: ${scheduler.pumati-count.reset-zone}
+
+pumati:
+  comment:
+    count: ${pumati.comment.count}
+  attendance:
+    daily:
+      count: ${pumati.attendance.daily.count}

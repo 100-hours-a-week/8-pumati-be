@@ -166,3 +166,10 @@ scheduler:
   weekly-report:
     send-cron: ${scheduler.weekly-report.send-cron}
     send-zone: ${scheduler.weekly-report.send-zone}
+
+pumati:
+  comment:
+    count: ${pumati.comment.count}
+  attendance:
+    daily:
+      count: ${pumati.attendance.daily.count}

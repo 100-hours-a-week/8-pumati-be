@@ -219,12 +219,28 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    public void incrementGivedPumatiBy(Long teamId, long amount) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
+        team.increaseGivedPumatiBy(amount);
+        teamRepository.save(team);
+    }
+
+    @Override
     public Long incrementReceivedPumati(Long teamId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
         team.increaseReceivedPumati();
         teamRepository.save(team);
         return team.getReceivedPumatiCount();
+    }
+
+    @Override
+    public void incrementReceivedPumatiBy(Long teamId, long amount) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new BusinessException(BusinessErrorCode.TEAM_NOT_FOUND));
+        team.increaseReceivedPumatiBy(amount);
+        teamRepository.save(team);
     }
 
     @Override
