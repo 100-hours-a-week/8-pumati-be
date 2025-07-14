@@ -9,16 +9,21 @@ import com.tebutebu.apiserver.dto.ai.report.request.BadgeStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.DailyPumatiStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.TeamInfoDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.WeeklyReportImageRequestDTO;
+import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.repository.MemberRepository;
-import com.tebutebu.apiserver.repository.ProjectRepository;
 import com.tebutebu.apiserver.repository.TeamBadgeStatRepository;
 import com.tebutebu.apiserver.service.ai.report.AiWeeklyReportImageRequestService;
 import com.tebutebu.apiserver.service.mail.MailService;
+import com.tebutebu.apiserver.service.project.ProjectService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -34,8 +39,6 @@ import java.util.Map;
 @Service
 public class WeeklyReportServiceImpl implements WeeklyReportService {
 
-    private final ProjectRepository projectRepository;
-
     private final MemberRepository memberRepository;
 
     private final TeamBadgeStatRepository teamBadgeStatRepository;
@@ -44,40 +47,86 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
     private final AiWeeklyReportImageRequestService aiWeeklyReportImageRequestService;
 
+    private final ProjectService projectService;
+
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
+    @Value("${report.weekly.project-page-size}")
+    private int projectPageSize;
 
     @Override
     public void sendWeeklyReportsToConsentingMembers() {
-        List<Project> projects = projectRepository.findAll();
+        CursorTimePageRequestDTO cursorTimePageRequestDTO = CursorTimePageRequestDTO.builder()
+                .cursorId(null)
+                .cursorTime(null)
+                .pageSize(projectPageSize)
+                .build();
 
-        for (Project project : projects) {
-            Team team = project.getTeam();
-            if (team == null) continue;
+        boolean hasNext;
 
-            List<Member> consentingMembers = memberRepository.findAllByTeamIdWithTeam(team.getId()).stream()
-                    .filter(Member::hasEmailConsent)
-                    .toList();
+        do {
+            CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page =
+                    projectService.getLatestPage(cursorTimePageRequestDTO);
 
-            if (consentingMembers.isEmpty()) {
-                continue;
-            }
+            List<ProjectPageResponseDTO> projectPageResponseDtoList = page.getData();
 
-            WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
-            String imageUrl = extractImageUrlFromJson(
-                    aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
-            );
+            for (ProjectPageResponseDTO projectPageResponseDTO : projectPageResponseDtoList) {
+                Long teamId = projectPageResponseDTO.getTeamId();
+                if (teamId == null) {
+                    continue;
+                }
 
-            for (Member member : consentingMembers) {
-                try {
-                    String subject = "[주간 리포트] %d기 %d팀 - %s".formatted(team.getTerm(), team.getNumber(), project.getTitle());
-                    String content = generateReportContent(project, team, member, imageUrl);
-                    mailService.sendMail(member.getEmail(), subject, content);
-                    log.info("메일 발송 성공: {}", member.getEmail());
-                } catch (Exception e) {
-                    log.error("메일 발송 실패: {}", member.getEmail(), e);
+                Team team = Team.builder()
+                        .id(teamId)
+                        .term(projectPageResponseDTO.getTerm())
+                        .number(projectPageResponseDTO.getTeamNumber())
+                        .givedPumatiCount(projectPageResponseDTO.getGivedPumatiCount())
+                        .receivedPumatiCount(projectPageResponseDTO.getReceivedPumatiCount())
+                        .badgeImageUrl(projectPageResponseDTO.getBadgeImageUrl())
+                        .build();
+
+                Project project = Project.builder()
+                        .id(projectPageResponseDTO.getId())
+                        .title(projectPageResponseDTO.getTitle())
+                        .team(team)
+                        .build();
+
+                List<Member> consentingMembers = memberRepository.findAllByTeamIdWithTeam(team.getId()).stream()
+                        .filter(Member::hasEmailConsent)
+                        .toList();
+
+                if (consentingMembers.isEmpty()) {
+                    continue;
+                }
+
+                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
+                String imageUrl = extractImageUrlFromJson(
+                        aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
+                );
+
+                for (Member member : consentingMembers) {
+                    try {
+                        String subject = "[주간 리포트] %d기 %d팀 - %s"
+                                .formatted(team.getTerm(), team.getNumber(), project.getTitle());
+                        String content = generateReportContent(project, team, member, imageUrl);
+                        mailService.sendMail(member.getEmail(), subject, content);
+                        log.info("메일 발송 성공: {}", member.getEmail());
+                    } catch (Exception e) {
+                        log.error("메일 발송 실패: {}", member.getEmail(), e);
+                    }
                 }
             }
-        }
+
+            TimeCursorMetaDTO meta = page.getMeta();
+            hasNext = meta.isHasNext();
+
+            cursorTimePageRequestDTO = CursorTimePageRequestDTO.builder()
+                    .cursorId(meta.getNextCursorId())
+                    .cursorTime(meta.getNextCursorTime())
+                    .pageSize(projectPageSize)
+                    .build();
+
+        } while (hasNext);
     }
 
     private WeeklyReportImageRequestDTO generateReportImageRequest(Project project, Team team) {

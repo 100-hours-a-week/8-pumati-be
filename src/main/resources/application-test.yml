@@ -165,3 +165,7 @@ scheduler:
   weekly-report:
     send-cron: "0 0 9 * * MON"
     send-zone: "Asia/Seoul"
+
+report:
+  weekly:
+    project-page-size: 50

@@ -166,3 +166,7 @@ scheduler:
   weekly-report:
     send-cron: ${scheduler.weekly-report.send-cron}
     send-zone: ${scheduler.weekly-report.send-zone}
+
+report:
+  weekly:
+    project-page-size: ${report.weekly.project.page-size}
