@@ -104,7 +104,7 @@ pipeline {
               script: """
                 set -e
                 /usr/local/bin/aws secretsmanager get-secret-value \
-                  --secret-id ${env.PROJECT_NAME}-${env.ENV_LABEL}-${env.SERVICE_NAME}-test-.env \
+                  --secret-id ${env.PROJECT_NAME}-${env.ENV_LABEL}-${env.SERVICE_NAME}-.env \
                   --region ${env.AWS_REGION} \
                   --query SecretString \
                   --output text
