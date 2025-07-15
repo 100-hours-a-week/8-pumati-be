@@ -72,8 +72,22 @@ public class Team extends TimeStampedEntity {
         this.givedPumatiCount++;
     }
 
+    public void increaseGivedPumatiBy(long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must be non-negative");
+        }
+        this.givedPumatiCount += amount;
+    }
+
     public void increaseReceivedPumati() {
         this.receivedPumatiCount++;
+    }
+
+    public void increaseReceivedPumatiBy(long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must be non-negative");
+        }
+        this.receivedPumatiCount += amount;
     }
 
     public void changeBadgeImageUrl(String badgeImageUrl) {
