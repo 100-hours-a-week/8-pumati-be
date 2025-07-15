@@ -61,52 +61,52 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
     @Override
     public List<ProjectRankingSnapshotResponseDTO> getSnapshotsForLast7Days() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime start = now.minusDays(6).toLocalDate().atStartOfDay();
+        LocalDate today = now.toLocalDate();
+        LocalDate startDate = today.minusDays(6);
 
         List<ProjectRankingSnapshot> allSnapshots = projectRankingSnapshotRepository
-                .findAllByRequestedAtBetween(start, now);
+                .findAllByRequestedAtBetween(startDate.atStartOfDay(), now);
 
         Map<LocalDate, ProjectRankingSnapshot> latestPerDate = new HashMap<>();
         allSnapshots.stream()
                 .sorted(Comparator.comparing(ProjectRankingSnapshot::getRequestedAt).reversed())
-                .forEach(snap -> {
-                    LocalDate date = snap.getRequestedAt().toLocalDate();
-                    latestPerDate.putIfAbsent(date, snap);
+                .forEach(snapshot -> {
+                    LocalDate date = snapshot.getRequestedAt().toLocalDate();
+                    latestPerDate.putIfAbsent(date, snapshot);
                 });
 
         List<LocalDate> last7Days = new ArrayList<>();
-        for (int i = 6; i >= 0; i--) {
-            last7Days.add(now.toLocalDate().minusDays(i));
+        for (int i = 0; i < 7; i++) {
+            last7Days.add(startDate.plusDays(i));
         }
 
-        List<ProjectRankingSnapshotResponseDTO> filledList = new ArrayList<>();
+        List<ProjectRankingSnapshotResponseDTO> result = new ArrayList<>();
         ProjectRankingSnapshot lastKnownSnapshot = null;
 
         for (int i = 0; i < last7Days.size(); i++) {
             LocalDate date = last7Days.get(i);
+            ProjectRankingSnapshot snapshot = latestPerDate.get(date);
 
-            if (latestPerDate.containsKey(date)) {
-                lastKnownSnapshot = latestPerDate.get(date);
-            } else if (i == 0 && lastKnownSnapshot == null) {
-                try {
-                    lastKnownSnapshot = projectRankingSnapshotRepository
-                            .findTopByOrderByRequestedAtDesc()
-                            .orElse(null);
-                    log.warn("No snapshot found for the first day. Using latest snapshot as fallback: {}",
-                            lastKnownSnapshot != null ? lastKnownSnapshot.getRequestedAt() : "null");
-                } catch (Exception e) {
-                    log.error("Failed to fetch the latest snapshot for fallback", e);
+            if (snapshot == null && i == 0) {
+                snapshot = projectRankingSnapshotRepository
+                        .findTopByRequestedAtBeforeOrderByRequestedAtDesc(date.atStartOfDay())
+                        .orElse(null);
+
+                if (snapshot != null) {
+                    log.warn("No snapshot for first day ({}), fallback to closest previous: {}",
+                            date, snapshot.getRequestedAt());
                 }
             }
 
-            if (lastKnownSnapshot != null) {
-                filledList.add(entityToDTO(lastKnownSnapshot));
-            } else {
-                filledList.add(null);
+            if (snapshot == null) {
+                snapshot = lastKnownSnapshot;
             }
+
+            lastKnownSnapshot = snapshot;
+            result.add(snapshot != null ? entityToDTO(snapshot) : null);
         }
 
-        return filledList;
+        return result;
     }
 
     private Long createAndSaveSnapshot() {
