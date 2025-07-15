@@ -35,4 +35,7 @@ public class BusinessErrorMessages {
     public static final String SUBSCRIPTION_NOT_FOUND = "subscriptionNotFound";
     public static final String ALREADY_SUBSCRIBED = "alreadySubscribed";
 
+    // Mail
+    public static final String MAIL_SEND_PROCESSING_FAILED = "mailSendProcessingFailed";
+
 }

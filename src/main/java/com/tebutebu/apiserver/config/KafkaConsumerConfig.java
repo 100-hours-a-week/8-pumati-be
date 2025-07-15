@@ -29,7 +29,7 @@ public class KafkaConsumerConfig {
                 kafkaTemplate,
                 (record, ex) -> {
                     log.warn("Sending message to DLQ due to error: {}", ex.getMessage());
-                    return new TopicPartition(mailSendDlqTopic, record.partition());
+                    return new TopicPartition(mailSendDlqTopic, 0);
                 });
         return new DefaultErrorHandler(deadLetterPublishingRecoverer, new FixedBackOff(0L, 0));
     }
@@ -37,12 +37,14 @@ public class KafkaConsumerConfig {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
             ConsumerFactory<String, String> consumerFactory,
-            DefaultErrorHandler kafkaErrorHandler
+            DefaultErrorHandler kafkaErrorHandler,
+            @Value("${spring.kafka.listener.concurrency}") int concurrency
     ) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         factory.setCommonErrorHandler(kafkaErrorHandler);
+        factory.setConcurrency(concurrency);
         return factory;
     }
 
