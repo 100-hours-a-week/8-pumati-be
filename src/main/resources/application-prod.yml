@@ -87,7 +87,7 @@ spring:
         acks: all
     listener:
       ack-mode: manual
-      concurrency: 1
+      concurrency: ${kafka.listener.concurrency}
       missing-topics-fatal: false
       type: single
       poll-timeout: 3000
@@ -177,3 +177,14 @@ scheduler:
   pumati-count:
     reset-cron: ${scheduler.pumati-count.reset-cron}
     reset-zone: ${scheduler.pumati-count.reset-zone}
+
+report:
+  weekly:
+    project-page-size: ${report.weekly.project.page-size}
+
+pumati:
+  comment:
+    count: ${pumati.comment.count}
+  attendance:
+    daily:
+      count: ${pumati.attendance.daily.count}

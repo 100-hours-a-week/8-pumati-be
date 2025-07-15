@@ -41,7 +41,10 @@ public enum BusinessErrorCode implements ErrorCode {
 
     // Subscription
     SUBSCRIPTION_NOT_FOUND(BusinessErrorMessages.SUBSCRIPTION_NOT_FOUND, HttpStatus.NOT_FOUND),
-    ALREADY_SUBSCRIBED(BusinessErrorMessages.ALREADY_SUBSCRIBED, HttpStatus.CONFLICT);
+    ALREADY_SUBSCRIBED(BusinessErrorMessages.ALREADY_SUBSCRIBED, HttpStatus.CONFLICT),
+
+    // Mail
+    MAIL_SEND_PROCESSING_FAILED(BusinessErrorMessages.MAIL_SEND_PROCESSING_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String message;
     private final HttpStatus status;

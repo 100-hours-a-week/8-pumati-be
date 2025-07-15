@@ -2,8 +2,8 @@ package com.tebutebu.apiserver.service.member;
 
 import com.github.javafaker.Faker;
 import com.tebutebu.apiserver.domain.Member;
-import com.tebutebu.apiserver.domain.MemberRole;
-import com.tebutebu.apiserver.domain.MemberState;
+import com.tebutebu.apiserver.domain.enums.MemberRole;
+import com.tebutebu.apiserver.domain.enums.MemberState;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.member.request.AiMemberSignupRequestDTO;
 import com.tebutebu.apiserver.dto.member.request.MemberOAuthSignupRequestDTO;

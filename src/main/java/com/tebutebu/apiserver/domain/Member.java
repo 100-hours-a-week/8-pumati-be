@@ -1,6 +1,9 @@
 package com.tebutebu.apiserver.domain;
 
 import com.tebutebu.apiserver.domain.common.TimeStampedEntity;
+import com.tebutebu.apiserver.domain.enums.Course;
+import com.tebutebu.apiserver.domain.enums.MemberRole;
+import com.tebutebu.apiserver.domain.enums.MemberState;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.GeneratedValue;

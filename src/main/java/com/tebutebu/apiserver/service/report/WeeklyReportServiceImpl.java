@@ -2,23 +2,28 @@ package com.tebutebu.apiserver.service.report;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tebutebu.apiserver.domain.Member;
-import com.tebutebu.apiserver.domain.Project;
-import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.ai.report.request.BadgeStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.DailyPumatiStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.TeamInfoDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.WeeklyReportImageRequestDTO;
+import com.tebutebu.apiserver.dto.mail.template.WeeklyReportTemplateDTO;
+import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
+import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
-import com.tebutebu.apiserver.repository.MemberRepository;
-import com.tebutebu.apiserver.repository.ProjectRepository;
-import com.tebutebu.apiserver.repository.TeamBadgeStatRepository;
+import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
+import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
+import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.service.ai.report.AiWeeklyReportImageRequestService;
 import com.tebutebu.apiserver.service.mail.MailService;
+import com.tebutebu.apiserver.service.mail.template.WeeklyReportTemplateService;
+import com.tebutebu.apiserver.service.member.MemberService;
+import com.tebutebu.apiserver.service.project.ProjectService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
+import com.tebutebu.apiserver.service.team.TeamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -29,85 +34,126 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Map;
 
-@RequiredArgsConstructor
 @Log4j2
 @Service
+@RequiredArgsConstructor
 public class WeeklyReportServiceImpl implements WeeklyReportService {
 
-    private final ProjectRepository projectRepository;
+    private final MemberService memberService;
 
-    private final MemberRepository memberRepository;
-
-    private final TeamBadgeStatRepository teamBadgeStatRepository;
+    private final TeamService teamService;
 
     private final MailService mailService;
 
     private final AiWeeklyReportImageRequestService aiWeeklyReportImageRequestService;
 
+    private final ProjectService projectService;
+
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
+    private final WeeklyReportTemplateService weeklyReportTemplateService;
+
+    @Value("${report.weekly.project-page-size}")
+    private int projectPageSize;
 
     @Override
     public void sendWeeklyReportsToConsentingMembers() {
-        List<Project> projects = projectRepository.findAll();
+        CursorTimePageRequestDTO cursorTimePageRequestDTO = CursorTimePageRequestDTO.builder()
+                .cursorId(null)
+                .cursorTime(null)
+                .pageSize(projectPageSize)
+                .build();
 
-        for (Project project : projects) {
-            Team team = project.getTeam();
-            if (team == null) continue;
+        boolean hasNext;
 
-            List<Member> consentingMembers = memberRepository.findAllByTeamIdWithTeam(team.getId()).stream()
-                    .filter(Member::hasEmailConsent)
-                    .toList();
+        do {
+            CursorPageResponseDTO<ProjectPageResponseDTO, TimeCursorMetaDTO> page =
+                    projectService.getLatestPage(cursorTimePageRequestDTO);
 
-            if (consentingMembers.isEmpty()) {
-                continue;
+            List<ProjectPageResponseDTO> projectPageResponseDtoList = page.getData();
+
+            for (ProjectPageResponseDTO projectDTO : projectPageResponseDtoList) {
+                Long teamId = projectDTO.getTeamId();
+                if (teamId == null) {
+                    continue;
+                }
+
+                List<MemberResponseDTO> members = memberService.getMembersByTeamId(teamId);
+                List<MemberResponseDTO> consentingMembers = members.stream()
+                        .filter(member -> Boolean.TRUE.equals(member.getHasEmailConsent()))
+                        .toList();
+
+                if (consentingMembers.isEmpty()) {
+                    continue;
+                }
+
+                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(projectDTO);
+                String imageUrl;
+                try {
+                    String json = aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO);
+                    imageUrl = extractImageUrlFromJson(json);
+                } catch (Exception e) {
+                    log.warn("AI 리포트 이미지 생성 실패: {}", imageRequestDTO, e);
+                    imageUrl = null;
+                }
+
+                for (MemberResponseDTO member : consentingMembers) {
+                    try {
+                        String subject = "[주간 리포트] %d기 %d팀 - %s"
+                                .formatted(projectDTO.getTerm(), projectDTO.getTeamNumber(), projectDTO.getTitle());
+                        String content = weeklyReportTemplateService.renderWeeklyReport(
+                                WeeklyReportTemplateDTO.builder()
+                                        .nickname(member.getNickname())
+                                        .term(projectDTO.getTerm())
+                                        .teamNumber(projectDTO.getTeamNumber())
+                                        .projectTitle(projectDTO.getTitle())
+                                        .receivedPumatiCount(projectDTO.getReceivedPumatiCount())
+                                        .givedPumatiCount(projectDTO.getGivedPumatiCount())
+                                        .badgeStats(teamService.getReceivedBadgeStats(projectDTO.getTeamId()))
+                                        .pumatiRank(getLatestPumatiRank(projectDTO.getId()))
+                                        .reportImageUrl(imageUrl)
+                                        .build()
+                        );
+                        mailService.sendMail(member.getEmail(), subject, content);
+                        log.info("메일 발송 성공: {}", member.getEmail());
+                    } catch (Exception e) {
+                        log.error("메일 발송 실패: {}", member.getEmail(), e);
+                    }
+                }
             }
 
-            try {
-                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(project, team);
-                String imageUrl = extractImageUrlFromJson(
-                        aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO)
-                );
+            TimeCursorMetaDTO meta = page.getMeta();
+            hasNext = meta.isHasNext();
 
-                sendMailsToMembers(consentingMembers, project, team, imageUrl);
+            cursorTimePageRequestDTO = CursorTimePageRequestDTO.builder()
+                    .cursorId(meta.getNextCursorId())
+                    .cursorTime(meta.getNextCursorTime())
+                    .pageSize(projectPageSize)
+                    .build();
 
-            } catch (Exception e) {
-                log.error("주간 리포트 이미지 생성 또는 사전 처리 실패: projectId={}", project.getId(), e);
-            }
-        }
+        } while (hasNext);
     }
 
-    private void sendMailsToMembers(List<Member> members, Project project, Team team, String imageUrl) {
-        for (Member member : members) {
-            try {
-                String subject = "[주간 리포트] %d기 %d팀 - %s".formatted(team.getTerm(), team.getNumber(), project.getTitle());
-                String content = generateReportContent(project, team, member, imageUrl);
-                mailService.sendMail(member.getEmail(), subject, content);
-                log.info("메일 발송 성공: {}", member.getEmail());
-            } catch (Exception e) {
-                log.error("메일 발송 실패: {}", member.getEmail(), e);
-            }
-        }
-    }
+    private WeeklyReportImageRequestDTO generateReportImageRequest(ProjectPageResponseDTO projectDTO) {
+        List<BadgeStatDTO> badgeStats = teamService.getReceivedBadgeStats(projectDTO.getTeamId());
 
-    private WeeklyReportImageRequestDTO generateReportImageRequest(Project project, Team team) {
-        List<Object[]> badgeStatsRaw = teamBadgeStatRepository.findReceivedBadgeStatsWithTermByReceiverTeamId(team.getId());
-        List<BadgeStatDTO> badgeStats = badgeStatsRaw.stream()
-                .map(stat -> new BadgeStatDTO((Integer) stat[0], (Integer) stat[1], (Integer) stat[2]))
-                .toList();
+        int totalBadgeCount = badgeStats.stream()
+                .mapToInt(BadgeStatDTO::badgeCount)
+                .sum();
 
         TeamInfoDTO teamInfo = new TeamInfoDTO(
-                team.getTerm(),
-                team.getNumber(),
-                team.getReceivedPumatiCount(),
-                team.getGivedPumatiCount(),
-                team.getTotalReceivedBadgeCount()
+                projectDTO.getTerm(),
+                projectDTO.getTeamNumber(),
+                projectDTO.getReceivedPumatiCount(),
+                projectDTO.getGivedPumatiCount(),
+                totalBadgeCount
         );
 
-        List<DailyPumatiStatDTO> dailyPumatiStats = generateDailyStats(project.getId());
+        List<DailyPumatiStatDTO> dailyPumatiStats = generateDailyStats(projectDTO.getId());
 
         return WeeklyReportImageRequestDTO.builder()
-                .projectId(project.getId())
-                .projectTitle(project.getTitle())
+                .projectId(projectDTO.getId())
+                .projectTitle(projectDTO.getTitle())
                 .team(teamInfo)
                 .badgeStats(badgeStats)
                 .dailyPumatiStats(dailyPumatiStats)
@@ -122,80 +168,58 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
         for (int i = 0; i < snapshots.size(); i++) {
             ProjectRankingSnapshotResponseDTO snapshot = snapshots.get(i);
-            if (snapshot == null) {
-                LocalDate fallbackDate = LocalDate.now().minusDays(6 - i);
-                String fallbackDayStr = fallbackDate.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase();
-                dailyStats.add(new DailyPumatiStatDTO(fallbackDayStr, 0, 0));
-                continue;
-            }
 
-            RankingItemDTO item = snapshot.getData().stream()
-                    .filter(dto -> dto.getProjectId().equals(projectId))
-                    .findFirst()
-                    .orElse(null);
+            DailyPumatiStatDTO statDTO = createDailyStat(
+                    snapshot, projectId, i, prevGivedPumatiCount, prevReceivedPumatiCount
+            );
 
-            long currentGivedPumatiCount = (item != null && item.getGivedPumatiCount() != null)
-                    ? item.getGivedPumatiCount()
-                    : prevGivedPumatiCount;
+            dailyStats.add(statDTO);
 
-            long currentReceivedPumatiCount = (item != null && item.getReceivedPumatiCount() != null)
-                    ? item.getReceivedPumatiCount()
-                    : prevReceivedPumatiCount;
-
-            long givedDiff = currentGivedPumatiCount - prevGivedPumatiCount;
-            long receivedDiff = currentReceivedPumatiCount - prevReceivedPumatiCount;
-
-            prevGivedPumatiCount = currentGivedPumatiCount;
-            prevReceivedPumatiCount = currentReceivedPumatiCount;
-
-            LocalDate actualDate = LocalDate.now().minusDays(6 - i);
-            String dayStr = actualDate.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase();
-
-            dailyStats.add(new DailyPumatiStatDTO(dayStr, givedDiff, receivedDiff));
+            prevGivedPumatiCount += statDTO.givedPumatiCount();
+            prevReceivedPumatiCount += statDTO.receivedPumatiCount();
         }
 
         return dailyStats;
     }
 
-    private String generateReportContent(Project project, Team team, Member member, String imageUrl) {
-        List<Object[]> badgeStats = teamBadgeStatRepository.findReceivedBadgeStatsByReceiverTeamId(team.getId());
-        StringBuilder badgeDetails = new StringBuilder();
-        for (Object[] stat : badgeStats) {
-            Integer giverTeamNumber = (Integer) stat[0];
-            Integer count = (Integer) stat[1];
-            badgeDetails.append("- ").append(giverTeamNumber).append("팀으로부터 받은 뱃지: ")
-                    .append(count).append("개\n");
+    private DailyPumatiStatDTO createDailyStat(
+            ProjectRankingSnapshotResponseDTO snapshot,
+            Long projectId,
+            int index,
+            long prevGivedPumatiCount,
+            long prevReceivedPumatiCount
+    ) {
+        String dayStr = getDayOfWeekLabel(index);
+
+        if (snapshot == null) {
+            return new DailyPumatiStatDTO(dayStr, 0, 0);
         }
 
-        String pumatiRank = getLatestPumatiRank(project.getId());
+        RankingItemDTO item = snapshot.getData().stream()
+                .filter(dto -> dto.getProjectId().equals(projectId))
+                .findFirst()
+                .orElse(null);
 
-        return """
-            안녕하세요, %s님!
+        long currentGived = (item != null && item.getGivedPumatiCount() != null)
+                ? item.getGivedPumatiCount()
+                : prevGivedPumatiCount;
 
-            [%d기 %d팀 - %s] 프로젝트의 주간 활동 리포트를 보내드립니다.
+        long currentReceived = (item != null && item.getReceivedPumatiCount() != null)
+                ? item.getReceivedPumatiCount()
+                : prevReceivedPumatiCount;
 
-            - 받은 품앗이 수: %d개
-            - 준 품앗이 수: %d개
-            - 품앗이 등수: %s위
+        long givedDiff = currentGived - prevGivedPumatiCount;
+        long receivedDiff = currentReceived - prevReceivedPumatiCount;
 
-            [받은 팀별 뱃지 수]
-            %s
+        return new DailyPumatiStatDTO(dayStr, givedDiff, receivedDiff);
+    }
 
-            📊 주간 활동 그래프:
-            %s
-
-            항상 응원합니다!
-            """.formatted(
-                member.getNickname(),
-                team.getTerm(),
-                team.getNumber(),
-                project.getTitle(),
-                team.getReceivedPumatiCount(),
-                team.getGivedPumatiCount(),
-                pumatiRank,
-                badgeDetails.toString(),
-                imageUrl != null ? imageUrl : "(이미지 생성 실패)"
-        );
+    private String getDayOfWeekLabel(int index) {
+        return LocalDate.now()
+                .minusDays(6 - index)
+                .getDayOfWeek()
+                .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+                .toUpperCase();
     }
 
     private String getLatestPumatiRank(Long projectId) {

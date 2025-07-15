@@ -1,7 +1,7 @@
 package com.tebutebu.apiserver.dto.ai.fortune.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.tebutebu.apiserver.domain.Course;
+import com.tebutebu.apiserver.domain.enums.Course;
 import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
