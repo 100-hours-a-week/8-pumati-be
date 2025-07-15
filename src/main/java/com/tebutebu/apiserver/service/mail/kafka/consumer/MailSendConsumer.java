@@ -52,7 +52,7 @@ public class MailSendConsumer {
         helper.setFrom(from);
         helper.setTo(dto.getEmail());
         helper.setSubject(dto.getSubject());
-        helper.setText(dto.getContent(), false); // plain text
+        helper.setText(dto.getContent(), true);
 
         mailSender.send(message);
     }

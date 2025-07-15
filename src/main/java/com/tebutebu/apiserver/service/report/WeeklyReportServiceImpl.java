@@ -6,6 +6,7 @@ import com.tebutebu.apiserver.dto.ai.report.request.BadgeStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.DailyPumatiStatDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.TeamInfoDTO;
 import com.tebutebu.apiserver.dto.ai.report.request.WeeklyReportImageRequestDTO;
+import com.tebutebu.apiserver.dto.mail.template.WeeklyReportTemplateDTO;
 import com.tebutebu.apiserver.dto.member.response.MemberResponseDTO;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
@@ -15,6 +16,7 @@ import com.tebutebu.apiserver.pagination.dto.response.CursorPageResponseDTO;
 import com.tebutebu.apiserver.pagination.dto.response.meta.TimeCursorMetaDTO;
 import com.tebutebu.apiserver.service.ai.report.AiWeeklyReportImageRequestService;
 import com.tebutebu.apiserver.service.mail.MailService;
+import com.tebutebu.apiserver.service.mail.template.WeeklyReportTemplateService;
 import com.tebutebu.apiserver.service.member.MemberService;
 import com.tebutebu.apiserver.service.project.ProjectService;
 import com.tebutebu.apiserver.service.project.snapshot.ProjectRankingSnapshotService;
@@ -48,6 +50,8 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     private final ProjectService projectService;
 
     private final ProjectRankingSnapshotService projectRankingSnapshotService;
+
+    private final WeeklyReportTemplateService weeklyReportTemplateService;
 
     @Value("${report.weekly.project-page-size}")
     private int projectPageSize;
@@ -97,7 +101,19 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                     try {
                         String subject = "[주간 리포트] %d기 %d팀 - %s"
                                 .formatted(projectDTO.getTerm(), projectDTO.getTeamNumber(), projectDTO.getTitle());
-                        String content = generateReportContent(projectDTO, member, imageUrl);
+                        String content = weeklyReportTemplateService.renderWeeklyReport(
+                                WeeklyReportTemplateDTO.builder()
+                                        .nickname(member.getNickname())
+                                        .term(projectDTO.getTerm())
+                                        .teamNumber(projectDTO.getTeamNumber())
+                                        .projectTitle(projectDTO.getTitle())
+                                        .receivedPumatiCount(projectDTO.getReceivedPumatiCount())
+                                        .givedPumatiCount(projectDTO.getGivedPumatiCount())
+                                        .badgeStats(teamService.getReceivedBadgeStats(projectDTO.getTeamId()))
+                                        .pumatiRank(getLatestPumatiRank(projectDTO.getId()))
+                                        .reportImageUrl(imageUrl)
+                                        .build()
+                        );
                         mailService.sendMail(member.getEmail(), subject, content);
                         log.info("메일 발송 성공: {}", member.getEmail());
                     } catch (Exception e) {
@@ -204,49 +220,6 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 .getDayOfWeek()
                 .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
                 .toUpperCase();
-    }
-
-    private String generateReportContent(ProjectPageResponseDTO projectDTO, MemberResponseDTO member, String imageUrl) {
-        List<BadgeStatDTO> badgeStats = teamService.getReceivedBadgeStats(projectDTO.getTeamId());
-
-        StringBuilder badgeDetails = new StringBuilder();
-        for (BadgeStatDTO stat : badgeStats) {
-            badgeDetails.append("- ")
-                    .append(stat.giverTeamNumber())
-                    .append("팀으로부터 받은 뱃지: ")
-                    .append(stat.badgeCount())
-                    .append("개\n");
-        }
-
-        String pumatiRank = getLatestPumatiRank(projectDTO.getId());
-
-        return """
-            안녕하세요, %s님!
-
-            [%d기 %d팀 - %s] 프로젝트의 주간 활동 리포트를 보내드립니다.
-
-            - 받은 품앗이 수: %d개
-            - 준 품앗이 수: %d개
-            - 품앗이 등수: %s위
-
-            [받은 팀별 뱃지 수]
-            %s
-
-            📊 주간 활동 그래프:
-            %s
-
-            항상 응원합니다!
-            """.formatted(
-                member.getNickname(),
-                projectDTO.getTerm(),
-                projectDTO.getTeamNumber(),
-                projectDTO.getTitle(),
-                projectDTO.getReceivedPumatiCount(),
-                projectDTO.getGivedPumatiCount(),
-                pumatiRank,
-                badgeDetails.toString(),
-                imageUrl != null ? imageUrl : "(이미지 생성 실패)"
-        );
     }
 
     private String getLatestPumatiRank(Long projectId) {
