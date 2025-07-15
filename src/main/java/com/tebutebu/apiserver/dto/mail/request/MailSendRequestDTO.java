@@ -3,7 +3,6 @@ package com.tebutebu.apiserver.dto.mail.request;
 import com.tebutebu.apiserver.global.constant.ValidationMessages;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,9 +16,6 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MailSendRequestDTO {
-
-    @NotNull(message = ValidationMessages.MEMBER_ID_REQUIRED)
-    private Long memberId;
 
     @NotBlank(message = ValidationMessages.EMAIL_REQUIRED)
     @Email(message = ValidationMessages.EMAIL_INVALID)
