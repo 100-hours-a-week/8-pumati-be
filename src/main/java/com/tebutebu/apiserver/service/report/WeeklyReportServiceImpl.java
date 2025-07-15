@@ -217,8 +217,12 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     }
 
     private String getDayOfWeekLabel(int index) {
-        return LocalDate.now()
-                .minusDays(6 - index)
+        LocalDate startOfLastWeek = LocalDate.now()
+                .with(java.time.DayOfWeek.MONDAY)
+                .minusWeeks(1);
+
+        return startOfLastWeek
+                .plusDays(index)
                 .getDayOfWeek()
                 .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
                 .toUpperCase();

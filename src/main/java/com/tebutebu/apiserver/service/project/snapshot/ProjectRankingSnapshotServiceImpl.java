@@ -60,12 +60,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
 
     @Override
     public List<ProjectRankingSnapshotResponseDTO> getSnapshotsForLast7Days() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate today = now.toLocalDate();
-        LocalDate startDate = today.minusDays(6);
+        LocalDate startDate = LocalDate.now()
+                .with(java.time.DayOfWeek.MONDAY)
+                .minusWeeks(1); // 지난주 월요일
+
+        LocalDate endDate = startDate.plusDays(6); // 지난주 일요일
 
         List<ProjectRankingSnapshot> allSnapshots = projectRankingSnapshotRepository
-                .findAllByRequestedAtBetween(startDate.atStartOfDay(), now);
+                .findAllByRequestedAtBetween(startDate.atStartOfDay(), endDate.plusDays(1).atStartOfDay());
 
         Map<LocalDate, ProjectRankingSnapshot> latestPerDate = new HashMap<>();
         allSnapshots.stream()
@@ -75,16 +77,11 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                     latestPerDate.putIfAbsent(date, snapshot);
                 });
 
-        List<LocalDate> last7Days = new ArrayList<>();
-        for (int i = 0; i < 7; i++) {
-            last7Days.add(startDate.plusDays(i));
-        }
-
         List<ProjectRankingSnapshotResponseDTO> result = new ArrayList<>();
         ProjectRankingSnapshot lastKnownSnapshot = null;
 
-        for (int i = 0; i < last7Days.size(); i++) {
-            LocalDate date = last7Days.get(i);
+        for (int i = 0; i < 7; i++) {
+            LocalDate date = startDate.plusDays(i);
             ProjectRankingSnapshot snapshot = latestPerDate.get(date);
 
             if (snapshot == null && i == 0) {
