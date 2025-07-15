@@ -74,14 +74,17 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public Long register(Long projectId, Long memberId, CommentCreateRequestDTO dto) {
         Comment comment = dtoToEntity(projectId, memberId, dto);
+        Comment saved = commentRepository.save(comment);
 
-        Long giverTeamId = memberService.get(memberId).getTeamId();
-        teamService.incrementGivedPumatiBy(giverTeamId, commentPumatiCount);
-
+        Long giverTeamId    = memberService.get(memberId).getTeamId();
         Long receiverTeamId = projectService.get(projectId, memberId).getTeamId();
-        teamService.incrementReceivedPumatiBy(receiverTeamId, commentPumatiCount);
 
-        return commentRepository.save(comment).getId();
+        if (!giverTeamId.equals(receiverTeamId)) {
+            teamService.incrementGivedPumatiBy(giverTeamId,    commentPumatiCount);
+            teamService.incrementReceivedPumatiBy(receiverTeamId, commentPumatiCount);
+        }
+
+        return saved.getId();
     }
 
     @Override
