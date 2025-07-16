@@ -7,38 +7,32 @@ export const options = {
     iterations: 200,
     thresholds: {
         http_req_failed: ['rate<0.01'],
-        http_req_duration: ['p(95)<1000'],
+        http_req_duration: ['p(95)<1000', 'p(99)<1500'],
     },
 };
 
-const BASE_URL = 'https://dev.tebutebu.com/api';
+const BASE_URL = 'http://localhost:8080/api';
 const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 500;
+const RETRY_DELAY_SEC = 0.5;
 
 function retrySnapshotCreation() {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         const res = http.post(`${BASE_URL}/projects/snapshot`, null, { timeout: '3s' });
 
-        const passed = check(res, {
-            'snapshot status is 201': (r) => r.status === 201,
-            'snapshot body exists': (r) => !!r.body,
-            'snapshot contains data.id': (r) => {
-                try {
-                    const json = r.json();
-                    return json?.data?.id !== undefined;
-                } catch (_) {
-                    return false;
-                }
-            },
-        });
-
-        if (passed) return res;
+        try {
+            const id = res.json('data.id');
+            if (res.status === 201 && id !== undefined) {
+                return id;
+            }
+        } catch (_) {
+            // ignore parse error and retry
+        }
 
         if (attempt < MAX_RETRIES) {
             console.warn(`Retrying snapshot creation (attempt ${attempt})...`);
-            sleep(RETRY_DELAY_MS / 1000);
+            sleep(RETRY_DELAY_SEC);
         } else {
-            console.error(`Snapshot creation failed after ${MAX_RETRIES} attempts.`);
+            console.error('Snapshot creation failed after max retries.');
         }
     }
 
@@ -46,21 +40,8 @@ function retrySnapshotCreation() {
 }
 
 export default function () {
-    const snapshotRes = retrySnapshotCreation();
-    if (!snapshotRes) return;
-
-    let snapshotId;
-    try {
-        snapshotId = snapshotRes.json('data.id');
-    } catch (e) {
-        console.error('Failed to parse snapshot response:', e.message);
-        return;
-    }
-
-    if (!snapshotId) {
-        console.error('snapshotId not found in response');
-        return;
-    }
+    const snapshotId = retrySnapshotCreation();
+    if (!snapshotId) return;
 
     const pageSize = randomIntBetween(5, 10);
     const rankRes = http.get(`${BASE_URL}/projects?sort=rank&context-id=${snapshotId}&cursor-id=0&page-size=${pageSize}`, { timeout: '3s' });
@@ -72,8 +53,7 @@ export default function () {
             try {
                 const json = r.json();
                 return json?.meta !== undefined;
-            } catch (e) {
-                console.error('Failed to parse ranking response:', e.message);
+            } catch (_) {
                 return false;
             }
         },
