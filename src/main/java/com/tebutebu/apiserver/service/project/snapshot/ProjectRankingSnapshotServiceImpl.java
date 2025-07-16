@@ -188,10 +188,14 @@ public class ProjectRankingSnapshotServiceImpl implements ProjectRankingSnapshot
                 .orElseThrow(() -> new BusinessException(BusinessErrorCode.SNAPSHOT_NOT_FOUND));
 
         String cacheKey = snapshotCacheKeyPrefix + snapshot.getId();
-        ProjectRankingSnapshotResponseDTO cachedSnapshot = snapshotRedisTemplate.opsForValue().get(cacheKey);
+        Object rawCached = snapshotRedisTemplate.opsForValue().get(cacheKey);
 
-        if (cachedSnapshot != null) {
-            return cachedSnapshot;
+        if (rawCached != null) {
+            try {
+                return objectMapper.convertValue(rawCached, ProjectRankingSnapshotResponseDTO.class);
+            } catch (IllegalArgumentException e) {
+                log.warn("Failed to deserialize cached snapshot from Redis. Will regenerate. key={}", cacheKey, e);
+            }
         }
 
         ProjectRankingSnapshotResponseDTO projectRankingSnapshotResponseDTO = entityToDTO(snapshot);
