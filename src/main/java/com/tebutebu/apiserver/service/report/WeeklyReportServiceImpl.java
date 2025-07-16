@@ -64,6 +64,8 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 .pageSize(projectPageSize)
                 .build();
 
+        List<ProjectRankingSnapshotResponseDTO> snapshots = projectRankingSnapshotService.getSnapshotsForLast7Days();
+
         boolean hasNext;
 
         do {
@@ -74,20 +76,16 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
             for (ProjectPageResponseDTO projectDTO : projectPageResponseDtoList) {
                 Long teamId = projectDTO.getTeamId();
-                if (teamId == null) {
-                    continue;
-                }
+                if (teamId == null) continue;
 
                 List<MemberResponseDTO> members = memberService.getMembersByTeamId(teamId);
                 List<MemberResponseDTO> consentingMembers = members.stream()
                         .filter(member -> Boolean.TRUE.equals(member.getHasEmailConsent()))
                         .toList();
 
-                if (consentingMembers.isEmpty()) {
-                    continue;
-                }
+                if (consentingMembers.isEmpty()) continue;
 
-                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(projectDTO);
+                WeeklyReportImageRequestDTO imageRequestDTO = generateReportImageRequest(projectDTO, snapshots);
                 String imageUrl;
                 try {
                     String json = aiWeeklyReportImageRequestService.requestGenerateWeeklyReportImage(imageRequestDTO);
@@ -134,7 +132,10 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
         } while (hasNext);
     }
 
-    private WeeklyReportImageRequestDTO generateReportImageRequest(ProjectPageResponseDTO projectDTO) {
+    private WeeklyReportImageRequestDTO generateReportImageRequest(
+            ProjectPageResponseDTO projectDTO,
+            List<ProjectRankingSnapshotResponseDTO> snapshots
+    ) {
         List<BadgeStatDTO> badgeStats = teamService.getReceivedBadgeStats(projectDTO.getTeamId());
 
         int totalBadgeCount = badgeStats.stream()
@@ -149,7 +150,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 totalBadgeCount
         );
 
-        List<DailyPumatiStatDTO> dailyPumatiStats = generateDailyStats(projectDTO.getId());
+        List<DailyPumatiStatDTO> dailyPumatiStats = generateDailyStats(projectDTO.getId(), snapshots);
 
         return WeeklyReportImageRequestDTO.builder()
                 .projectId(projectDTO.getId())
@@ -160,9 +161,10 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 .build();
     }
 
-    private List<DailyPumatiStatDTO> generateDailyStats(Long projectId) {
-        List<ProjectRankingSnapshotResponseDTO> snapshots = projectRankingSnapshotService.getSnapshotsForLast7Days();
-
+    private List<DailyPumatiStatDTO> generateDailyStats(
+            Long projectId,
+            List<ProjectRankingSnapshotResponseDTO> snapshots
+    ) {
         long prevGivedPumatiCount = 0, prevReceivedPumatiCount = 0;
         List<DailyPumatiStatDTO> dailyStats = new ArrayList<>();
 
@@ -215,8 +217,12 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     }
 
     private String getDayOfWeekLabel(int index) {
-        return LocalDate.now()
-                .minusDays(6 - index)
+        LocalDate startOfLastWeek = LocalDate.now()
+                .with(java.time.DayOfWeek.MONDAY)
+                .minusWeeks(1);
+
+        return startOfLastWeek
+                .plusDays(index)
                 .getDayOfWeek()
                 .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
                 .toUpperCase();
