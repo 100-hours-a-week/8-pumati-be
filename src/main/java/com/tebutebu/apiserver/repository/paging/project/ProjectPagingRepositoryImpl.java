@@ -71,7 +71,11 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
         if (rawCachedValue != null) {
             try {
-                cachedSnapshot = objectMapper.convertValue(rawCachedValue, ProjectRankingSnapshotResponseDTO.class);
+                cachedSnapshot = objectMapper.convertValue(
+                        objectMapper.convertValue(rawCachedValue, Object.class),
+                        new TypeReference<>() {
+                        }
+                );
             } catch (IllegalArgumentException e) {
                 log.warn("Failed to convert cached snapshot. key={}, class={}", cacheKey, rawCachedValue.getClass(), e);
             }
