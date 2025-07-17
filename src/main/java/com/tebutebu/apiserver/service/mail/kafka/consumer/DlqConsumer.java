@@ -5,29 +5,15 @@ import com.tebutebu.apiserver.dto.mail.request.MailSendRequestDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.header.internals.RecordHeader;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
 
 @Log4j2
 @Component
 @RequiredArgsConstructor
 public class DlqConsumer {
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
-
     private final ObjectMapper objectMapper;
-
-    @Value("${spring.kafka.topic.mail-send}")
-    private String mailSendTopic;
-
-    private static final int MAX_RETRY_COUNT = 3;
 
     @KafkaListener(
             topics = "${spring.kafka.topic.mail-send-dlq}",
@@ -45,29 +31,11 @@ public class DlqConsumer {
                 return;
             }
 
-            int retryCount = getRetryCount(record.headers());
-            if (retryCount >= MAX_RETRY_COUNT) {
-                log.warn("Retry limit exceeded. Skipping message: {}", record.value());
-                return;
-            }
-
-            Headers headers = record.headers();
-            headers.add(new RecordHeader("x-retry-count", String.valueOf(retryCount + 1).getBytes(StandardCharsets.UTF_8)));
-
-            ProducerRecord<String, String> newRecord = new ProducerRecord<>(
-                    mailSendTopic,
-                    null,
-                    record.key(),
-                    record.value(),
-                    headers
-            );
-
-            kafkaTemplate.send(newRecord);
-
-            log.info("DLQ message resent to mail-send topic with retryCount={}", retryCount + 1);
+            log.warn("Message permanently failed after retries. Consider manual review. to={}, subject={}",
+                    dto.getEmail(), dto.getSubject());
 
         } catch (Exception e) {
-            log.error("Failed to process DLQ message: {}", record.value(), e);
+            log.error("Failed to parse DLQ message: {}", record.value(), e);
         }
     }
 
@@ -77,13 +45,4 @@ public class DlqConsumer {
                 && dto.getContent() != null && !dto.getContent().isBlank();
     }
 
-    private int getRetryCount(Headers headers) {
-        if (headers == null) {
-            return 0;
-        }
-
-        return headers.lastHeader("x-retry-count") != null
-                ? Integer.parseInt(new String(headers.lastHeader("x-retry-count").value(), StandardCharsets.UTF_8))
-                : 0;
-    }
 }

@@ -23,6 +23,8 @@ public class KafkaConsumerConfig {
     @Value("${spring.kafka.topic.mail-send-dlq}")
     private String mailSendDlqTopic;
 
+    private static final int MAX_RETRY_COUNT = 2;
+
     @Bean
     public DefaultErrorHandler kafkaErrorHandler() {
         DeadLetterPublishingRecoverer deadLetterPublishingRecoverer = new DeadLetterPublishingRecoverer(
@@ -31,7 +33,7 @@ public class KafkaConsumerConfig {
                     log.warn("Sending message to DLQ due to error: {}", ex.getMessage());
                     return new TopicPartition(mailSendDlqTopic, 0);
                 });
-        return new DefaultErrorHandler(deadLetterPublishingRecoverer, new FixedBackOff(0L, 0));
+        return new DefaultErrorHandler(deadLetterPublishingRecoverer, new FixedBackOff(1000L, MAX_RETRY_COUNT));
     }
 
     @Bean
