@@ -40,4 +40,8 @@ public class AttendanceDaily extends TimeStampedEntity {
     @Column(name = "checked_at", nullable = false)
     private LocalDateTime checkedAt;
 
+    public void updateDevLuck(String newDevLuckOverall) {
+        this.devLuckOverall = newDevLuckOverall;
+    }
+
 }

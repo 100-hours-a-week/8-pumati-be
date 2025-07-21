@@ -41,18 +41,41 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
     @Value("${pumati.attendance.daily.count}")
     private long attendanceDailyCount;
 
+    @Value("${fortune.service.error-message}")
+    private String fortuneServiceErrorMessage;
+
     @Override
     public AttendanceDailyResponseDTO register(Long memberId) {
-        if (existsToday(memberId)) {
-            LocalDate today = LocalDate.now();
-            LocalDateTime start = today.atStartOfDay();
-            LocalDateTime end = today.atTime(LocalTime.MAX);
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.atTime(LocalTime.MAX);
 
-            AttendanceDaily existing = attendanceDailyRepository
-                    .findByMemberIdAndCheckedAtBetween(memberId, start, end)
-                    .stream()
-                    .findFirst()
-                    .orElseThrow();
+        AttendanceDaily existing = attendanceDailyRepository
+                .findByMemberIdAndCheckedAtBetween(memberId, start, end)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        if (existing != null) {
+            if (fortuneServiceErrorMessage.equals(existing.getDevLuckOverall())) {
+                MemberResponseDTO memberDTO = memberService.get(memberId);
+                if (memberDTO == null) {
+                    throw new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND);
+                }
+
+                AiFortuneGenerateRequestDTO requestDTO = AiFortuneGenerateRequestDTO.builder()
+                        .nickname(memberDTO.getNickname())
+                        .course(memberDTO.getCourse())
+                        .date(LocalDate.now())
+                        .build();
+
+                DevLuckDTO devLuckDTO = aiFortuneService.generateDevLuck(requestDTO);
+
+                existing.updateDevLuck(devLuckDTO.getOverall());
+                AttendanceDaily updated = attendanceDailyRepository.save(existing);
+
+                return entityToDTO(updated);
+            }
 
             return entityToDTO(existing);
         }
