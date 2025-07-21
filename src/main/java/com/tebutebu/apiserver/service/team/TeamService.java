@@ -3,6 +3,7 @@ package com.tebutebu.apiserver.service.team;
 import com.tebutebu.apiserver.domain.Team;
 import com.tebutebu.apiserver.dto.ai.badge.request.BadgeImageModificationRequestDTO;
 import com.tebutebu.apiserver.dto.ai.badge.response.TeamBadgeStatPageResponseDTO;
+import com.tebutebu.apiserver.dto.ai.report.request.BadgeStatDTO;
 import com.tebutebu.apiserver.dto.team.request.TeamCreateRequestDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamListResponseDTO;
 import com.tebutebu.apiserver.dto.team.response.TeamResponseDTO;
@@ -24,6 +25,9 @@ public interface TeamService {
 
     @Transactional(readOnly = true)
     List<TeamListResponseDTO> getAllTeams();
+
+    @Transactional(readOnly = true)
+    List<BadgeStatDTO> getReceivedBadgeStats(Long teamId);
 
     Long register(TeamCreateRequestDTO dto);
 

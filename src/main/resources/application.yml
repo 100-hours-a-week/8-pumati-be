@@ -1,6 +1,8 @@
 spring:
   profiles:
     active: ${spring.profiles.active}
+  cache:
+    type: redis
 
 management:
   endpoints:
