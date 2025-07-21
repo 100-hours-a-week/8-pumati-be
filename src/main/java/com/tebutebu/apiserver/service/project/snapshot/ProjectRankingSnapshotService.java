@@ -15,29 +15,32 @@ public interface ProjectRankingSnapshotService {
 
     Long register();
 
+    @Transactional(readOnly = true)
     ProjectRankingSnapshotResponseDTO getLatestSnapshot();
 
     List<ProjectRankingSnapshotResponseDTO> getSnapshotsForLast7Days();
 
     default ProjectRankingSnapshotResponseDTO entityToDTO(ProjectRankingSnapshot snapshot) {
-        List<RankingItemDTO> items;
         try {
-            Map<String, List<RankingItemDTO>> wrapper = new ObjectMapper()
-                    .readValue(
-                            snapshot.getRankingData(),
-                            new TypeReference<>() {
-                            }
-                    );
-            items = wrapper.get("projects");
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
-        }
+            String raw = snapshot.getRankingData();
 
-        return ProjectRankingSnapshotResponseDTO.builder()
-                .id(snapshot.getId())
-                .data(items)
-                .requestedAt(snapshot.getRequestedAt())
-                .build();
+            if (raw.startsWith("\"") && raw.endsWith("\"")) {
+                raw = new ObjectMapper().readValue(raw, String.class);
+            }
+
+            Map<String, List<RankingItemDTO>> wrapper = new ObjectMapper().readValue(
+                    raw,
+                    new TypeReference<>() {}
+            );
+
+            return ProjectRankingSnapshotResponseDTO.builder()
+                    .id(snapshot.getId())
+                    .data(wrapper.getOrDefault("projects", List.of()))
+                    .requestedAt(snapshot.getRequestedAt())
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to deserialize ProjectRankingSnapshot JSON", e);
+        }
     }
 
 }

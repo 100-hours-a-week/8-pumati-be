@@ -51,6 +51,13 @@ spring:
         name: ${jwt.refresh.cookie.name}
         max-age: ${jwt.refresh.cookie.max-age}
 
+  data:
+    redis:
+      host: ${redis.host}
+      port: ${redis.port}
+      password: ${redis.password}
+      timeout: ${redis.timeout}
+
   mail:
     host: ${mail.host}
     port: ${mail.port}
@@ -80,7 +87,7 @@ spring:
         acks: all
     listener:
       ack-mode: manual
-      concurrency: 1
+      concurrency: ${kafka.listener.concurrency}
       missing-topics-fatal: false
       type: single
       poll-timeout: 3000
@@ -130,6 +137,13 @@ ranking:
   snapshot:
     duration:
       minutes: ${ranking.snapshot.duration.minutes}
+    cache:
+      key-prefix: ${ranking.snapshot.cache.key-prefix}
+      key-latest-suffix: ${ranking.snapshot.cache.key-latest-suffix}
+      key-generating-flag: ${ranking.snapshot.cache.key-generating-flag}
+      generating-ttl-seconds: ${ranking.snapshot.cache.generating-ttl-seconds}
+    lock:
+      key-register: ${ranking.snapshot.lock.key-register}
 
 default:
   profile:
@@ -163,6 +177,10 @@ scheduler:
   pumati-count:
     reset-cron: ${scheduler.pumati-count.reset-cron}
     reset-zone: ${scheduler.pumati-count.reset-zone}
+
+report:
+  weekly:
+    project-page-size: ${report.weekly.project.page-size}
 
 pumati:
   comment:
