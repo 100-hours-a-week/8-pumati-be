@@ -9,11 +9,14 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Headers;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
 
 @Log4j2
 @Component
@@ -33,7 +36,21 @@ public class MailSendConsumer {
     )
     public void consume(ConsumerRecord<String, String> record) {
         String rawMessage = record.value();
-        log.info("Received mail request from Kafka topic='{}': {}", record.topic(), rawMessage);
+        Headers headers = record.headers();
+
+        String retryCount = extractHeader(headers, "x-retry-count");
+        String retryStage = extractHeader(headers, "x-retry-stage");
+        String originTopic = extractHeader(headers, "x-origin-topic");
+
+        boolean fromDlq = "dlq".equalsIgnoreCase(retryStage);
+
+        log.info("Received mail request from Kafka topic='{}'{} [retryCount={}, retryStage={}, originTopic={}]",
+                record.topic(),
+                fromDlq ? " (from DLQ)" : "",
+                retryCount,
+                retryStage,
+                originTopic
+        );
 
         try {
             MailSendRequestDTO dto = objectMapper.readValue(rawMessage, MailSendRequestDTO.class);
@@ -55,6 +72,11 @@ public class MailSendConsumer {
         helper.setText(dto.getContent(), true);
 
         mailSender.send(message);
+    }
+
+    private String extractHeader(Headers headers, String key) {
+        if (headers == null || headers.lastHeader(key) == null) return null;
+        return new String(headers.lastHeader(key).value(), StandardCharsets.UTF_8);
     }
 
 }

@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.NoSuchElementException;
 
 @Service
 @Log4j2
@@ -41,34 +40,37 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
     @Value("${pumati.attendance.daily.count}")
     private long attendanceDailyCount;
 
+    @Value("${fortune.service.error-message}")
+    private String fortuneServiceErrorMessage;
+
     @Override
     public AttendanceDailyResponseDTO register(Long memberId) {
-        if (existsToday(memberId)) {
-            LocalDate today = LocalDate.now();
-            LocalDateTime start = today.atStartOfDay();
-            LocalDateTime end = today.atTime(LocalTime.MAX);
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.atTime(LocalTime.MAX);
 
-            AttendanceDaily existing = attendanceDailyRepository
-                    .findByMemberIdAndCheckedAtBetween(memberId, start, end)
-                    .stream()
-                    .findFirst()
-                    .orElseThrow();
-
-            return entityToDTO(existing);
-        }
+        AttendanceDaily existing = attendanceDailyRepository
+                .findByMemberIdAndCheckedAtBetween(memberId, start, end)
+                .stream()
+                .findFirst()
+                .orElse(null);
 
         MemberResponseDTO memberDTO = memberService.get(memberId);
         if (memberDTO == null) {
             throw new BusinessException(BusinessErrorCode.MEMBER_NOT_FOUND);
         }
 
-        AiFortuneGenerateRequestDTO requestDTO = AiFortuneGenerateRequestDTO.builder()
-                .nickname(memberDTO.getNickname())
-                .course(memberDTO.getCourse())
-                .date(LocalDate.now())
-                .build();
+        if (existing != null) {
+            if (existing.getDevLuckOverall().equals(fortuneServiceErrorMessage)) {
+                DevLuckDTO devLuckDTO = requestDevLuck(memberDTO);
+                existing.updateDevLuck(devLuckDTO.getOverall());
+                AttendanceDaily updated = attendanceDailyRepository.save(existing);
+                return entityToDTO(updated);
+            }
+            return entityToDTO(existing);
+        }
 
-        DevLuckDTO devLuckDTO = aiFortuneService.generateDevLuck(requestDTO);
+        DevLuckDTO devLuckDTO = requestDevLuck(memberDTO);
 
         AttendanceDaily attendance = AttendanceDaily.builder()
                 .member(Member.builder().id(memberId).build())
@@ -78,9 +80,7 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
 
         AttendanceDaily saved = attendanceDailyRepository.save(attendance);
         attendanceWeeklyService.recordDailyAttendance(memberId);
-
-        Long teamId = memberDTO.getTeamId();
-        teamService.incrementGivedPumatiBy(teamId, attendanceDailyCount);
+        teamService.incrementGivedPumatiBy(memberDTO.getTeamId(), attendanceDailyCount);
 
         return entityToDTO(saved);
     }
@@ -102,6 +102,16 @@ public class AttendanceDailyServiceImpl implements AttendanceDailyService {
                 .devLuckOverall(dto.getDevLuck().getOverall())
                 .checkedAt(dto.getCheckedAt())
                 .build();
+    }
+
+    private DevLuckDTO requestDevLuck(MemberResponseDTO memberDTO) {
+        AiFortuneGenerateRequestDTO requestDTO = AiFortuneGenerateRequestDTO.builder()
+                .nickname(memberDTO.getNickname())
+                .course(memberDTO.getCourse())
+                .date(LocalDate.now())
+                .build();
+
+        return aiFortuneService.generateDevLuck(requestDTO);
     }
 
 }
