@@ -49,8 +49,6 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final CursorPageFactory cursorPageFactory;
 
-    private final SubscriptionRepository subscriptionRepository;
-
     private final ObjectMapper objectMapper;
 
     private final RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate;
