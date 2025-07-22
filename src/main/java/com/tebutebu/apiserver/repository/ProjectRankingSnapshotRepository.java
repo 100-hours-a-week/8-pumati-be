@@ -9,8 +9,6 @@ import java.util.List;
 
 public interface ProjectRankingSnapshotRepository extends JpaRepository<ProjectRankingSnapshot, Long> {
 
-    Optional<ProjectRankingSnapshot> findTopByRequestedAtBeforeOrderByRequestedAtDesc(LocalDateTime time);
-
     Optional<ProjectRankingSnapshot> findTopByRequestedAtAfterOrderByRequestedAtDesc(LocalDateTime time);
 
     Optional<ProjectRankingSnapshot> findTopByOrderByRequestedAtDesc();

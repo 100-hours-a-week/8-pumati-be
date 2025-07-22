@@ -27,7 +27,7 @@ pipeline {
 
           if (env.BRANCH == 'main') {
             env.ENV_LABEL = 'prod'
-            env.BE_PRIVATE_IP = '10.1.2.71'
+            env.BE_PRIVATE_IP = '10.3.0.107'
           } else {
             echo "지원되지 않는 브랜치입니다: ${env.BRANCH}. 빌드를 중단합니다."
             currentBuild.result = 'NOT_BUILT'
@@ -103,7 +103,7 @@ pipeline {
             def secret = sh(
               script: """
                 set -e
-                /usr/local/bin/aws secretsmanager get-secret-value \
+                aws secretsmanager get-secret-value \
                   --secret-id ${env.PROJECT_NAME}-${env.ENV_LABEL}-${env.SERVICE_NAME}-.env \
                   --region ${env.AWS_REGION} \
                   --query SecretString \
@@ -257,20 +257,19 @@ ssh -o StrictHostKeyChecking=no -i \$KEY_FILE \$SSH_USER@${env.BE_PRIVATE_IP} <<
   sudo docker pull ${ECR_LATEST_IMAGE}
 
   echo "[단계2-4] 새 컨테이너 실행"
-sudo docker run -d \
-  --env-file ${env.ENV_PATH} \
-  -p ${env.HOST_PORT}:${env.CONTAINER_PORT} \
-  --network kafka-net \
-  --name ${env.CONTAINER_NAME} \
-  ${ECR_LATEST_IMAGE}
-
-  echo "[단계2-6] 사용하지 않는 이미지 정리"
-  sudo docker image prune -a -f
+  sudo docker run -d \\
+    --env-file ${env.ENV_PATH} \\
+    -p ${env.HOST_PORT}:${env.CONTAINER_PORT} \\
+    --name ${env.CONTAINER_NAME} \\
+    ${ECR_LATEST_IMAGE}
 
   echo "[단계2-5] .env 파일 삭제"
   rm -f ${env.ENV_PATH}
 
-  echo "[단계2-6] 배포 헬스 체크"
+  echo "[단계2-6] 사용하지 않는 이미지 정리"
+  sudo docker image prune -a -f
+
+  echo "[단계2-7] 배포 헬스 체크"
   sleep 30
   docker ps
   curl -i http://localhost:${env.HOST_PORT}/actuator/health

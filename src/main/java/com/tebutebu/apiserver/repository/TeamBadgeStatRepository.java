@@ -12,6 +12,10 @@ public interface TeamBadgeStatRepository extends JpaRepository<TeamBadgeStat, Lo
 
     Optional<TeamBadgeStat> findByGiverTeamIdAndReceiverTeamId(Long giverTeamId, Long receiverTeamId);
 
+    @Query("SELECT t.giverTeam.number, t.acquiredCount FROM TeamBadgeStat t " +
+            "WHERE t.receiverTeam.id = :receiverTeamId ORDER BY t.acquiredCount DESC")
+    List<Object[]> findReceivedBadgeStatsByReceiverTeamId(@Param("receiverTeamId") Long receiverTeamId);
+
     @Query("SELECT t.giverTeam.term, t.giverTeam.number, t.acquiredCount FROM TeamBadgeStat t " +
             "WHERE t.receiverTeam.id = :receiverTeamId ORDER BY t.acquiredCount DESC")
     List<Object[]> findReceivedBadgeStatsWithTermByReceiverTeamId(@Param("receiverTeamId") Long receiverTeamId);

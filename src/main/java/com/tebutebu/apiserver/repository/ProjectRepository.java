@@ -35,6 +35,6 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
             "ORDER BY t.givedPumatiCount DESC")
     List<Project> findAllForRanking();
 
-    boolean existsByCreatedAtAfter(LocalDateTime time);
+    boolean existsByCreatedAtAfter(LocalDateTime dateTime);
 
 }

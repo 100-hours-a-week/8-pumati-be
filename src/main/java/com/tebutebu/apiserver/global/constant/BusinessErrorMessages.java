@@ -17,12 +17,6 @@ public class BusinessErrorMessages {
     // Project
     public static final String PROJECT_NOT_FOUND = "projectNotFound";
     public static final String PROJECT_ALREADY_EXISTS = "projectAlreadyExists";
-    public static final String SNAPSHOT_LOCK_UNAVAILABLE = "snapshotLockUnavailable";
-    public static final String SNAPSHOT_SERIALIZATION_FAILED = "snapshotSerializationFailed";
-    public static final String SNAPSHOT_LOCK_INTERRUPTED = "snapshotLockInterrupted";
-    public static final String SNAPSHOT_NOT_FOUND = "snapshotNotFound";
-    public static final String SNAPSHOT_ALREADY_IN_PROGRESS = "snapshotAlreadyInProgress";
-    public static final String INVALID_SNAPSHOT_ID = "invalidSnapshotId";
 
     // Paging
     public static final String CONTEXT_ID_REQUIRED = "contextIdRequired";
@@ -40,8 +34,5 @@ public class BusinessErrorMessages {
     // Subscription
     public static final String SUBSCRIPTION_NOT_FOUND = "subscriptionNotFound";
     public static final String ALREADY_SUBSCRIBED = "alreadySubscribed";
-
-    // Mail
-    public static final String MAIL_SEND_PROCESSING_FAILED = "mailSendProcessingFailed";
 
 }

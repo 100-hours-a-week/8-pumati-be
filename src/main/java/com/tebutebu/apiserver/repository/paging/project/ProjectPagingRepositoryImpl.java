@@ -10,11 +10,8 @@ import com.tebutebu.apiserver.domain.QProject;
 import com.tebutebu.apiserver.domain.QSubscription;
 import com.tebutebu.apiserver.domain.Subscription;
 import com.tebutebu.apiserver.dto.project.response.ProjectPageResponseDTO;
-import com.tebutebu.apiserver.dto.project.snapshot.response.ProjectRankingSnapshotResponseDTO;
 import com.tebutebu.apiserver.dto.project.snapshot.response.RankingItemDTO;
 import com.tebutebu.apiserver.dto.tag.response.TagResponseDTO;
-import com.tebutebu.apiserver.global.errorcode.BusinessErrorCode;
-import com.tebutebu.apiserver.global.exception.BusinessException;
 import com.tebutebu.apiserver.pagination.dto.request.ContextCursorPageRequestDTO;
 import com.tebutebu.apiserver.pagination.dto.request.CursorTimePageRequestDTO;
 import com.tebutebu.apiserver.pagination.factory.CursorPageSpec;
@@ -25,16 +22,11 @@ import com.tebutebu.apiserver.repository.ProjectRankingSnapshotRepository;
 import com.tebutebu.apiserver.repository.ProjectRepository;
 import com.tebutebu.apiserver.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Log4j2
 @Repository
 @RequiredArgsConstructor
 public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
@@ -45,58 +37,20 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
     private final CommentRepository commentRepository;
 
-    private final SubscriptionRepository subscriptionRepository;
-
     private final CursorPageFactory cursorPageFactory;
+
+    private final SubscriptionRepository subscriptionRepository;
 
     private final ObjectMapper objectMapper;
 
-    private final RedisTemplate<String, ProjectRankingSnapshotResponseDTO> snapshotRedisTemplate;
-
     private final QProject qProject = QProject.project;
-
-    @Value("${ranking.snapshot.cache.key-prefix}")
-    private String snapshotCacheKeyPrefix;
-
-    @Value("${ranking.snapshot.duration.minutes:5}")
-    private long snapshotDurationMinutes;
 
     @Override
     public CursorPage<ProjectPageResponseDTO> findByRankingCursor(ContextCursorPageRequestDTO req) {
-        Long snapshotId = req.getContextId();
-        String cacheKey = snapshotCacheKeyPrefix + snapshotId;
+        ProjectRankingSnapshot snapshot = snapshotRepository.findById(req.getContextId())
+                .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
 
-        Object rawCachedValue = snapshotRedisTemplate.opsForValue().get(cacheKey);
-        ProjectRankingSnapshotResponseDTO cachedSnapshot = null;
-
-        if (rawCachedValue != null) {
-            try {
-                cachedSnapshot = objectMapper.convertValue(
-                        objectMapper.convertValue(rawCachedValue, Object.class),
-                        new TypeReference<>() {
-                        }
-                );
-            } catch (IllegalArgumentException e) {
-                log.warn("Failed to convert cached snapshot. key={}, class={}", cacheKey, rawCachedValue.getClass(), e);
-            }
-        }
-
-        List<RankingItemDTO> dtoList;
-        if (cachedSnapshot != null) {
-            dtoList = cachedSnapshot.getData();
-        } else {
-            ProjectRankingSnapshot snapshot = snapshotRepository.findById(snapshotId)
-                    .orElseThrow(() -> new NoSuchElementException("snapshotNotFound"));
-            dtoList = parseSnapshotJson(snapshot);
-
-            ProjectRankingSnapshotResponseDTO dto = ProjectRankingSnapshotResponseDTO.builder()
-                    .id(snapshotId)
-                    .data(dtoList)
-                    .build();
-
-            snapshotRedisTemplate.opsForValue().set(cacheKey, dto, Duration.ofMinutes(snapshotDurationMinutes));
-        }
-
+        List<RankingItemDTO> dtoList = parseSnapshotJson(snapshot);
         int start = calculateStartIndex(dtoList, req.getCursorId());
         int end = Math.min(start + req.getPageSize(), dtoList.size());
 
@@ -115,7 +69,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
 
         List<ProjectPageResponseDTO> projectPageResponseDtoList = projects.stream()
                 .map(proj -> toPageResponseDTO(proj, commentCountMap, subscribedProjectIds))
-                .toList();
+                .collect(Collectors.toList());
 
         boolean hasNext = end < dtoList.size();
         Long nextCursorId = hasNext ? dtoList.get(end - 1).getProjectId() : null;
@@ -219,8 +173,7 @@ public class ProjectPagingRepositoryImpl implements ProjectPagingRepository {
             );
             return map.get("projects");
         } catch (Exception e) {
-            log.error("Failed to parse snapshot JSON for snapshotId={}", snapshot.getId(), e);
-            throw new BusinessException(BusinessErrorCode.SNAPSHOT_SERIALIZATION_FAILED, e);
+            throw new RuntimeException(e.getMessage());
         }
     }
 

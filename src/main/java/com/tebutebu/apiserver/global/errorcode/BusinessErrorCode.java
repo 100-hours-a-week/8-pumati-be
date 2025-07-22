@@ -19,12 +19,6 @@ public enum BusinessErrorCode implements ErrorCode {
     // Project
     PROJECT_NOT_FOUND(BusinessErrorMessages.PROJECT_NOT_FOUND, HttpStatus.NOT_FOUND),
     PROJECT_ALREADY_EXISTS(BusinessErrorMessages.PROJECT_ALREADY_EXISTS, HttpStatus.CONFLICT),
-    SNAPSHOT_LOCK_UNAVAILABLE(BusinessErrorMessages.SNAPSHOT_LOCK_UNAVAILABLE, HttpStatus.CONFLICT),
-    SNAPSHOT_SERIALIZATION_FAILED(BusinessErrorMessages.SNAPSHOT_SERIALIZATION_FAILED, HttpStatus.INTERNAL_SERVER_ERROR),
-    SNAPSHOT_LOCK_INTERRUPTED(BusinessErrorMessages.SNAPSHOT_LOCK_INTERRUPTED, HttpStatus.INTERNAL_SERVER_ERROR),
-    SNAPSHOT_NOT_FOUND(BusinessErrorMessages.SNAPSHOT_NOT_FOUND, HttpStatus.NOT_FOUND),
-    SNAPSHOT_ALREADY_IN_PROGRESS(BusinessErrorMessages.SNAPSHOT_ALREADY_IN_PROGRESS, HttpStatus.BAD_REQUEST),
-    INVALID_SNAPSHOT_ID(BusinessErrorMessages.INVALID_SNAPSHOT_ID, HttpStatus.INTERNAL_SERVER_ERROR),
 
     // Paging
     CONTEXT_ID_REQUIRED(BusinessErrorMessages.CONTEXT_ID_REQUIRED, HttpStatus.BAD_REQUEST),
@@ -41,10 +35,7 @@ public enum BusinessErrorCode implements ErrorCode {
 
     // Subscription
     SUBSCRIPTION_NOT_FOUND(BusinessErrorMessages.SUBSCRIPTION_NOT_FOUND, HttpStatus.NOT_FOUND),
-    ALREADY_SUBSCRIBED(BusinessErrorMessages.ALREADY_SUBSCRIBED, HttpStatus.CONFLICT),
-
-    // Mail
-    MAIL_SEND_PROCESSING_FAILED(BusinessErrorMessages.MAIL_SEND_PROCESSING_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
+    ALREADY_SUBSCRIBED(BusinessErrorMessages.ALREADY_SUBSCRIBED, HttpStatus.CONFLICT);
 
     private final String message;
     private final HttpStatus status;

@@ -51,13 +51,6 @@ spring:
         name: refreshToken
         max-age: 86400
 
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password:
-      timeout: 5000
-
   mail:
     host: smtp.gmail.com
     port: 587
@@ -90,7 +83,7 @@ spring:
       mail-send-dlq: test-topic-mail-send-dlq
     listener:
       ack-mode: manual
-      concurrency: 3
+      concurrency: 1
       missing-topics-fatal: false
       type: single
       poll-timeout: 3000
@@ -136,13 +129,6 @@ ranking:
   snapshot:
     duration:
       minutes: 5
-    cache:
-      key-prefix: "ranking:snapshot:"
-      key-latest-suffix: latest:id
-      key-generating-flag: snapshot:generating
-      generating-ttl-seconds: 60
-    lock:
-      key-register: lock:project:snapshot:register
 
 default:
   profile:
@@ -179,10 +165,6 @@ scheduler:
   weekly-report:
     send-cron: "0 0 9 * * MON"
     send-zone: "Asia/Seoul"
-
-report:
-  weekly:
-    project-page-size: 50
 
 pumati:
   comment:
