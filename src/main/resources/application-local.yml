@@ -71,20 +71,28 @@ spring:
             enable: ${mail.smtp.starttls.enable:true}
 
   kafka:
-    bootstrap-servers: ${kafka.advertised.host}:${kafka.port}
+    bootstrap-servers: ${kafka.bootstrap.servers}
     consumer:
       group-id: ${kafka.consumer.group.id}
       auto-offset-reset: earliest
       enable-auto-commit: false
       properties:
-        spring:
-          json:
-            trusted:
-              packages: "*"
+        spring.json.trusted.packages: "*"
+        # 안정성 보강
+        session.timeout.ms: 15000
+        heartbeat.interval.ms: 5000
+        max.poll.interval.ms: 300000
+
     producer:
+      acks: all
       properties:
-        retries: 3
-        acks: all
+        retries: 10
+        # 중복 방지/정확성 향상
+        enable.idempotence: true
+        # 타임아웃 튜닝
+        request.timeout.ms: 30000
+        delivery.timeout.ms: 120000
+        max.in.flight.requests.per.connection: 5
     listener:
       ack-mode: manual
       concurrency: ${kafka.listener.concurrency}
